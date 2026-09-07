@@ -8,10 +8,10 @@ from typing import Any, Iterator
 from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify
 
-
 BBox = tuple[float, float, float, float]
 
 CSV_FIELDS = [
+    "uid",
     "page_index",
     "chunk_index",
     "data_block_index",
@@ -96,8 +96,7 @@ def parse_page(raw_page: dict[str, Any]) -> Page:
 
     page_bbox = parse_bbox(raw_page["page_box"])
     chunk_bboxes = [
-        normalize_bbox(parse_bbox(chunk["bbox"]), page_bbox)
-        for chunk in raw_chunks
+        normalize_bbox(parse_bbox(chunk["bbox"]), page_bbox) for chunk in raw_chunks
     ]
 
     raw_soup = BeautifulSoup(str(raw_page.get("raw", "")), "html.parser")
@@ -106,8 +105,10 @@ def parse_page(raw_page: dict[str, Any]) -> Page:
     map_by_order = len(block_elements) == len(raw_chunks)
     for index, element in enumerate(block_elements, start=1):
         block_bbox = parse_bbox(get_required_attribute(element, "data-bbox"))
-        chunk_index = index - 1 if map_by_order else find_containing_chunk(
-            block_bbox, chunk_bboxes
+        chunk_index = (
+            index - 1
+            if map_by_order
+            else find_containing_chunk(block_bbox, chunk_bboxes)
         )
         data_blocks.append(
             DataBlock(
@@ -138,13 +139,60 @@ def load_document(json_path: Path) -> list[Page]:
     return pages
 
 
-def markdown_lines(page: Page) -> Iterator[dict[str, object]]:
-    """Yield one CSV record for each Markdown line produced from a data block."""
+def generate_line_uid(
+    page_index: int, block_index: int, line_index: int, sep="."
+) -> str:
+    """Return a unique identifier for a Markdown line in a data block."""
+    return sep.join(str(i) for i in (page_index, block_index, line_index))
+
+
+def table_cell_lines(table: Tag) -> Iterator[str]:
+    """Yield table cells in visual reading order without Markdown table syntax."""
+    for row in table.find_all("tr"):
+        if row.find_parent("table") is not table:
+            continue
+        for cell in row.find_all(["th", "td"], recursive=False):
+            markdown = markdownify(cell.decode_contents(), heading_style="ATX")
+            yield " ".join(markdown.split())
+
+
+def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
+    """Yield normal Markdown lines and table cells, retaining document order."""
+    soup = BeautifulSoup(raw_html, "html.parser")
+    container = soup.find("div")
+    if container is None:
+        return
+
+    non_table_fragments: list[str] = []
+
+    def flush_non_table_fragments() -> Iterator[str]:
+        if not non_table_fragments:
+            return
+        markdown = markdownify("".join(non_table_fragments), heading_style="ATX")
+        non_table_fragments.clear()
+        yield from markdown.splitlines()
+
+    for child in container.contents:
+        if isinstance(child, Tag) and child.name == "table":
+            yield from flush_non_table_fragments()
+            yield from table_cell_lines(child)
+        else:
+            non_table_fragments.append(str(child))
+    yield from flush_non_table_fragments()
+
+
+def markdown_lines(page: Page, no_tables: bool = False) -> Iterator[dict[str, object]]:
+    """Yield one CSV record per Markdown line or, with no-tables, per table cell."""
     line_index = 0
     for block in page.data_blocks:
-        markdown = markdownify(block.raw_html, heading_style="ATX")
-        for line in markdown.splitlines():
+        if no_tables:
+            lines = no_table_markdown_lines(block.raw_html)
+        else:
+            markdown = markdownify(block.raw_html, heading_style="ATX")
+            lines = iter(markdown.splitlines())
+        for line in lines:
             yield {
+                "uid": generate_line_uid(page.index, block.index, line_index),
                 "page_index": page.index,
                 "chunk_index": block.chunk_index,
                 "data_block_index": block.index,
@@ -156,25 +204,36 @@ def markdown_lines(page: Page) -> Iterator[dict[str, object]]:
             line_index += 1
 
 
-def process_json_to_csv(json_path: str | Path, csv_path: str | Path) -> None:
-    """Convert a Datalab JSON document to Markdown lines with source provenance."""
+def process_json_to_csv(
+    json_path: str | Path, csv_path: str | Path, no_tables: bool = False
+) -> None:
+    """Convert a Datalab JSON document to CSV, optionally exploding tables."""
     pages = load_document(Path(json_path))
 
     with Path(csv_path).open("w", newline="", encoding="utf-8") as output_file:
         writer = csv.DictWriter(output_file, fieldnames=CSV_FIELDS)
         writer.writeheader()
         for page in pages:
-            writer.writerows(markdown_lines(page))
+            writer.writerows(markdown_lines(page, no_tables=no_tables))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Export Markdown lines with their Datalab chunk and data-block provenance."
     )
-    parser.add_argument("json_path", nargs="?", default="delete_me_asap.json")
-    parser.add_argument("csv_path", nargs="?", default="output.csv")
+    parser.add_argument(
+        "json_path", help="Path to the input JSON file (Datalab output)"
+    )
+    parser.add_argument(
+        "csv_path", help="Path to the output CSV file (Markdown lines with provenance)"
+    )
+    parser.add_argument(
+        "--notables",
+        action="store_true",
+        help="Exporte chaque cellule de tableau séparément, sans syntaxe Markdown de tableau.",
+    )
     args = parser.parse_args()
-    process_json_to_csv(args.json_path, args.csv_path)
+    process_json_to_csv(args.json_path, args.csv_path, no_tables=args.notables)
 
 
 if __name__ == "__main__":
