@@ -1,5 +1,13 @@
+"""Annotateur CRF par apprentissage actif pour des lignes Markdown OCRisées.
+
+Lit le CSV produit par tabulate_chandra_output.py, propose des blocs de
+lignes à un humain, réentraîne un CRF après chaque lot, et exporte les
+prédictions avec leur provenance.
+"""
+
 import argparse
 import csv
+import enum
 import hashlib
 import io
 import json
@@ -11,6 +19,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
 import pycrfsuite
 from rich.console import Console
 from rich.panel import Panel
@@ -34,7 +43,7 @@ CLASSES = ["ENTRY_BEGIN", "ENTRY_INSIDE", "TITLE", "OUT_OF_SCOPE"]
 
 
 # ----------------------------------------------------------------------
-# 1. Extraction des Features & Heuristique Métier
+# 1. Extraction des features & heuristique métier
 # ----------------------------------------------------------------------
 def get_shape(token: str) -> str:
     if token in (",", ".", "—", "-", "_"):
@@ -130,7 +139,7 @@ def extract_features(
 @dataclass(frozen=True)
 class SourceLine:
     """Une ligne Markdown annotable et sa provenance dans le CSV Chandra."""
-
+    uid: str
     source_row: int
     text: str
     page_index: str = ""
@@ -167,6 +176,7 @@ def load_csv_lines(input_path: Path) -> tuple[list[SourceLine], str]:
         records.append(
             SourceLine(
                 source_row=source_row,
+                uid=row["uid"],
                 text=text,
                 page_index=row["page_index"] or "",
                 chunk_index=row["chunk_index"] or "",
@@ -182,6 +192,51 @@ def load_csv_lines(input_path: Path) -> tuple[list[SourceLine], str]:
 # ----------------------------------------------------------------------
 # 2. Moteur CRF Active Learning
 # ----------------------------------------------------------------------
+def _iter_labeled_segments(features: list[dict[str, str]], labels: list[str | None]):
+    """Groupe les (feature, label) en segments contigus entièrement labellisés."""
+    segment_features: list[dict[str, str]] = []
+    segment_labels: list[str] = []
+    for feature, label in zip(features, labels):
+        if label is None:
+            if segment_labels:
+                yield segment_features, segment_labels
+                segment_features, segment_labels = [], []
+            continue
+        segment_features.append(feature)
+        segment_labels.append(label)
+    if segment_labels:
+        yield segment_features, segment_labels
+
+
+def _train_tagger(
+    features: list[dict[str, str]], labels: list[str | None], model_path: str
+) -> Any | None:
+    """Entraîne un tagger CRF sur les segments annotés, ou None si trop peu de données."""
+    if len({label for label in labels if label is not None}) < 2:
+        return None
+
+    # python-crfsuite ne publie pas de stubs complets pour Pylance.
+    trainer: Any = getattr(pycrfsuite, "Trainer")(verbose=False)
+    trainer.set_params(
+        {
+            "c1": 0.1,
+            "c2": 0.01,
+            "max_iterations": 50,
+            "feature.possible_transitions": True,
+        }
+    )
+    for segment_features, segment_labels in _iter_labeled_segments(features, labels):
+        trainer.append(segment_features, segment_labels)
+    trainer.train(model_path)
+
+    tagger: Any = getattr(pycrfsuite, "Tagger")()
+    tagger.open(model_path)
+    # `tag()` doit recevoir la séquence. Appeler `tag()` sans argument après
+    # `set()` corrompt les marginales dans python-crfsuite.
+    tagger.set(features)
+    return tagger
+
+
 class ActiveCRF:
 
     def __init__(
@@ -207,7 +262,6 @@ class ActiveCRF:
         self.model_path = os.path.join(
             tempfile.gettempdir(), f"crf_{uuid.uuid4().hex}.crfsuite"
         )
-        # python-crfsuite ne publie pas de stubs complets pour Pylance.
         self.tagger: Any | None = None
         self.known_classes: set[str] = set()
 
@@ -229,7 +283,9 @@ class ActiveCRF:
         }
         if invalid_labels:
             raise ValueError(f"Labels de session invalides : {sorted(invalid_labels)}")
-        annotated_indices = {index for index, label in enumerate(labels) if label is not None}
+        annotated_indices = {
+            index for index, label in enumerate(labels) if label is not None
+        }
         if annotation_history is None:
             annotation_history = sorted(annotated_indices)
         if (
@@ -267,42 +323,10 @@ class ActiveCRF:
         self.retrain()
         return index
 
-    def retrain(self):
+    def retrain(self) -> None:
         """Entraîne le CRF sur les segments contigus validés par un humain."""
-        self.tagger = None
         self.known_classes = {label for label in self.labels if label is not None}
-        if len(self.known_classes) < 2:
-            return
-
-        trainer: Any = getattr(pycrfsuite, "Trainer")(verbose=False)
-        trainer.set_params(
-            {
-                "c1": 0.1,
-                "c2": 0.01,
-                "max_iterations": 50,
-                "feature.possible_transitions": True,
-            }
-        )
-
-        segment_features: list[dict[str, str]] = []
-        segment_labels: list[str] = []
-        for feature, label in zip(self.features, self.labels):
-            if label is None:
-                if segment_labels:
-                    trainer.append(segment_features, segment_labels)
-                    segment_features = []
-                    segment_labels = []
-                continue
-            segment_features.append(feature)
-            segment_labels.append(label)
-        if segment_labels:
-            trainer.append(segment_features, segment_labels)
-        trainer.train(self.model_path)
-
-        tagger: Any = getattr(pycrfsuite, "Tagger")()
-        tagger.open(self.model_path)
-        tagger.set(self.features)
-        self.tagger = tagger
+        self.tagger = _train_tagger(self.features, self.labels, self.model_path)
 
     def _next_exploration_index(self, unannotated: list[int]) -> int:
         """Échantillonne des strates heuristiques sous-représentées au démarrage."""
@@ -369,37 +393,46 @@ class ActiveCRF:
             return {label: 0.0 for label in CLASSES}
         return {label: scores.get(label, 0.0) / total for label in CLASSES}
 
-    def export_csv(self, output_path: str):
-        # `tag()` doit recevoir la séquence. Appeler `tag()` sans argument après
-        # `set()` corrompt les marginales dans python-crfsuite.
-        preds = (
+    def _provenance_row(self, index: int) -> dict[str, str]:
+        """Colonnes de provenance Chandra recopiées telles quelles dans l'export."""
+        record = self.records[index]
+        return {
+            "uid": record.uid,
+            "page_index": record.page_index,
+            "chunk_index": record.chunk_index,
+            "data_block_index": record.data_block_index,
+            "line_index": record.line_index,
+            "data_block_bbox": record.data_block_bbox,
+            "data_block_label": record.data_block_label,
+            "markdown": self.lines[index],
+        }
+
+    def export_csv(self, output_path: str) -> None:
+        predictions = (
             self.tagger.tag(self.features) if self.tagger else [None] * len(self.lines)
         )
 
         with open(output_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=OUTPUT_CSV_FIELDS)
             writer.writeheader()
-            for i, line in enumerate(self.lines):
-                human_label = self.labels[i]
-                label = human_label or preds[i] or ""
+            for index in range(len(self.lines)):
+                human_label = self.labels[index]
+                model_label = predictions[index]
+                prediction = human_label or model_label or ""
                 provenance = (
                     "human"
                     if human_label
-                    else ("model" if preds[i] else "unclassified")
+                    else ("model" if model_label else "unclassified")
                 )
-                marginals = self.get_marginals(i)
-                probability = 1.0 if human_label else marginals.get(label, 0.0)
-                record = self.records[i]
+                probability = (
+                    1.0
+                    if human_label
+                    else self.get_marginals(index).get(prediction, 0.0)
+                )
                 writer.writerow(
                     {
-                        "page_index": record.page_index,
-                        "chunk_index": record.chunk_index,
-                        "data_block_index": record.data_block_index,
-                        "line_index": record.line_index,
-                        "data_block_bbox": record.data_block_bbox,
-                        "data_block_label": record.data_block_label,
-                        "markdown": line,
-                        "prediction": label,
+                        **self._provenance_row(index),
+                        "prediction": prediction,
                         "provenance": provenance,
                         "probability": f"{probability:.4f}",
                     }
@@ -414,9 +447,7 @@ class ActiveCRF:
 # ----------------------------------------------------------------------
 # 3. Dashboard Rich Debug
 # ----------------------------------------------------------------------
-def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int]):
-    console.clear()
-
+def _progress_panel(crf: ActiveCRF) -> Panel:
     annotated_cnt = crf.annotated_count
     total_cnt = len(crf.lines)
 
@@ -427,94 +458,118 @@ def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int])
         "Avancement :",
         f"{annotated_cnt}/{total_cnt} ({annotated_cnt/total_cnt*100:.1f}%)",
     )
-
-    console.print(
-        Panel(
-            metrics_table,
-            title="📈 [bold yellow]ÉTAT DE L'ANNOTATION CRF[/bold yellow]",
-        )
+    return Panel(
+        metrics_table,
+        title="📈 [bold yellow]ÉTAT DE L'ANNOTATION CRF[/bold yellow]",
     )
 
-    if crf.tagger is not None:
-        info = crf.tagger.info()
-        trans_table = Table(
-            title="🔗 Transitions apprises dans les blocs annotés",
-            header_style="bold magenta",
-        )
-        trans_table.add_column("Transition (Ligne N-1 ➔ Ligne N)")
-        trans_table.add_column("Poids CRF", justify="right")
 
-        sorted_trans = sorted(
-            info.transitions.items(), key=lambda x: x[1], reverse=True
-        )
-        for (from_l, to_l), w in sorted_trans[:5]:
-            color = "green" if w > 0 else "red"
-            trans_table.add_row(f"{from_l} ➔ {to_l}", f"[{color}]{w:+.3f}[/]")
+def _transitions_table(crf: ActiveCRF) -> Table | None:
+    if crf.tagger is None:
+        return None
 
-        console.print(trans_table)
+    table = Table(
+        title="🔗 Transitions apprises dans les blocs annotés",
+        header_style="bold magenta",
+    )
+    table.add_column("Transition (Ligne N-1 ➔ Ligne N)")
+    table.add_column("Poids CRF", justify="right")
 
-    probs = crf.get_marginals(target_idx)
+    sorted_transitions = sorted(
+        crf.tagger.info().transitions.items(), key=lambda item: item[1], reverse=True
+    )
+    for (from_label, to_label), weight in sorted_transitions[:5]:
+        color = "green" if weight > 0 else "red"
+        table.add_row(f"{from_label} ➔ {to_label}", f"[{color}]{weight:+.3f}[/]")
+    return table
+
+
+def _marginals_table(crf: ActiveCRF, target_idx: int) -> Table:
     target_record = crf.records[target_idx]
-    prob_table = Table(
+    table = Table(
         title=(
-            "🎯 Probas marginales "
-            f"[CSV {target_record.source_row}, page {target_record.page_index}, "
-            f"bloc {target_record.data_block_index}, ligne {target_record.line_index}]"
+            # Print the text first 20 characters of the line tex for context
+            f"{target_record.text[:20]}... "
+            f"[p. {target_record.page_index} l. {target_record.line_index}]"
         ),
         header_style="bold green",
     )
-    prob_table.add_column("Classe")
-    prob_table.add_column("Probabilité", justify="right")
+    table.add_column("Classe")
+    table.add_column("Probabilité", justify="right")
 
-    for c, p in sorted(probs.items(), key=lambda x: x[1], reverse=True):
-        support = "" if c in crf.known_classes else " (classe non observée)"
-        prob_table.add_row(c, f"{p*100:.1f}%{support}")
+    probs = crf.get_marginals(target_idx)
+    for label, proba in sorted(probs.items(), key=lambda item: item[1], reverse=True):
+        table.add_row(label, f"{proba*100:.1f}%")
+    return table
 
-    console.print(prob_table)
 
-    block_table = Table(
-        title="📝 Bloc à annoter",
-        header_style="bold yellow",
-    )
-    block_table.add_column("Source", justify="right")
-    block_table.add_column("Texte")
-    for index in block_indices:
-        record = crf.records[index]
-        marker = " → cible" if index == target_idx else ""
-        block_table.add_row(
-            f"CSV {record.source_row} · p.{record.page_index} · "
-            f"b.{record.data_block_index} · l.{record.line_index} · "
-            f"OCR={normalize_ocr_label(record.data_block_label)}{marker}",
-            crf.lines[index],
-        )
-    console.print(block_table)
+# def _block_table(crf: ActiveCRF, target_idx: int, block_indices: list[int]) -> Table:
+#     table = Table(title="📝 Bloc à annoter", header_style="bold yellow")
+#     table.add_column("Source", justify="right")
+#     table.add_column("Texte")
+#     for index in block_indices:
+#         record = crf.records[index]
+#         marker = " → cible" if index == target_idx else ""
+#         table.add_row(
+#             f"CSV {record.source_row} · p.{record.page_index} · "
+#             f"b.{record.data_block_index} · l.{record.line_index} · "
+#             f"OCR={normalize_ocr_label(record.data_block_label)}{marker}",
+#             crf.lines[index],
+#         )
+#     return table
 
-    feat_table = Table(
+
+def _features_table(crf: ActiveCRF, target_idx: int) -> Table:
+    target_record = crf.records[target_idx]
+    table = Table(
         title=f"🔍 Features actives [CSV {target_record.source_row}]",
         header_style="bold cyan",
         padding=(0, 1),
     )
-    feat_table.add_column("Feature / Transition Interne", style="yellow")
-    feat_table.add_column("Valeur", style="green")
+    table.add_column("Feature / Transition Interne", style="yellow")
+    table.add_column("Valeur", style="green")
+    for key, value in crf.features[target_idx].items():
+        if value not in ("False", "0"):
+            table.add_row(key, str(value))
+    return table
 
-    for k, v in crf.features[target_idx].items():
-        if v not in ("False", "0"):
-            feat_table.add_row(k, str(v))
 
-    console.print(feat_table)
-
-    console.print("\n[bold yellow]📄 Contexte du document :[/bold yellow]")
+def _print_document_context(
+    crf: ActiveCRF, target_idx: int, block_indices: list[int]
+) -> None:
     start = max(0, target_idx - 2)
     end = min(len(crf.lines), target_idx + 3)
-
-    for i in range(start, end):
-        prefix = "▶ " if i in block_indices else "  "
-        lbl_str = f"[{crf.labels[i]}]" if crf.labels[i] else "[NO_LABEL]"
-        style = "bold reverse green" if i in block_indices else "dim"
+    for index in range(start, end):
+        prefix = "▷ " if index in block_indices else "  "
+        # label = f"[{crf.labels[index]}]" if crf.labels[index] else "[NO_LABEL]"
+        label = f"[{crf.records[index].data_block_label}]"
+        style = "bold reverse green" if index in block_indices else "dim"
         console.print(
-            f"{prefix}[CSV {crf.source_row_numbers[i]:4d}] {lbl_str:15} {crf.lines[i]}",
+            f"[{prefix}{crf.source_row_numbers[index]:4d}] {label:15} "
+            f"{crf.lines[index]}",
             style=style,
         )
+
+
+def display_dashboard(
+    crf: ActiveCRF, target_idx: int, block_indices: list[int]
+) -> None:
+    console.clear()
+    console.print(_progress_panel(crf))
+
+    transitions = _transitions_table(crf)
+    if transitions is not None:
+        console.print(transitions)
+
+    for index in block_indices:
+        console.print(_marginals_table(crf, index))
+
+    # console.print(_marginals_table(crf, target_idx))
+    # console.print(_block_table(crf, target_idx, block_indices))
+    # console.print(_features_table(crf, target_idx))
+
+    console.print("\n[bold yellow]📄 Contexte du document :[/bold yellow]")
+    _print_document_context(crf, target_idx, block_indices)
 
 
 # ----------------------------------------------------------------------
@@ -599,6 +654,96 @@ def save_session(session_path: Path, document_hash: str, crf: ActiveCRF) -> None
     )
 
 
+LABEL_KEYS = {
+    "1": "ENTRY_BEGIN",
+    "2": "ENTRY_INSIDE",
+    "3": "TITLE",
+    "0": "OUT_OF_SCOPE",
+}
+
+
+class _Control(enum.Enum):
+    """Signaux de contrôle renvoyés par les prompts d'annotation interactive."""
+
+    STOP = enum.auto()
+    UNDO = enum.auto()
+
+
+def _prompt_label(crf: ActiveCRF, index: int) -> str | _Control:
+    """Demande un label humain pour une ligne ; peut renvoyer un signal STOP/UNDO."""
+    console.print(
+        f"\n[bold]Label CSV {crf.source_row_numbers[index]} ?[/bold] "
+        "(1=ENTRY_BEGIN, 2=ENTRY_INSIDE, 3=TITLE, 0=OUT_OF_SCOPE, "
+        "u=undo, q=predict and stop)",
+        end="",
+    )
+    choice = input().strip().lower()
+    if choice == "q":
+        return _Control.STOP
+    if choice == "u":
+        return _Control.UNDO
+    if choice not in LABEL_KEYS:
+        console.print("[yellow]Choix invalide : bloc non enregistré.[/yellow]")
+        return _Control.STOP
+    return LABEL_KEYS[choice]
+
+
+def _collect_block_labels(
+    crf: ActiveCRF, block_indices: list[int]
+) -> dict[int, str] | _Control:
+    """Recueille les labels humains d'un bloc, ou un signal STOP/UNDO de l'utilisateur."""
+    pending_labels: dict[int, str] = {}
+    for index in block_indices:
+        label = _prompt_label(crf, index)
+        if isinstance(label, _Control):
+            return label
+        pending_labels[index] = label
+    return pending_labels
+
+
+def annotate_interactively(
+    crf: ActiveCRF, session_path: Path, document_hash: str
+) -> None:
+    """Boucle d'annotation humaine jusqu'à épuisement des lignes ou arrêt manuel."""
+    reoffer_index: int | None = None
+    while True:
+        selection = crf.next_block(preferred_index=reoffer_index)
+        if selection is None:
+            console.print(
+                "\n[bold green]🎉 Annotation terminée pour tout le document ![/bold green]"
+            )
+            return
+        target_idx, block_indices = selection
+
+        display_dashboard(crf, target_idx, block_indices)
+        if len(block_indices) == 1:
+            console.print(
+                "\n[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]"
+            )
+
+        outcome = _collect_block_labels(crf, block_indices)
+
+        if outcome is _Control.STOP:
+            return
+        if outcome is _Control.UNDO:
+            reoffer_index = crf.undo_last_label()
+            if reoffer_index is None:
+                console.print(
+                    "[yellow]Aucune classification humaine à annuler.[/yellow]"
+                )
+            else:
+                save_session(session_path, document_hash, crf)
+                console.print(
+                    "[green]Dernière classification annulée ; "
+                    "la ligne va être reproposée.[/green]"
+                )
+            continue
+
+        reoffer_index = None
+        crf.set_labels(outcome)
+        save_session(session_path, document_hash, crf)
+
+
 def main():
     args = parse_args()
 
@@ -639,70 +784,8 @@ def main():
         except (json.JSONDecodeError, ValueError) as error:
             console.print(f"[bold red]Erreur de session :[/bold red] {error}")
             return
-    mapping = {
-        "1": "ENTRY_BEGIN",
-        "2": "ENTRY_INSIDE",
-        "3": "TITLE",
-        "0": "OUT_OF_SCOPE",
-    }
 
-    reoffer_index: int | None = None
-    while True:
-        selection = crf.next_block(preferred_index=reoffer_index)
-        reoffer_index = None
-        if selection is None:
-            console.print(
-                "\n[bold green]🎉 Annotation terminée pour tout le document ![/bold green]"
-            )
-            break
-        target_idx, block_indices = selection
-
-        display_dashboard(crf, target_idx, block_indices)
-        if len(block_indices) == 1:
-            console.print(
-                "\n[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]"
-            )
-
-        pending_labels: dict[int, str] = {}
-        cancelled = False
-        undo_requested = False
-        for index in block_indices:
-            console.print(
-                f"\n[bold]Label CSV {crf.source_row_numbers[index]} ?[/bold] "
-                "(1=ENTRY_BEGIN, 2=ENTRY_INSIDE, 3=TITLE, 0=OUT_OF_SCOPE, "
-                "u=undo, q=predict and stop)",
-                end="",
-            )
-            choice = input().strip().lower()
-            if choice == "q":
-                cancelled = True
-                break
-            if choice == "u":
-                undone_index = crf.undo_last_label()
-                if undone_index is None:
-                    console.print("[yellow]Aucune classification humaine à annuler.[/yellow]")
-                else:
-                    save_session(session_path, document_hash, crf)
-                    reoffer_index = undone_index
-                    console.print(
-                        "[green]Dernière classification annulée ; "
-                        "la ligne va être reproposée.[/green]"
-                    )
-                undo_requested = True
-                break
-            if choice not in mapping:
-                console.print("[yellow]Choix invalide : bloc non enregistré.[/yellow]")
-                cancelled = True
-                break
-            pending_labels[index] = mapping[choice]
-
-        if undo_requested:
-            continue
-        if cancelled:
-            break
-        crf.set_labels(pending_labels)
-        save_session(session_path, document_hash, crf)
-
+    annotate_interactively(crf, session_path, document_hash)
     crf.export_csv(args.output)
 
 

@@ -1,3 +1,9 @@
+"""Convertit une sortie JSON Datalab/Chandra en CSV de lignes Markdown.
+
+Chaque ligne Markdown (ou, avec --notables, chaque cellule de tableau) est
+exportée avec sa provenance : page, chunk, bloc de données et position.
+"""
+
 import argparse
 import csv
 import json
@@ -156,6 +162,13 @@ def table_cell_lines(table: Tag) -> Iterator[str]:
             yield " ".join(markdown.split())
 
 
+def _markdown_fragment_lines(html_fragments: list[str]) -> Iterator[str]:
+    """Convert accumulated non-table HTML fragments into Markdown lines."""
+    if not html_fragments:
+        return
+    yield from markdownify("".join(html_fragments), heading_style="ATX").splitlines()
+
+
 def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
     """Yield normal Markdown lines and table cells, retaining document order."""
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -164,43 +177,43 @@ def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
         return
 
     non_table_fragments: list[str] = []
-
-    def flush_non_table_fragments() -> Iterator[str]:
-        if not non_table_fragments:
-            return
-        markdown = markdownify("".join(non_table_fragments), heading_style="ATX")
-        non_table_fragments.clear()
-        yield from markdown.splitlines()
-
     for child in container.contents:
         if isinstance(child, Tag) and child.name == "table":
-            yield from flush_non_table_fragments()
+            yield from _markdown_fragment_lines(non_table_fragments)
+            non_table_fragments = []
             yield from table_cell_lines(child)
         else:
             non_table_fragments.append(str(child))
-    yield from flush_non_table_fragments()
+    yield from _markdown_fragment_lines(non_table_fragments)
+
+
+def _line_record(
+    page: Page, block: DataBlock, line_index: int, line: str
+) -> dict[str, object]:
+    """Build one CSV record for a Markdown line and its Datalab provenance."""
+    return {
+        "uid": generate_line_uid(page.index, block.index, line_index),
+        "page_index": page.index,
+        "chunk_index": block.chunk_index,
+        "data_block_index": block.index,
+        "line_index": line_index,
+        "data_block_bbox": block.bbox,
+        "data_block_label": block.label,
+        "markdown": line,
+    }
 
 
 def markdown_lines(page: Page, no_tables: bool = False) -> Iterator[dict[str, object]]:
     """Yield one CSV record per Markdown line or, with no-tables, per table cell."""
     line_index = 0
     for block in page.data_blocks:
-        if no_tables:
-            lines = no_table_markdown_lines(block.raw_html)
-        else:
-            markdown = markdownify(block.raw_html, heading_style="ATX")
-            lines = iter(markdown.splitlines())
+        lines = (
+            no_table_markdown_lines(block.raw_html)
+            if no_tables
+            else markdownify(block.raw_html, heading_style="ATX").splitlines()
+        )
         for line in lines:
-            yield {
-                "uid": generate_line_uid(page.index, block.index, line_index),
-                "page_index": page.index,
-                "chunk_index": block.chunk_index,
-                "data_block_index": block.index,
-                "line_index": line_index,
-                "data_block_bbox": block.bbox,
-                "data_block_label": block.label,
-                "markdown": line,
-            }
+            yield _line_record(page, block, line_index, line)
             line_index += 1
 
 
@@ -217,7 +230,7 @@ def process_json_to_csv(
             writer.writerows(markdown_lines(page, no_tables=no_tables))
 
 
-def main() -> None:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Export Markdown lines with their Datalab chunk and data-block provenance."
     )
@@ -232,7 +245,11 @@ def main() -> None:
         action="store_true",
         help="Exporte chaque cellule de tableau séparément, sans syntaxe Markdown de tableau.",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
     process_json_to_csv(args.json_path, args.csv_path, no_tables=args.notables)
 
 
