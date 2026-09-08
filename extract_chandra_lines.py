@@ -1,11 +1,12 @@
-"""Convertit une sortie JSON Datalab/Chandra en CSV de lignes Markdown.
+"""Convertit une sortie JSON Datalab/Chandra en JSON enrichi de blocs de données.
 
-Chaque ligne Markdown (ou, avec --notables, chaque cellule de tableau) est
-exportée avec sa provenance : page, chunk, bloc de données et position.
+Le JSON de sortie est une copie du JSON d'entrée : chaque page reçoit en plus
+une liste de blocs de données (« data_blocks »), et chaque bloc contient la
+liste de ses lignes Markdown (ou, avec --notables, de ses cellules de
+tableau) avec leur provenance (chunk, position).
 """
 
 import argparse
-import csv
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,16 +17,16 @@ from markdownify import markdownify
 
 BBox = tuple[float, float, float, float]
 
-CSV_FIELDS = [
-    "uid",
-    "page_index",
-    "chunk_index",
-    "data_block_index",
-    "line_index",
-    "data_block_bbox",
-    "data_block_label",
-    "markdown",
-]
+
+def load_raw_pages(json_path: str | Path) -> list[dict[str, Any]]:
+    """Parse the document root and validate that it is a JSON array of page objects."""
+    raw_document: Any = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    if not isinstance(raw_document, list):
+        raise ValueError("The document root must be a JSON array of pages.")
+    for raw_page in raw_document:
+        if not isinstance(raw_page, dict):
+            raise ValueError("Each page must be a JSON object.")
+    return raw_document
 
 
 @dataclass(frozen=True)
@@ -133,16 +134,7 @@ def parse_page(raw_page: dict[str, Any]) -> Page:
 
 def load_document(json_path: Path) -> list[Page]:
     """Load the Datalab JSON document and its block-to-chunk provenance."""
-    raw_document: Any = json.loads(json_path.read_text(encoding="utf-8"))
-    if not isinstance(raw_document, list):
-        raise ValueError("The document root must be a JSON array of pages.")
-
-    pages = []
-    for raw_page in raw_document:
-        if not isinstance(raw_page, dict):
-            raise ValueError("Each page must be a JSON object.")
-        pages.append(parse_page(raw_page))
-    return pages
+    return [parse_page(raw_page) for raw_page in load_raw_pages(json_path)]
 
 
 def generate_line_uid(
@@ -190,55 +182,74 @@ def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
 def _line_record(
     page: Page, block: DataBlock, line_index: int, line: str
 ) -> dict[str, object]:
-    """Build one CSV record for a Markdown line and its Datalab provenance."""
+    """Build one JSON record for a Markdown line and its Datalab provenance."""
     return {
         "uid": generate_line_uid(page.index, block.index, line_index),
-        "page_index": page.index,
-        "chunk_index": block.chunk_index,
-        "data_block_index": block.index,
         "line_index": line_index,
-        "data_block_bbox": block.bbox,
-        "data_block_label": block.label,
         "markdown": line,
     }
 
 
-def markdown_lines(page: Page, no_tables: bool = False) -> Iterator[dict[str, object]]:
-    """Yield one CSV record per Markdown line or, with no-tables, per table cell."""
-    line_index = 0
-    for block in page.data_blocks:
-        lines = (
-            no_table_markdown_lines(block.raw_html)
-            if no_tables
-            else markdownify(block.raw_html, heading_style="ATX").splitlines()
-        )
-        for line in lines:
-            yield _line_record(page, block, line_index, line)
-            line_index += 1
+def data_block_lines(
+    block: DataBlock, no_tables: bool = False
+) -> Iterator[str]:
+    """Yield Markdown lines or, with no-tables, table cells, for one data block."""
+    if no_tables:
+        yield from no_table_markdown_lines(block.raw_html)
+    else:
+        yield from markdownify(block.raw_html, heading_style="ATX").splitlines()
 
 
-def process_json_to_csv(
-    json_path: str | Path, csv_path: str | Path, no_tables: bool = False
+def build_data_block_record(
+    page: Page, block: DataBlock, no_tables: bool = False
+) -> dict[str, object]:
+    """Build one JSON record for a data block, including its Markdown lines."""
+    return {
+        "index": block.index,
+        "bbox": list(block.bbox),
+        "label": block.label,
+        "chunk_index": block.chunk_index,
+        "lines": [
+            _line_record(page, block, line_index, line)
+            for line_index, line in enumerate(
+                data_block_lines(block, no_tables=no_tables)
+            )
+        ],
+    }
+
+
+def process_json_to_json(
+    json_path: str | Path, output_path: str | Path, no_tables: bool = False
 ) -> None:
-    """Convert a Datalab JSON document to CSV, optionally exploding tables."""
-    pages = load_document(Path(json_path))
+    """Copy a Datalab JSON document, adding parsed data blocks and lines to each page."""
+    output_pages = []
+    for raw_page in load_raw_pages(json_path):
+        page = parse_page(raw_page)
+        output_page = dict(raw_page)
+        output_page["data_blocks"] = [
+            build_data_block_record(page, block, no_tables=no_tables)
+            for block in page.data_blocks
+        ]
+        output_pages.append(output_page)
 
-    with Path(csv_path).open("w", newline="", encoding="utf-8") as output_file:
-        writer = csv.DictWriter(output_file, fieldnames=CSV_FIELDS)
-        writer.writeheader()
-        for page in pages:
-            writer.writerows(markdown_lines(page, no_tables=no_tables))
+    Path(output_path).write_text(
+        json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Export Markdown lines with their Datalab chunk and data-block provenance."
+        description=(
+            "Export a copy of the Datalab JSON document with data blocks and "
+            "their Markdown lines attached to each page."
+        )
     )
     parser.add_argument(
         "json_path", help="Path to the input JSON file (Datalab output)"
     )
     parser.add_argument(
-        "csv_path", help="Path to the output CSV file (Markdown lines with provenance)"
+        "output_path",
+        help="Path to the output JSON file (pages with data blocks and lines)",
     )
     parser.add_argument(
         "--notables",
@@ -250,7 +261,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    process_json_to_csv(args.json_path, args.csv_path, no_tables=args.notables)
+    process_json_to_json(args.json_path, args.output_path, no_tables=args.notables)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-import csv
 import json
 import tempfile
 import unittest
@@ -7,10 +6,10 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
-from tabulate_chandra_output import CSV_FIELDS, load_document, process_json_to_csv
+from extract_chandra_lines import load_document, process_json_to_json
 
 
-class TabulateChandraOutputTests(unittest.TestCase):
+class ExtractChandraLinesTests(unittest.TestCase):
     def setUp(self) -> None:
         self.document = [
             {
@@ -37,14 +36,23 @@ class TabulateChandraOutputTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
-    def export_rows(self, no_tables: bool = False) -> list[dict[str, str]]:
-        csv_path = Path(self.temporary_directory.name) / "output.csv"
-        process_json_to_csv(self.json_path, csv_path, no_tables=no_tables)
-        with csv_path.open(encoding="utf-8", newline="") as output_file:
-            return list(csv.DictReader(output_file))
+    def export_pages(self, no_tables: bool = False) -> list[dict]:
+        output_path = Path(self.temporary_directory.name) / "output.json"
+        process_json_to_json(self.json_path, output_path, no_tables=no_tables)
+        return json.loads(output_path.read_text(encoding="utf-8"))
 
-    def test_exports_the_expected_columns(self) -> None:
-        self.assertEqual(list(self.export_rows()[0]), CSV_FIELDS)
+    def test_output_is_a_copy_of_the_input_with_data_blocks_added(self) -> None:
+        pages = self.export_pages()
+
+        self.assertEqual(len(pages), 1)
+        page = pages[0]
+        for key, value in self.document[0].items():
+            self.assertEqual(page[key], value)
+        self.assertIn("data_blocks", page)
+        self.assertEqual(
+            [block["label"] for block in page["data_blocks"]],
+            ["Text", "Table", "Text"],
+        )
 
     def test_maps_data_blocks_to_chunks_by_source_order(self) -> None:
         pages = load_document(self.json_path)
@@ -54,7 +62,13 @@ class TabulateChandraOutputTests(unittest.TestCase):
         )
 
     def test_default_output_preserves_markdown_table_formatting(self) -> None:
-        rows = self.export_rows()
+        pages = self.export_pages()
+        markdown_lines = [
+            line["markdown"]
+            for block in pages[0]["data_blocks"]
+            for line in block["lines"]
+        ]
+
         expected_lines = []
         soup = BeautifulSoup(self.document[0]["raw"], "html.parser")
         for block in soup.find_all("div", recursive=False):
@@ -62,27 +76,32 @@ class TabulateChandraOutputTests(unittest.TestCase):
                 markdownify(str(block), heading_style="ATX").splitlines()
             )
 
-        self.assertEqual([row["markdown"] for row in rows], expected_lines)
-        self.assertTrue(any("|" in row["markdown"] for row in rows))
+        self.assertEqual(markdown_lines, expected_lines)
+        self.assertTrue(any("|" in line for line in markdown_lines))
 
     def test_no_tables_explodes_cells_in_logical_reading_order(self) -> None:
-        rows = self.export_rows(no_tables=True)
-        table_rows = [row for row in rows if row["data_block_label"] == "Table"]
+        pages = self.export_pages(no_tables=True)
+        table_block = next(
+            block for block in pages[0]["data_blocks"] if block["label"] == "Table"
+        )
 
         self.assertEqual(
-            [row["markdown"] for row in table_rows],
+            [line["markdown"] for line in table_block["lines"]],
             ["En-tête", "**Gauche**", "Bas gauche", "Bas droite"],
         )
         self.assertEqual(
-            [row["line_index"] for row in table_rows], ["1", "2", "3", "4"]
+            [line["line_index"] for line in table_block["lines"]], [0, 1, 2, 3]
         )
-        self.assertTrue(all("|" not in row["markdown"] for row in table_rows))
+        self.assertTrue(
+            all("|" not in line["markdown"] for line in table_block["lines"])
+        )
 
     def test_no_tables_preserves_non_table_content_and_provenance(self) -> None:
-        rows = self.export_rows(no_tables=True)
+        pages = self.export_pages(no_tables=True)
+        blocks = pages[0]["data_blocks"]
 
         self.assertEqual(
-            [row["markdown"] for row in rows],
+            [line["markdown"] for block in blocks for line in block["lines"]],
             [
                 "Avant",
                 "En-tête",
@@ -92,9 +111,10 @@ class TabulateChandraOutputTests(unittest.TestCase):
                 "Après",
             ],
         )
-        self.assertEqual(rows[1]["chunk_index"], "1")
-        self.assertEqual(rows[1]["data_block_index"], "2")
-        self.assertEqual(rows[1]["data_block_bbox"], "(330.0, 0.0, 660.0, 1000.0)")
+        table_block = blocks[1]
+        self.assertEqual(table_block["chunk_index"], 1)
+        self.assertEqual(table_block["index"], 2)
+        self.assertEqual(table_block["bbox"], [330.0, 0.0, 660.0, 1000.0])
 
     def test_exports_an_empty_chunk_index_when_no_chunk_contains_a_block(self) -> None:
         document = [
@@ -108,12 +128,11 @@ class TabulateChandraOutputTests(unittest.TestCase):
         json_path = Path(self.temporary_directory.name) / "no_chunks.json"
         json_path.write_text(json.dumps(document), encoding="utf-8")
 
-        csv_path = Path(self.temporary_directory.name) / "no_chunks.csv"
-        process_json_to_csv(json_path, csv_path)
-        with csv_path.open(encoding="utf-8", newline="") as output_file:
-            rows = list(csv.DictReader(output_file))
+        output_path = Path(self.temporary_directory.name) / "no_chunks.json.out"
+        process_json_to_json(json_path, output_path)
+        pages = json.loads(output_path.read_text(encoding="utf-8"))
 
-        self.assertEqual(rows[0]["chunk_index"], "")
+        self.assertIsNone(pages[0]["data_blocks"][0]["chunk_index"])
 
 
 if __name__ == "__main__":
