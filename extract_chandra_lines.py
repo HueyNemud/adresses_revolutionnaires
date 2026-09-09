@@ -151,7 +151,13 @@ def table_cell_lines(table: Tag) -> Iterator[str]:
             continue
         for cell in row.find_all(["th", "td"], recursive=False):
             markdown = markdownify(cell.decode_contents(), heading_style="ATX")
-            yield " ".join(markdown.split())
+            # As a table cell might contain multiple lines,
+            # we yield each line separately,
+            # after cleaning whitespace.
+            for line in markdown.splitlines():
+                cleaned = " ".join(line.split())
+                if cleaned:
+                    yield cleaned
 
 
 def _markdown_fragment_lines(html_fragments: list[str]) -> Iterator[str]:
@@ -190,9 +196,7 @@ def _line_record(
     }
 
 
-def data_block_lines(
-    block: DataBlock, no_tables: bool = False
-) -> Iterator[str]:
+def data_block_lines(block: DataBlock, no_tables: bool = False) -> Iterator[str]:
     """Yield Markdown lines or, with no-tables, table cells, for one data block."""
     if no_tables:
         yield from no_table_markdown_lines(block.raw_html)
