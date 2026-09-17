@@ -14,6 +14,9 @@ from typing import Any, Iterator
 
 from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify
+from rich.console import Console
+
+console = Console()
 
 BBox = tuple[float, float, float, float]
 
@@ -22,10 +25,10 @@ def load_raw_pages(json_path: str | Path) -> list[dict[str, Any]]:
     """Parse the document root and validate that it is a JSON array of page objects."""
     raw_document: Any = json.loads(Path(json_path).read_text(encoding="utf-8"))
     if not isinstance(raw_document, list):
-        raise ValueError("The document root must be a JSON array of pages.")
+        raise ValueError("Le JSON doit être une liste de pages.")
     for raw_page in raw_document:
         if not isinstance(raw_page, dict):
-            raise ValueError("Each page must be a JSON object.")
+            raise ValueError("Chaque page doit être un objet JSON.")
     return raw_document
 
 
@@ -132,9 +135,14 @@ def parse_page(raw_page: dict[str, Any]) -> Page:
     )
 
 
-def load_document(json_path: Path) -> list[Page]:
+def parse_document(raw_pages: list[dict[str, Any]]) -> list[Page]:
+    """Parse a full document's worth of raw pages already loaded from disk."""
+    return [parse_page(raw_page) for raw_page in raw_pages]
+
+
+def load_document(json_path: str | Path) -> list[Page]:
     """Load the Datalab JSON document and its block-to-chunk provenance."""
-    return [parse_page(raw_page) for raw_page in load_raw_pages(json_path)]
+    return parse_document(load_raw_pages(json_path))
 
 
 def generate_line_uid(
@@ -224,36 +232,52 @@ def build_data_block_record(
 
 def process_json_to_json(
     json_path: str | Path, output_path: str | Path, no_tables: bool = False
-) -> None:
-    """Copy a Datalab JSON document, adding parsed data blocks and lines to each page."""
+) -> tuple[int, int, int]:
+    """Copy a Datalab JSON document, adding parsed data blocks and lines to each page.
+
+    Retourne (nombre de pages, nombre de blocs de données, nombre de lignes).
+    """
+    raw_pages = load_raw_pages(json_path)
+    pages = parse_document(raw_pages)
+
     output_pages = []
-    for raw_page in load_raw_pages(json_path):
-        page = parse_page(raw_page)
-        output_page = dict(raw_page)
-        output_page["data_blocks"] = [
+    block_count = 0
+    line_count = 0
+    for raw_page, page in zip(raw_pages, pages):
+        block_records = [
             build_data_block_record(page, block, no_tables=no_tables)
             for block in page.data_blocks
         ]
+        output_page = dict(raw_page)
+        output_page["data_blocks"] = block_records
         output_pages.append(output_page)
+        block_count += len(block_records)
+        line_count += sum(len(record["lines"]) for record in block_records)
 
     Path(output_path).write_text(
         json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    return len(output_pages), block_count, line_count
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Export a copy of the Datalab JSON document with data blocks and "
-            "their Markdown lines attached to each page."
+            "Exporte une copie du JSON Datalab avec, pour chaque page, ses "
+            "blocs de données et leurs lignes Markdown."
         )
     )
     parser.add_argument(
-        "json_path", help="Path to the input JSON file (Datalab output)"
+        "json_path",
+        type=Path,
+        help="JSON d'entrée (sortie brute de Datalab/Chandra).",
     )
     parser.add_argument(
-        "output_path",
-        help="Path to the output JSON file (pages with data blocks and lines)",
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Chemin du JSON de sortie (défaut : <entrée>.chandra.json).",
     )
     parser.add_argument(
         "--notables",
@@ -265,7 +289,34 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    process_json_to_json(args.json_path, args.output_path, no_tables=args.notables)
+
+    if not args.json_path.exists():
+        console.print(
+            f"[bold red]Erreur :[/bold red] Fichier '{args.json_path}' introuvable."
+        )
+        return
+
+    output_path = args.output or args.json_path.with_suffix(".chandra.json")
+
+    try:
+        page_count, block_count, line_count = process_json_to_json(
+            args.json_path, output_path, no_tables=args.notables
+        )
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        ValueError,
+        KeyError,
+        OSError,
+    ) as error:
+        console.print(f"[bold red]Erreur :[/bold red] {error}")
+        return
+
+    console.print(
+        "\n[bold green]✅ Export JSON réussi :[/bold green] "
+        f"[yellow]{output_path}[/yellow] "
+        f"({page_count} pages, {block_count} blocs, {line_count} lignes)"
+    )
 
 
 if __name__ == "__main__":

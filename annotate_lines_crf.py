@@ -23,9 +23,11 @@ from pathlib import Path
 from typing import Any, Iterator, TypeAlias
 
 import pycrfsuite
-from rich.console import Console
+from rich.columns import Columns
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from chandra_document import LineLocation, iter_line_locations
 
@@ -35,18 +37,24 @@ console = Console()
 class AnnotationLabel(StrEnum):
     """Labels supported by the sequence classifier and persisted sessions."""
 
-    ENTRY_BEGIN = "ENTRY_BEGIN"
-    ENTRY_INSIDE = "ENTRY_INSIDE"
-    TITLE = "TITLE"
-    OUT_OF_SCOPE = "OUT_OF_SCOPE"
+    BENTRY = "B-ENTRY"
+    IENTRY = "I-ENTRY"
+    SUBENTRY = "SUB-ENTRY"
+    BTITLE = "B-TITLE"
+    ITITLE = "I-TITLE"
+    UNK = "¯\\_(ツ)_/¯"
+    OOS = "OUT OF SCOPE"
 
 
 CLASSES: tuple[str, ...] = tuple(label.value for label in AnnotationLabel)
 LABEL_KEYS = {
-    "1": AnnotationLabel.ENTRY_BEGIN.value,
-    "2": AnnotationLabel.ENTRY_INSIDE.value,
-    "3": AnnotationLabel.TITLE.value,
-    "0": AnnotationLabel.OUT_OF_SCOPE.value,
+    "1": AnnotationLabel.BENTRY.value,
+    "2": AnnotationLabel.IENTRY.value,
+    "3": AnnotationLabel.SUBENTRY.value,
+    "4": AnnotationLabel.BTITLE.value,
+    "5": AnnotationLabel.ITITLE.value,
+    "6": AnnotationLabel.UNK.value,
+    "0": AnnotationLabel.OOS.value,
 }
 SESSION_VERSION = 2
 
@@ -84,16 +92,16 @@ def get_heuristic_label(line: str, prev_line: str = "") -> str:
     """Retourne un indice de sélection, jamais une vérité de référence."""
     stripped = line.strip()
     if not stripped:
-        return AnnotationLabel.OUT_OF_SCOPE.value
+        return AnnotationLabel.OOS.value
     if stripped.startswith("#"):
-        return AnnotationLabel.TITLE.value
+        return AnnotationLabel.BTITLE.value
     if re.fullmatch(r"\{\d+\}[-—_]*", stripped) or re.fullmatch(r"[-—_]{3,}", stripped):
-        return AnnotationLabel.OUT_OF_SCOPE.value
+        return AnnotationLabel.OOS.value
     if stripped[0].islower() or stripped.startswith(("-", "—")):
-        return AnnotationLabel.ENTRY_INSIDE.value
+        return AnnotationLabel.IENTRY.value
     if prev_line and prev_line.rstrip().endswith(("-", "—")):
-        return AnnotationLabel.ENTRY_INSIDE.value
-    return AnnotationLabel.ENTRY_BEGIN.value
+        return AnnotationLabel.IENTRY.value
+    return AnnotationLabel.BENTRY.value
 
 
 def normalize_ocr_label(label: str) -> str:
@@ -106,11 +114,14 @@ def extract_features(
     lines: list[str],
     source_line_numbers: list[int] | None = None,
     ocr_labels: list[str] | None = None,
+    page_positions: list[int] | None = None,
 ) -> FeatureSequence:
     if source_line_numbers is not None and len(source_line_numbers) != len(lines):
         raise ValueError("Chaque ligne doit avoir un numéro de ligne source.")
     if ocr_labels is not None and len(ocr_labels) != len(lines):
         raise ValueError("Chaque ligne doit avoir une classe de bloc OCR.")
+    if page_positions is not None and len(page_positions) != len(lines):
+        raise ValueError("Chaque ligne doit avoir une position de page.")
 
     seq_features = []
     n = len(lines)
@@ -121,6 +132,9 @@ def extract_features(
 
         is_heading = line.startswith("#")
         heading_level = len(line) - len(line.lstrip("#")) if is_heading else 0
+        is_page_start = page_positions is not None and (
+            t == 0 or page_positions[t] != page_positions[t - 1]
+        )
 
         feat = {
             "bias": "1.0",
@@ -130,6 +144,7 @@ def extract_features(
             "ends_punct": str(shapes[-1] == "PUNCT") if shapes else "False",
             "token_count": str(min(len(tokens), 12)),
             "is_page_marker": str(bool(re.fullmatch(r"\{\d+\}[-—_]*", line))),
+            "is_page_start": str(is_page_start),
             "ocr_data_block_label": (
                 normalize_ocr_label(ocr_labels[t])
                 if ocr_labels is not None
@@ -331,10 +346,12 @@ class ActiveCRF:
         self.raw_document = raw_document if raw_document is not None else []
         self.lines = [record.text for record in records]
         self.source_row_numbers = [record.source_row for record in records]
+        self.page_positions = [record.page_pos for record in records]
         self.features = extract_features(
             self.lines,
             self.source_row_numbers,
             [record.data_block_label for record in records],
+            self.page_positions,
         )
         self.labels: list[str | None] = [None] * len(records)
         self.annotation_history: AnnotationHistory = []
@@ -411,6 +428,24 @@ class ActiveCRF:
         self.retrain()
         return index
 
+    def mark_page_out_of_scope(self, page_pos: int) -> list[int]:
+        """Marque en une fois toutes les lignes non annotées d'une page en OUT OF SCOPE.
+
+        Pratique pour écarter rapidement des pages entières non pertinentes
+        (ex. une table des matières, une page de publicité) sans repasser
+        ligne par ligne. Chaque ligne est ajoutée individuellement à
+        l'historique (via `set_labels`) : `undo_last_label` peut donc
+        toujours défaire ce geste, une ligne à la fois.
+        """
+        indices = [
+            index
+            for index, position in enumerate(self.page_positions)
+            if position == page_pos and self.labels[index] is None
+        ]
+        if indices:
+            self.set_labels({index: AnnotationLabel.OOS.value for index in indices})
+        return indices
+
     def retrain(self) -> None:
         """Entraîne le CRF sur les segments contigus validés par un humain."""
         self.known_classes = {label for label in self.labels if label is not None}
@@ -484,28 +519,50 @@ class ActiveCRF:
             return {label: 0.0 for label in CLASSES}
         return {label: scores.get(label, 0.0) / total for label in CLASSES}
 
+    def _model_prediction(self, index: int) -> tuple[str | None, float]:
+        """Décodage postérieur pour une ligne : renvoie l'étiquette de plus
+        forte probabilité marginale ainsi que cette probabilité elle-même.
+
+        On utilise volontairement l'argmax des marginales plutôt que
+        `tagger.tag()` (décodage de Viterbi). Le Viterbi optimise la
+        séquence globale et peut donc choisir, à une position donnée, une
+        étiquette différente de celle qui a la plus forte probabilité
+        marginale à cette même position : le libellé exporté et la
+        confiance affichée pouvaient alors ne pas correspondre (une
+        confiance basse pour une étiquette qui n'était pas la plus
+        probable). Avec l'argmax des marginales, la probabilité exportée
+        est toujours exactement celle de l'étiquette exportée. Cela évite
+        aussi tout appel à `tagger.tag()` après `tagger.set()`, qui corrompt
+        les marginales dans python-crfsuite (cf. `_train_tagger`).
+        """
+        if not self.tagger:
+            return None, 0.0
+        label, probability = max(
+            self.get_marginals(index).items(), key=lambda item: item[1]
+        )
+        if probability <= 0.0:
+            return None, 0.0
+        return label, probability
+
     def _line_annotation(
-        self, index: int, model_label: str | None, export_timestamp: str
+        self,
+        index: int,
+        model_label: str | None,
+        model_probability: float,
+        export_timestamp: str,
     ) -> LineAnnotation:
         human_label = self.labels[index]
-        prediction = human_label or model_label or ""
         if human_label:
             return LineAnnotation(
-                prediction, "human", 1.0, self.label_timestamps[index]
+                human_label, "human", 1.0, self.label_timestamps[index]
             )
         if model_label:
             return LineAnnotation(
-                prediction,
-                "model",
-                self.get_marginals(index).get(prediction, 0.0),
-                export_timestamp,
+                model_label, "model", model_probability, export_timestamp
             )
         return LineAnnotation("", "unclassified", 0.0, "")
 
     def export_json(self, output_path: str | Path) -> None:
-        predictions = (
-            self.tagger.tag(self.features) if self.tagger else [None] * len(self.lines)
-        )
         export_timestamp = _current_timestamp()
 
         output_document = copy.deepcopy(self.raw_document)
@@ -521,8 +578,12 @@ class ActiveCRF:
                 raise ValueError(
                     f"La ligne source {record.uid!r} est introuvable dans le document."
                 ) from error
+            if self.labels[index] is not None:
+                model_label, model_probability = None, 0.0
+            else:
+                model_label, model_probability = self._model_prediction(index)
             annotation = self._line_annotation(
-                index, predictions[index], export_timestamp
+                index, model_label, model_probability, export_timestamp
             )
             line.update(
                 prediction=annotation.prediction,
@@ -545,7 +606,7 @@ class ActiveCRF:
 # ----------------------------------------------------------------------
 # 3. Dashboard Rich Debug
 # ----------------------------------------------------------------------
-def _progress_panel(crf: ActiveCRF) -> Panel:
+def _progress_panel(crf: ActiveCRF, target_idx: int) -> Panel:
     annotated_cnt = crf.annotated_count
     total_cnt = len(crf.lines)
     progress = annotated_cnt / total_cnt * 100 if total_cnt else 0.0
@@ -557,81 +618,113 @@ def _progress_panel(crf: ActiveCRF) -> Panel:
         "Avancement :",
         f"{annotated_cnt}/{total_cnt} ({progress:.1f}%)",
     )
+    metrics_table.add_row("Page courante :", crf.records[target_idx].page_index)
     return Panel(
         metrics_table,
         title="📈 [bold yellow]ÉTAT DE L'ANNOTATION CRF[/bold yellow]",
     )
 
 
-def _transitions_table(crf: ActiveCRF) -> Table | None:
+def _transitions_line(crf: ActiveCRF, top_n: int = 3) -> str | None:
+    """Résumé compact des transitions les plus fortes, sur une seule ligne."""
     if crf.tagger is None:
         return None
-
-    table = Table(
-        title="🔗 Transitions apprises dans les blocs annotés",
-        header_style="bold magenta",
-    )
-    table.add_column("Transition (Ligne N-1 ➔ Ligne N)")
-    table.add_column("Poids CRF", justify="right")
-
     sorted_transitions = sorted(
         crf.tagger.info().transitions.items(), key=lambda item: item[1], reverse=True
     )
-    for (from_label, to_label), weight in sorted_transitions[:5]:
+    parts = []
+    for (from_label, to_label), weight in sorted_transitions[:top_n]:
         color = "green" if weight > 0 else "red"
-        table.add_row(f"{from_label} ➔ {to_label}", f"[{color}]{weight:+.3f}[/]")
-    return table
+        parts.append(f"{from_label}➔{to_label} [{color}]{weight:+.2f}[/{color}]")
+    return "  ·  ".join(parts) if parts else None
 
 
-def _marginals_table(crf: ActiveCRF, target_idx: int) -> Table:
-    target_record = crf.records[target_idx]
-    table = Table(
-        title=(
-            f"{target_record.text[:20]}... "
-            f"[p. {target_record.page_index} l. {target_record.line_index}]"
-        ),
-        header_style="bold green",
-    )
+def _legend_renderable() -> Columns:
+    """Légende compacte, répartie en plusieurs colonnes plutôt qu'une ligne par touche."""
+    items = [
+        f"[bold cyan]{key}[/bold cyan] {label}" for key, label in LABEL_KEYS.items()
+    ]
+    items.append("[bold cyan]u[/bold cyan] [dim]annuler[/dim]")
+    items.append("[bold cyan]p[/bold cyan] [dim]page → OUT OF SCOPE[/dim]")
+    items.append("[bold cyan]q[/bold cyan] [dim]arrêter[/dim]")
+    return Columns(items, equal=True, expand=True, column_first=True)
+
+
+def _candidates_marginals_table(crf: ActiveCRF, block_indices: list[int]) -> Table:
+    """Une seule table de probabilités, une colonne par ligne candidate du bloc
+    (au lieu d'une table complète par ligne : moins de bordures, moins de hauteur)."""
+    table = Table(title="🎯 Probabilités", header_style="bold green")
     table.add_column("Classe")
-    table.add_column("Probabilité", justify="right")
+    for index in block_indices:
+        table.add_column(f"L.{crf.source_row_numbers[index]}", justify="right")
 
-    probs = crf.get_marginals(target_idx)
-    for label, proba in sorted(probs.items(), key=lambda item: item[1], reverse=True):
-        table.add_row(label, f"{proba*100:.1f}%")
+    all_probs = {index: crf.get_marginals(index) for index in block_indices}
+    ordered_classes = sorted(
+        CLASSES,
+        key=lambda label: max(all_probs[index][label] for index in block_indices),
+        reverse=True,
+    )
+    for label in ordered_classes:
+        table.add_row(
+            label,
+            *(f"{all_probs[index][label] * 100:.1f}%" for index in block_indices),
+        )
     return table
 
 
-def _print_document_context(
-    crf: ActiveCRF, target_idx: int, block_indices: list[int]
-) -> None:
-    start = max(0, target_idx - 2)
-    end = min(len(crf.lines), target_idx + 3)
+def _context_panel(
+    crf: ActiveCRF, target_idx: int, block_indices: list[int], margin: int = 8
+) -> Panel:
+    """Contexte du document sous forme d'un seul renderable (pour tenir dans
+    une colonne de la grille), au lieu d'une série de `console.print` séparés."""
+    start = max(0, target_idx - margin)
+    end = min(len(crf.lines), target_idx + margin)
+    text = Text()
+    previous_page_pos: int | None = None
     for index in range(start, end):
+        page_pos = crf.records[index].page_pos
+        if previous_page_pos is not None and page_pos != previous_page_pos:
+            page_index = crf.records[index].page_index
+            text.append(f"── page {page_index} ──\n", style="bold blue")
+        previous_page_pos = page_pos
+
         prefix = "▷ " if index in block_indices else "  "
         label = f"[{crf.records[index].data_block_label}]"
         style = "bold reverse green" if index in block_indices else "dim"
-        console.print(
-            f"[{prefix}{crf.source_row_numbers[index]:4d}] {label:15} "
-            f"{crf.lines[index]}",
+        text.append(
+            f"{prefix}"
+            f"{label:<15} {crf.lines[index]}\n",
             style=style,
         )
+    return Panel(text, title="📄 Contexte du document", border_style="blue")
 
 
 def display_dashboard(
     crf: ActiveCRF, target_idx: int, block_indices: list[int]
 ) -> None:
+    """Dashboard sur deux colonnes côte à côte (contexte / stats) plutôt qu'un
+    empilement vertical : la hauteur totale est celle de la colonne la plus
+    haute, pas la somme des deux."""
     console.clear()
-    console.print(_progress_panel(crf))
 
-    transitions = _transitions_table(crf)
-    if transitions is not None:
-        console.print(transitions)
+    stats: list[Any] = [_progress_panel(crf, target_idx), _legend_renderable()]
+    transitions_line = _transitions_line(crf)
+    if transitions_line:
+        stats.append(
+            Panel(transitions_line, title="🔗 Transitions", border_style="magenta")
+        )
+    stats.append(_candidates_marginals_table(crf, block_indices))
 
-    for index in block_indices:
-        console.print(_marginals_table(crf, index))
+    grid = Table.grid(expand=True, padding=(0, 1))
+    grid.add_column(ratio=3)
+    grid.add_column(ratio=2)
+    grid.add_row(_context_panel(crf, target_idx, block_indices), Group(*stats))
+    console.print(grid)
 
-    console.print("\n[bold yellow]📄 Contexte du document :[/bold yellow]")
-    _print_document_context(crf, target_idx, block_indices)
+    if len(block_indices) == 1:
+        console.print(
+            "[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]"
+        )
 
 
 # ----------------------------------------------------------------------
@@ -730,37 +823,87 @@ class _Control(Enum):
 
     STOP = auto()
     UNDO = auto()
+    SKIP_PAGE = auto()
 
 
 def _prompt_label(crf: ActiveCRF, index: int) -> str | _Control:
-    """Demande un label humain pour une ligne ; peut renvoyer un signal STOP/UNDO."""
-    console.print(
-        f"\n[bold]Label ligne {crf.source_row_numbers[index]} ?[/bold] "
-        f"({', '.join(f'{key}={label}' for key, label in LABEL_KEYS.items())}, "
-        "u=undo, q=predict and stop)",
-        end="",
-    )
-    choice = input().strip().lower()
-    if choice == "q":
-        return _Control.STOP
-    if choice == "u":
-        return _Control.UNDO
-    if choice not in LABEL_KEYS:
-        console.print("[yellow]Choix invalide : bloc non enregistré.[/yellow]")
-        return _Control.STOP
-    return LABEL_KEYS[choice]
+    """Demande un label humain pour une ligne ; peut renvoyer un signal STOP/UNDO.
+
+    Une touche non reconnue reprompte simplement au lieu d'arrêter toute la
+    session : une faute de frappe ne doit jamais faire perdre le travail en
+    cours.
+    """
+    while True:
+        console.print(
+            f"\n[bold]Label ligne {crf.source_row_numbers[index]} ?[/bold] ",
+            end="",
+        )
+        choice = input().strip().lower()
+        if choice == "q":
+            return _Control.STOP
+        if choice == "u":
+            return _Control.UNDO
+        if choice == "p":
+            return _Control.SKIP_PAGE
+        if choice in LABEL_KEYS:
+            return LABEL_KEYS[choice]
+        console.print(
+            "[yellow]Touche non reconnue — voir la légende ci-dessus.[/yellow]"
+        )
 
 
 def _collect_block_labels(
     crf: ActiveCRF, block_indices: list[int]
 ) -> dict[int, str] | _Control:
-    """Recueille les labels humains d'un bloc, ou un signal STOP/UNDO de l'utilisateur."""
+    """Recueille les labels humains d'un bloc, ou un signal STOP/UNDO/SKIP_PAGE.
+
+    "u" a deux sens distincts selon le contexte, et ne perd jamais de saisie :
+    - s'il reste au moins une ligne déjà étiquetée DANS CE BLOC, "u" annule
+      uniquement la dernière saisie de ce bloc et la reprompte : rien n'est
+      perdu et l'historique déjà validé (des blocs précédents) n'est pas
+      touché ;
+    - si le bloc est encore vide (tout juste commencé), "u" est renvoyé tel
+      quel à l'appelant, qui annule alors la dernière ligne réellement
+      validée (voir `annotate_interactively` / `ActiveCRF.undo_last_label`).
+
+    "p" (SKIP_PAGE) est une action décisive et immédiate : elle est renvoyée
+    telle quelle, sans attendre la fin du bloc, y compris si une saisie était
+    déjà en attente pour ce bloc (perdue dans ce cas précis, car la page
+    entière — dont la ligne visée par cette saisie — va de toute façon être
+    classée OUT OF SCOPE par l'appelant).
+
+    Avant le correctif du undo, un "u" pressé sur la deuxième ligne d'un
+    bloc de deux faisait perdre silencieusement le label déjà saisi pour la
+    première ligne, ET annulait une ligne totalement différente (la dernière
+    du bloc précédent) au lieu de la ligne visée.
+    """
+    pending_order: list[int] = []
     pending_labels: dict[int, str] = {}
-    for index in block_indices:
+    position = 0
+    while position < len(block_indices):
+        index = block_indices[position]
         label = _prompt_label(crf, index)
-        if isinstance(label, _Control):
+
+        if label is _Control.STOP or label is _Control.SKIP_PAGE:
             return label
+
+        if label is _Control.UNDO:
+            if not pending_order:
+                # Rien à annuler dans ce bloc : on délègue à l'historique global.
+                return _Control.UNDO
+            undone_index = pending_order.pop()
+            del pending_labels[undone_index]
+            console.print(
+                f"[green]Saisie annulée pour la ligne "
+                f"{crf.source_row_numbers[undone_index]} ; à ressaisir.[/green]"
+            )
+            position -= 1
+            continue
+
         pending_labels[index] = label
+        pending_order.append(index)
+        position += 1
+
     return pending_labels
 
 
@@ -788,6 +931,22 @@ def annotate_interactively(
 
         if outcome is _Control.STOP:
             return
+        if outcome is _Control.SKIP_PAGE:
+            page_pos = crf.records[target_idx].page_pos
+            page_index = crf.records[target_idx].page_index
+            skipped = crf.mark_page_out_of_scope(page_pos)
+            if skipped:
+                save_session(session_path, document_hash, crf)
+                console.print(
+                    f"[green]{len(skipped)} ligne(s) de la page {page_index} "
+                    "marquée(s) OUT OF SCOPE.[/green]"
+                )
+            else:
+                console.print(
+                    "[yellow]Aucune ligne non annotée restante sur cette page.[/yellow]"
+                )
+            reoffer_index = None
+            continue
         if outcome is _Control.UNDO:
             reoffer_index = crf.undo_last_label()
             if reoffer_index is None:
@@ -804,6 +963,10 @@ def annotate_interactively(
 
         reoffer_index = None
         crf.set_labels(outcome)
+        for index in sorted(outcome):
+            console.print(
+                f"[dim]✓ Ligne {crf.source_row_numbers[index]} → {outcome[index]}[/dim]"
+            )
         save_session(session_path, document_hash, crf)
 
 

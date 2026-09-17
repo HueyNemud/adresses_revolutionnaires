@@ -12,7 +12,11 @@ import json
 from pathlib import Path
 from typing import Any, Iterator
 
+from rich.console import Console
+
 from chandra_document import iter_line_locations
+
+console = Console()
 
 CSV_FIELDS = [
     "uid",
@@ -49,16 +53,23 @@ def iter_csv_rows(document: list[dict[str, Any]]) -> Iterator[dict[str, object]]
         }
 
 
-def process_json_to_csv(json_path: str | Path, csv_path: str | Path) -> None:
-    """Flatten a Chandra JSON document (extract or annotate output) into a CSV."""
-    document: Any = json.loads(Path(json_path).read_text(encoding="utf-8"))
+def process_json_to_csv(json_path: Path, csv_path: Path) -> int:
+    """Aplatit un JSON Chandra (extraction ou annotation) en CSV.
+
+    Retourne le nombre de lignes écrites.
+    """
+    document: Any = json.loads(json_path.read_text(encoding="utf-8"))
     if not isinstance(document, list):
         raise ValueError("Le document JSON doit être une liste de pages.")
 
-    with Path(csv_path).open("w", newline="", encoding="utf-8") as output_file:
+    row_count = 0
+    with csv_path.open("w", newline="", encoding="utf-8") as output_file:
         writer = csv.DictWriter(output_file, fieldnames=CSV_FIELDS)
         writer.writeheader()
-        writer.writerows(iter_csv_rows(document))
+        for row in iter_csv_rows(document):
+            writer.writerow(row)
+            row_count += 1
+    return row_count
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,15 +81,40 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "json_path",
-        help="Chemin du JSON d'entrée (sortie de extract_chandra_lines.py ou annotate_lines_crf.py)",
+        type=Path,
+        help="JSON produit par extract_chandra_lines.py ou annotate_lines_crf.py.",
     )
-    parser.add_argument("csv_path", help="Chemin du CSV de sortie")
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Chemin du CSV de sortie (défaut : <entrée>.csv).",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    process_json_to_csv(args.json_path, args.csv_path)
+
+    if not args.json_path.exists():
+        console.print(
+            f"[bold red]Erreur :[/bold red] Fichier '{args.json_path}' introuvable."
+        )
+        return
+
+    output_path = args.output or args.json_path.with_suffix(".csv")
+
+    try:
+        row_count = process_json_to_csv(args.json_path, output_path)
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
+        console.print(f"[bold red]Erreur de JSON :[/bold red] {error}")
+        return
+
+    console.print(
+        "\n[bold green]✅ Export CSV réussi :[/bold green] "
+        f"[yellow]{output_path}[/yellow] ({row_count} lignes)"
+    )
 
 
 if __name__ == "__main__":
