@@ -35,6 +35,7 @@ import argparse
 import csv
 import re
 import unicodedata
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -43,9 +44,7 @@ from rich.console import Console
 console = Console()
 
 # Valeurs exactes d'`annotate_lines_crf.AnnotationLabel` : elles doivent
-# rester synchronisées avec ce script si la convention change de ce côté-là
-# (c'est exactement l'oubli qui avait rendu ce script inopérant la première
-# fois — voir l'historique du fichier).
+# rester synchronisées avec ce script si la convention change de ce côté-là.
 LABEL_BEGIN_ENTRY = "B-ENTRY"
 LABEL_INSIDE_ENTRY = "I-ENTRY"
 LABEL_SUB_ENTRY = "SUB-ENTRY"
@@ -100,11 +99,9 @@ def alpha_sort_key(text: str) -> str:
     return "".join(char for char in ascii_text if char.isalnum()).upper()
 
 
-def _new_root(
-    row: dict[str, str], class_col: str, normalized_class: str
-) -> dict[str, str]:
+def _new_root(row: dict[str, str], normalized_entity: str) -> dict[str, str]:
     root = row.copy()
-    root[class_col] = normalized_class
+    root["entity"] = normalized_entity
     return root
 
 
@@ -113,11 +110,8 @@ def _merge_into(
     row: dict[str, str],
     separator: str,
     fieldnames: list[str],
-    class_col: str,
 ) -> None:
     for col in fieldnames:
-        if col == class_col:
-            continue
         if col == "markdown":
             group[col] = f"{group[col]}{separator}{row.get(col, '')}"
         else:
@@ -181,24 +175,35 @@ def process_csv(
         if not reader.fieldnames:
             raise ValueError("Le fichier CSV d'entrée est vide ou invalide.")
 
-        fieldnames = list(reader.fieldnames)
+        input_fieldnames = list(reader.fieldnames)
 
-        if class_col not in fieldnames:
+        if class_col not in input_fieldnames:
             raise ValueError(
                 f"La colonne de classe '{class_col}' est introuvable dans le CSV."
             )
-        if "markdown" not in fieldnames:
+        if "markdown" not in input_fieldnames:
             console.print(
                 "[yellow]Avertissement : la colonne 'markdown' n'a pas été trouvée.[/yellow]"
             )
-        if uid_col not in fieldnames:
+        if uid_col not in input_fieldnames:
             console.print(
                 f"[yellow]Avertissement : la colonne '{uid_col}' est introuvable ; "
                 "les identifiants du rapport utiliseront le numéro de ligne lue.[/yellow]"
             )
 
+        output_fieldnames = ["uuid"]
+        for col in input_fieldnames:
+            if col == "uuid":
+                continue
+            output_fieldnames.append(col)
+            if col == "markdown":
+                output_fieldnames.append("entity")
+
+        if "entity" not in output_fieldnames:
+            output_fieldnames.append("entity")
+
         with output_path.open("w", encoding="utf-8", newline="") as f_out:
-            writer = csv.DictWriter(f_out, fieldnames=fieldnames)
+            writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
             writer.writeheader()
 
             active_entry: dict[str, str] | None = None
@@ -233,6 +238,7 @@ def process_csv(
                 nonlocal active_entry
                 if active_entry is None:
                     return
+                active_entry["uuid"] = str(uuid.uuid4())
                 writer.writerow(active_entry)
                 report.rows_written += 1
                 report.final_entries += 1
@@ -242,6 +248,7 @@ def process_csv(
                 nonlocal active_title
                 if active_title is None:
                     return
+                active_title["uuid"] = str(uuid.uuid4())
                 writer.writerow(active_title)
                 report.rows_written += 1
                 report.final_titles += 1
@@ -255,49 +262,52 @@ def process_csv(
                 if pred == LABEL_BEGIN_ENTRY:
                     flush_entry()
                     register_entry_root(row)
-                    active_entry = _new_root(row, class_col, NORMALIZED_ENTRY)
+                    active_entry = _new_root(row, NORMALIZED_ENTRY)
 
                 elif pred == LABEL_INSIDE_ENTRY:
                     if active_entry is not None:
-                        _merge_into(active_entry, row, " ", fieldnames, class_col)
+                        _merge_into(active_entry, row, " ", input_fieldnames)
                         report.entry_lines_merged += 1
                     else:
                         report.orphan_entry_continuations.append(row_id)
                         flush_entry()
                         register_entry_root(row)
-                        active_entry = _new_root(row, class_col, NORMALIZED_ENTRY)
+                        active_entry = _new_root(row, NORMALIZED_ENTRY)
 
                 elif pred == LABEL_SUB_ENTRY:
                     if active_entry is not None:
-                        _merge_into(active_entry, row, "\n", fieldnames, class_col)
+                        _merge_into(active_entry, row, "\n", input_fieldnames)
                         report.subentry_lines_merged += 1
                     else:
                         report.orphan_subentries.append(row_id)
                         flush_entry()
                         register_entry_root(row)
-                        active_entry = _new_root(row, class_col, NORMALIZED_ENTRY)
+                        active_entry = _new_root(row, NORMALIZED_ENTRY)
 
                 elif pred == LABEL_BEGIN_TITLE:
                     flush_title()
-                    active_title = _new_root(row, class_col, NORMALIZED_TITLE)
+                    active_title = _new_root(row, NORMALIZED_TITLE)
                     last_alpha_key = (
                         None  # Nouvelle section : on réinitialise l'ordre alphabétique.
                     )
 
                 elif pred == LABEL_INSIDE_TITLE:
                     if active_title is not None:
-                        _merge_into(active_title, row, " ", fieldnames, class_col)
+                        _merge_into(active_title, row, " ", input_fieldnames)
                         report.title_lines_merged += 1
                     else:
                         report.orphan_title_continuations.append(row_id)
                         flush_title()
-                        active_title = _new_root(row, class_col, NORMALIZED_TITLE)
+                        active_title = _new_root(row, NORMALIZED_TITLE)
 
                 else:
                     # OUT OF SCOPE, ou toute classe non reconnue : jamais fusionnée.
-                    if pred != LABEL_OOS and pred != '':
+                    if pred != LABEL_OOS and pred != "":
                         report.unknown_labels.append((row_id, pred))
-                    writer.writerow(row)
+                    out_row = row.copy()
+                    out_row["uuid"] = str(uuid.uuid4())
+                    out_row["entity"] = LABEL_OOS
+                    writer.writerow(out_row)
                     report.rows_written += 1
                     report.final_oos += 1
 
