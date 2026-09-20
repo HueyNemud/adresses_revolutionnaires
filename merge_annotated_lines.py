@@ -43,16 +43,12 @@ from rich.console import Console
 
 console = Console()
 
-# Valeurs exactes d'`annotate_lines_crf.AnnotationLabel` : elles doivent
-# rester synchronisées avec ce script si la convention change de ce côté-là.
 LABEL_BEGIN_ENTRY = "B-ENTRY"
 LABEL_INSIDE_ENTRY = "I-ENTRY"
 LABEL_SUB_ENTRY = "SUB-ENTRY"
 LABEL_BEGIN_TITLE = "B-TITLE"
 LABEL_INSIDE_TITLE = "I-TITLE"
-LABEL_OOS = (
-    "OUT OF SCOPE"  # Note : PAS "OUT_OF_SCOPE" (avec espaces, pas d'underscores).
-)
+LABEL_OOS = "OUT OF SCOPE"
 
 KNOWN_LABELS = {
     LABEL_BEGIN_ENTRY,
@@ -83,7 +79,6 @@ class MergeReport:
     orphan_entry_continuations: list[str] = field(default_factory=list)
     orphan_title_continuations: list[str] = field(default_factory=list)
     unknown_labels: list[tuple[str, str]] = field(default_factory=list)
-    # (identifiant, clé fautive, clé précédente, extrait du texte)
     alpha_violations: list[tuple[str, str, str, str]] = field(default_factory=list)
 
 
@@ -91,9 +86,7 @@ def alpha_sort_key(text: str) -> str:
     """Clé de tri : mots jusqu'à la première virgule ou au premier point,
     concaténés en majuscules, sans accents, espaces ni ponctuation.
     """
-    # Isole le segment situé avant la première virgule ou le premier point
     segment = re.split(r"[,.]", text, maxsplit=1)[0]
-
     normalized = unicodedata.normalize("NFKD", segment)
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
     return "".join(char for char in ascii_text if char.isalnum()).upper()
@@ -129,7 +122,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "input_csv",
         type=Path,
-        help="Fichier CSV d'entrée (par ex. bpt6k62915570-114_326-ocr.lines.annotated.csv).",
+        help="Fichier CSV d'entrée.",
     )
     parser.add_argument(
         "-o",
@@ -143,7 +136,7 @@ def parse_args() -> argparse.Namespace:
         "--report",
         type=Path,
         default=None,
-        help="Chemin du rapport .txt (défaut : <sortie>.report.txt, dans le même dossier).",
+        help="Chemin du rapport .txt (défaut : <sortie>.report.txt).",
     )
     parser.add_argument(
         "--class-column",
@@ -166,8 +159,6 @@ def process_csv(
     class_col: str,
     uid_col: str,
 ) -> MergeReport:
-    """Lit le CSV, fusionne les entités ENTRY/TITLE, exporte le résultat et
-    retourne le rapport d'analyse correspondant."""
     report = MergeReport()
 
     with input_path.open("r", encoding="utf-8", newline="") as f_in:
@@ -206,19 +197,26 @@ def process_csv(
             writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
             writer.writeheader()
 
+            # Chaque entité finale est mémorisée avec la position (l'ordinal
+            # de lecture) de sa toute première ligne, puis triée par cette
+            # position avant d'être écrite : écrire au fil de l'eau, au
+            # moment où chaque piste (ENTRY / TITLE) se referme, ne suffit
+            # pas à préserver l'ordre du document, puisque ces deux pistes
+            # se referment à des moments indépendants l'une de l'autre (une
+            # TITLE plus tardive peut se refermer, et donc s'écrire, avant
+            # une ENTRY plus précoce restée ouverte plus longtemps).
+            output_rows: list[tuple[int, dict[str, str]]] = []
+
             active_entry: dict[str, str] | None = None
+            active_entry_position: int = -1
             active_title: dict[str, str] | None = None
+            active_title_position: int = -1
             last_alpha_key: str | None = None
 
             def identifier(row: dict[str, str]) -> str:
                 return row.get(uid_col) or f"<ligne {report.rows_read}>"
 
             def register_entry_root(row: dict[str, str]) -> None:
-                """Vérifie l'ordre alphabétique au moment où une entrée démarre
-                (pas à son flush, différé jusqu'au B-ENTRY suivant) : c'est ce
-                moment qui reflète l'ordre chronologique réel du document et
-                respecte correctement la réinitialisation à chaque TITLE.
-                """
                 nonlocal last_alpha_key
                 key = alpha_sort_key(row.get("markdown", ""))
                 if not key:
@@ -239,8 +237,7 @@ def process_csv(
                 if active_entry is None:
                     return
                 active_entry["uuid"] = str(uuid.uuid4())
-                writer.writerow(active_entry)
-                report.rows_written += 1
+                output_rows.append((active_entry_position, active_entry))
                 report.final_entries += 1
                 active_entry = None
 
@@ -249,12 +246,11 @@ def process_csv(
                 if active_title is None:
                     return
                 active_title["uuid"] = str(uuid.uuid4())
-                writer.writerow(active_title)
-                report.rows_written += 1
+                output_rows.append((active_title_position, active_title))
                 report.final_titles += 1
                 active_title = None
 
-            for row in reader:
+            for position, row in enumerate(reader):
                 report.rows_read += 1
                 pred = row.get(class_col, "").strip()
                 row_id = identifier(row)
@@ -263,6 +259,7 @@ def process_csv(
                     flush_entry()
                     register_entry_root(row)
                     active_entry = _new_root(row, NORMALIZED_ENTRY)
+                    active_entry_position = position
 
                 elif pred == LABEL_INSIDE_ENTRY:
                     if active_entry is not None:
@@ -273,6 +270,7 @@ def process_csv(
                         flush_entry()
                         register_entry_root(row)
                         active_entry = _new_root(row, NORMALIZED_ENTRY)
+                        active_entry_position = position
 
                 elif pred == LABEL_SUB_ENTRY:
                     if active_entry is not None:
@@ -283,13 +281,13 @@ def process_csv(
                         flush_entry()
                         register_entry_root(row)
                         active_entry = _new_root(row, NORMALIZED_ENTRY)
+                        active_entry_position = position
 
                 elif pred == LABEL_BEGIN_TITLE:
                     flush_title()
                     active_title = _new_root(row, NORMALIZED_TITLE)
-                    last_alpha_key = (
-                        None  # Nouvelle section : on réinitialise l'ordre alphabétique.
-                    )
+                    active_title_position = position
+                    last_alpha_key = None
 
                 elif pred == LABEL_INSIDE_TITLE:
                     if active_title is not None:
@@ -299,20 +297,24 @@ def process_csv(
                         report.orphan_title_continuations.append(row_id)
                         flush_title()
                         active_title = _new_root(row, NORMALIZED_TITLE)
+                        active_title_position = position
 
                 else:
-                    # OUT OF SCOPE, ou toute classe non reconnue : jamais fusionnée.
                     if pred != LABEL_OOS and pred != "":
                         report.unknown_labels.append((row_id, pred))
                     out_row = row.copy()
                     out_row["uuid"] = str(uuid.uuid4())
                     out_row["entity"] = LABEL_OOS
-                    writer.writerow(out_row)
-                    report.rows_written += 1
+                    output_rows.append((position, out_row))
                     report.final_oos += 1
 
             flush_entry()
             flush_title()
+
+            output_rows.sort(key=lambda item: item[0])
+            for _, out_row in output_rows:
+                writer.writerow(out_row)
+            report.rows_written = len(output_rows)
 
     return report
 
@@ -417,16 +419,14 @@ def main() -> None:
         + len(report.alpha_violations)
     )
     console.print(
-        "\n[bold green]✅ Fusion CSV réussie :[/bold green] "
+        "\n[bold green]Fusion CSV réussie :[/bold green] "
         f"[yellow]{output_path}[/yellow] "
         f"({report.rows_read} lignes lues → {report.rows_written} lignes écrites)"
     )
-    console.print(
-        f"[bold green]📄 Rapport :[/bold green] [yellow]{report_path}[/yellow]"
-    )
+    console.print(f"[bold green]Rapport :[/bold green] [yellow]{report_path}[/yellow]")
     if problem_count:
         console.print(
-            f"[yellow]⚠ {problem_count} cas à vérifier (voir le rapport pour le détail).[/yellow]"
+            f"[yellow]{problem_count} cas à vérifier (voir le rapport pour le détail).[/yellow]"
         )
 
 
