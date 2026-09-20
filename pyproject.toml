@@ -14,5 +14,6 @@ dependencies = [
     "scikit-learn>=1.9.0",
     "scipy>=1.18.0",
     "spacy>=3.8.15",
+    "streamlit>=1.64.0",
     "treeinterpreter>=0.2.3",
 ]
