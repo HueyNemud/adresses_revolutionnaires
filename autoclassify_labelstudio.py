@@ -1,37 +1,40 @@
-"""Pré-annote des entrées d'annuaire via Ollama et exporte un JSON de
-prédictions NER importable dans Label Studio.
+"""Pré-annote des entrées d'annuaire depuis un CSV via Ollama et exporte un JSON
+de prédictions NER importable dans Label Studio.
 
-Chaque ligne du fichier d'entrée (par ex. la colonne 'markdown' d'un CSV
-fusionné par merge_annotated_lines.py, exportée une entrée par ligne) est
-segmentée et classée par le modèle en :
+Chaque ligne du fichier d'entrée est segmentée et classée par le modèle en :
   - "SUBJ" : entité désignée (unique, obligatoire, premier segment) ;
   - "DESC" : descriptif d'activité (optionnel, récurrence libre) ;
   - "ADDR" : descriptif d'adresse (en fin d'entrée, optionnel).
-
-Le modèle est interrogé en mode "structured output" d'Ollama (un schéma
-JSON contraint, généré depuis un modèle Pydantic), pas seulement en mode
-JSON libre : la forme de la réponse est garantie, pas seulement sa validité
-JSON.
-
-Ces classes (SUBJ/DESC/ADDR) sont indépendantes des classes BIO de
-annotate_lines_crf.py (B-ENTRY, I-ENTRY, ...) : ce script classe des empans
-de texte à l'intérieur d'une entrée déjà reconstituée, pas des lignes.
 """
 
 import argparse
+import csv
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Literal
 
 import ollama
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 console = Console()
 
 DEFAULT_MODEL = "qwen3.8:27b"
 DEFAULT_FROM_NAME = "label"
 DEFAULT_TO_NAME = "text"
+DEFAULT_TEXT_COLUMN = "markdown"
+
+SEGMENT_COLORS = {"SUBJ": "cyan", "DESC": "yellow", "ADDR": "magenta"}
 
 SYSTEM_PROMPT = """Tu es un système spécialisé en extraction d'information et NER sur des annuaires commerciaux anciens.
 
@@ -41,6 +44,12 @@ SYSTEM_PROMPT = """Tu es un système spécialisé en extraction d'information et
 3. Descriptif d'adresse : classe "ADDR" (en fin d'entrée, optionnel, récurrence libre)
 
 Les segments concaténés dans l'ordre doivent reconstituer exactement le texte d'entrée, sans altérer l'orthographe ni les espaces.
+
+Exemples :
+    'Sibire ( lomb. Serilly ), C. Batave, R. S. Denis, 63. — Lomb' ---> 'Sibire ( lomb. Serilly )' = SUBJ, 'C. Batave, R. S. Denis, 63. — Lomb' =  ADDR
+    'Galois-le-Gendre, *fabr. et émailleur*, rue du Petit-Lion-Saint-Sauveur, 20, et cour St.-Martin.' ---> 'Galois-le-Gendre' = SUBJ, '*fabr. et émailleur*' = DESC, 'rue du Petit-Lion-Saint-Sauveur, et cour St.-Martin.' = ADDR
+    '*Léonard*, (Mad.) place du Carrousel, 12. Voyez aussi Baboulinet.' ---> '*Léonard*, (Mad.)' = SUBJ, 'place du Carrousel, 12' = ADDR, 'Voyez aussi Baboulinet.' = DESC
+    '**journal des Savoir**, distribué sous les colonnes du Palais Royal tous les jeudis.' --> '**journal des Savoir**' = SUBJ, ', distribué sous les colonnes du Palais Royal tous les jeudis.' = DESC
 """
 
 
@@ -58,14 +67,6 @@ class Annotation(BaseModel):
 
 
 def annotate_entry(entry_text: str, model: str, temperature: float) -> list[Segment]:
-    """Interroge Ollama en mode structured output (schéma JSON contraint).
-
-    Contrairement à `format="json"` (qui garantit seulement du JSON
-    syntaxiquement valide, de forme libre), passer le schéma Pydantic
-    contraint la sortie du modèle à respecter exactement la structure
-    attendue (clé "segments", "text"/"label" par élément, classes limitées
-    à SUBJ/DESC/ADDR).
-    """
     response = ollama.chat(
         model=model,
         messages=[
@@ -80,14 +81,6 @@ def annotate_entry(entry_text: str, model: str, temperature: float) -> list[Segm
 
 
 def locate_segment(haystack: str, needle: str, start: int) -> tuple[int, int]:
-    """Localise un segment dans le texte source à partir d'une position donnée.
-
-    La recherche démarre au curseur courant (pas depuis le début du texte),
-    pour placer correctement des segments dont le texte se répète (ex. deux
-    "16" à des positions différentes). Lève une ValueError explicite si le
-    modèle a altéré le texte : mieux vaut faire échouer proprement cette
-    entrée que produire un empan Label Studio mal positionné en silence.
-    """
     index = haystack.find(needle, start)
     if index == -1:
         raise ValueError(
@@ -103,8 +96,8 @@ def segments_to_label_studio_task(
     model: str,
     from_name: str,
     to_name: str,
+    metadata: dict[str, str] | None = None,
 ) -> dict[str, object]:
-    """Construit une tâche Label Studio avec ses prédictions NER par empans."""
     results = []
     cursor = 0
     for segment in segments:
@@ -123,23 +116,40 @@ def segments_to_label_studio_task(
             }
         )
         cursor = end
+
+    data = dict(metadata) if metadata else {}
+    data[to_name] = entry_text
+
     return {
-        "data": {"text": entry_text},
+        "data": data,
         "predictions": [{"model_version": model, "result": results}],
     }
+
+
+def format_segments(task: dict[str, object]) -> str:
+    """Représentation colorée et compacte des segments réellement parsés,
+    pour affichage console — pas juste un aperçu du texte d'entrée."""
+    parts = []
+    for item in task["predictions"][0]["result"]:
+        label = item["value"]["labels"][0]
+        text = item["value"]["text"].strip()
+        preview = text if len(text) <= 30 else f"{text[:27]}..."
+        color = SEGMENT_COLORS.get(label, "white")
+        parts.append(f"[{color}]{label}[/{color}] {preview!r}")
+    return "  ".join(parts) if parts else "[dim](aucun segment)[/dim]"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Pré-annote des entrées d'annuaire via Ollama (structured output) "
+            "Pré-annote des entrées d'annuaire à partir d'un CSV via Ollama "
             "et exporte des prédictions NER au format Label Studio."
         )
     )
     parser.add_argument(
         "input_path",
         type=Path,
-        help="Fichier texte, une entrée d'annuaire par ligne.",
+        help="Fichier CSV d'entrée contenant les lignes à annoter.",
     )
     parser.add_argument(
         "-o",
@@ -147,6 +157,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Chemin du JSON de sortie (défaut : <entrée>.ls-annotations.json).",
+    )
+    parser.add_argument(
+        "--text-column",
+        type=str,
+        default=DEFAULT_TEXT_COLUMN,
+        help=f"Nom de la colonne CSV contenant le texte (défaut : '{DEFAULT_TEXT_COLUMN}').",
     )
     parser.add_argument(
         "--model",
@@ -178,6 +194,17 @@ def parse_args() -> argparse.Namespace:
             f"(défaut : '{DEFAULT_TO_NAME}')."
         ),
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=4,
+        help=(
+            "Nombre de requêtes Ollama envoyées en parallèle (défaut : 4). "
+            "Sans effet si le serveur Ollama n'autorise pas ce parallélisme "
+            "(variable d'environnement OLLAMA_NUM_PARALLEL côté serveur) : "
+            "les requêtes s'y mettront simplement en file d'attente."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -190,45 +217,92 @@ def main() -> None:
         )
         return
 
-    entries = [
-        line.strip()
-        for line in args.input_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    if not entries:
+    rows: list[dict[str, str]] = []
+    with open(args.input_path, mode="r", encoding="utf-8", errors="replace") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames or args.text_column not in reader.fieldnames:
+            console.print(
+                f"[bold red]Erreur :[/bold red] Colonne '{args.text_column}' introuvable dans le CSV."
+            )
+            return
+        for row in reader:
+            if row.get(args.text_column, "").strip():
+                rows.append(row)
+
+    if not rows:
         console.print(
-            "[yellow]Le fichier d'entrée ne contient aucune ligne exploitable.[/yellow]"
+            "[yellow]Le fichier CSV ne contient aucune ligne exploitable.[/yellow]"
         )
         return
 
     output_path = args.output or args.input_path.with_suffix(".ls-annotations.json")
 
     console.print(
-        f"Début du traitement de {len(entries)} entrées avec "
-        f"[cyan]{args.model}[/cyan]...\n"
+        f"Début du traitement de {len(rows)} entrées issues de [yellow]{args.input_path.name}[/yellow] "
+        f"avec [cyan]{args.model}[/cyan] (concurrence : {args.concurrency})...\n"
     )
 
-    tasks: list[dict[str, object]] = []
+    def process_row(row: dict[str, str]) -> dict[str, object]:
+        """Traite une ligne ; exécuté dans un thread du pool.
+
+        Peut lever n'importe quelle exception (réseau, JSON hors schéma,
+        texte altéré...) : elle est récupérée par l'appelant via
+        `future.result()`, dans le thread principal, et n'interrompt donc
+        jamais les autres requêtes en cours.
+        """
+        text = row[args.text_column].strip()
+        segments = annotate_entry(text, args.model, args.temperature)
+        return segments_to_label_studio_task(
+            text, segments, args.model, args.from_name, args.to_name, metadata=row
+        )
+
+    # `results` est indexé comme `rows` : l'ordre du fichier de sortie ne
+    # dépend donc pas de l'ordre d'achèvement des requêtes, même si les
+    # lignes de progression, elles, s'affichent dans l'ordre où les threads
+    # terminent (normal et attendu en exécution parallèle).
+    results: list[dict[str, object] | None] = [None] * len(rows)
     failures = 0
-    for idx, text in enumerate(entries, start=1):
-        try:
-            segments = annotate_entry(text, args.model, args.temperature)
-            task = segments_to_label_studio_task(
-                text, segments, args.model, args.from_name, args.to_name
-            )
-        except Exception as error:
-            # Catch-all volontairement large : un lot d'appels LLM peut échouer
-            # de mille façons (réseau, modèle indisponible, JSON hors schéma,
-            # texte altéré par le modèle...). On isole l'échec à cette seule
-            # entrée et on poursuit le lot plutôt que d'interrompre tout le
-            # traitement pour un incident ponctuel.
-            failures += 1
-            console.print(
-                f"[red][{idx}/{len(entries)}] ERREUR[/red] sur {text!r} : {error}"
-            )
-            continue
-        tasks.append(task)
-        console.print(f"[green][{idx}/{len(entries)}] OK[/green] — {text[:50]}...")
+    print_lock = threading.Lock()
+
+    progress_columns = (
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("•"),
+        TimeElapsedColumn(),
+        TextColumn("restant :"),
+        TimeRemainingColumn(),
+    )
+
+    with Progress(*progress_columns, console=console) as progress:
+        # `Progress.update` est explicitement conçu pour être appelé depuis
+        # plusieurs threads (cf. les exemples officiels de rich combinant
+        # ThreadPoolExecutor et Progress) ; le print_lock protège seulement
+        # nos propres `console.print` du dessous, pour un affichage net.
+        task_id = progress.add_task("Annotation", total=len(rows))
+
+        with ThreadPoolExecutor(max_workers=max(1, args.concurrency)) as executor:
+            future_to_index = {
+                executor.submit(process_row, row): idx for idx, row in enumerate(rows)
+            }
+            for future in as_completed(future_to_index):
+                idx = future_to_index[future]
+                preview = rows[idx][args.text_column].strip()[:50]
+                try:
+                    task = future.result()
+                except Exception as error:
+                    failures += 1
+                    with print_lock:
+                        console.print(
+                            f"[red]✗[/red] #{idx + 1:>3} {preview!r} : {error}"
+                        )
+                else:
+                    results[idx] = task
+                    with print_lock:
+                        console.print(f"[green]✓[/green] #{idx + 1:>3} {format_segments(task)}")
+                progress.update(task_id, advance=1)
+
+    tasks = [task for task in results if task is not None]
 
     output_path.write_text(
         json.dumps(tasks, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -236,9 +310,9 @@ def main() -> None:
 
     summary_style = "bold green" if failures == 0 else "bold yellow"
     console.print(
-        f"\n[{summary_style}]✅ Terminé :[/{summary_style}] "
+        f"\n[{summary_style}]Terminé :[/{summary_style}] "
         f"[yellow]{output_path}[/yellow] "
-        f"({len(tasks)}/{len(entries)} entrées annotées"
+        f"({len(tasks)}/{len(rows)} entrées annotées"
         + (f", {failures} échec(s)" if failures else "")
         + ")"
     )
