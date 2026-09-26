@@ -35,6 +35,7 @@ d'anciens exports.
 import html
 import io
 import re
+import zlib
 from functools import lru_cache
 
 import pandas as pd
@@ -74,20 +75,16 @@ TABLE_CSS = """
 #    testables indépendamment de l'UI)
 # -----------------------------------------------------------------------------
 
-
 @lru_cache(maxsize=256)
 def get_label_color(label: str) -> tuple[str, str]:
-    """Couleur de fond et de bordure déterministe basée sur le nom du label.
-
-    Mise en cache : le nombre de labels distincts est minuscule (SUBJ, DESC,
-    ADDR, ENTRY, TITLE, OUT OF SCOPE...) mais cette fonction est appelée pour
-    chaque empan de chaque ligne affichée — autant ne la calculer qu'une fois
-    par label plutôt qu'à chaque cellule.
-    """
+    """Couleur de fond et de bordure déterministe basée sur le nom du label."""
     if not label or label in ("-", "OUT OF SCOPE", "nan"):
         return "#f0f2f6", "#6c757d"
-    hash_val = sum(ord(c) for c in label)
-    hue = (hash_val * 137) % 360
+
+    # zlib.crc32 distribue uniformément les teintes sur [0, 359]
+    hash_val = zlib.crc32(label.encode("utf-8"))
+    hue = hash_val % 360
+
     return f"hsl({hue}, 85%, 92%)", f"hsl({hue}, 70%, 40%)"
 
 

@@ -103,12 +103,17 @@ def _merge_into(
     row: dict[str, str],
     separator: str,
     fieldnames: list[str],
+    strip_whitespace: bool = True,
 ) -> None:
     for col in fieldnames:
-        if col == "markdown":
-            group[col] = f"{group[col]}{separator}{row.get(col, '')}"
-        else:
-            group[col] = f"{group.get(col, '')},{row.get(col, '')}"
+        sep = separator if col == "markdown" else ","
+        left = group.get(col, "")
+        right = row.get(col, "")
+
+        if strip_whitespace:
+            left, right = left.strip(), right.strip()
+
+        group[col] = f"{left}{sep}{right}"
 
 
 def parse_args() -> argparse.Namespace:
