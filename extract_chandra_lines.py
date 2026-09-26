@@ -1,4 +1,4 @@
-"""Convertit une sortie JSON Datalab/Chandra en JSON enrichi de blocs de données.
+"""Convertit une sortie OCR JSON Chandra (<nom>.ocr.json) en JSON enrichi de blocs de données.
 
 Le JSON de sortie est une copie du JSON d'entrée : chaque page reçoit en plus
 une liste de blocs de données (« data_blocks »), et chaque bloc contient la
@@ -141,7 +141,7 @@ def parse_document(raw_pages: list[dict[str, Any]]) -> list[Page]:
 
 
 def load_document(json_path: str | Path) -> list[Page]:
-    """Load the Datalab JSON document and its block-to-chunk provenance."""
+    """Load the Chandra OCR JSON document and its block-to-chunk provenance."""
     return parse_document(load_raw_pages(json_path))
 
 
@@ -196,7 +196,7 @@ def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
 def _line_record(
     page: Page, block: DataBlock, line_index: int, line: str
 ) -> dict[str, object]:
-    """Build one JSON record for a Markdown line and its Datalab provenance."""
+    """Build one JSON record for a Markdown line and its Chandra provenance."""
     return {
         "uid": generate_line_uid(page.index, block.index, line_index),
         "line_index": line_index,
@@ -233,7 +233,7 @@ def build_data_block_record(
 def process_json_to_json(
     json_path: str | Path, output_path: str | Path, no_tables: bool = False
 ) -> tuple[int, int, int]:
-    """Copy a Datalab JSON document, adding parsed data blocks and lines to each page.
+    """Copy a Chandra OCR JSON document, adding parsed data blocks and lines to each page.
 
     Retourne (nombre de pages, nombre de blocs de données, nombre de lignes).
     """
@@ -263,14 +263,14 @@ def process_json_to_json(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Exporte une copie du JSON Datalab avec, pour chaque page, ses "
+            "Exporte une copie du JSON OCR Chandra avec, pour chaque page, ses "
             "blocs de données et leurs lignes Markdown."
         )
     )
     parser.add_argument(
         "json_path",
         type=Path,
-        help="JSON d'entrée (sortie brute de Datalab/Chandra).",
+        help="JSON d'entrée (sortie OCR brute de Chandra, <nom>.ocr.json).",
     )
     parser.add_argument(
         "-o",
