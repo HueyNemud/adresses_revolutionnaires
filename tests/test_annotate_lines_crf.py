@@ -3,19 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from annotate_lines_crf import (
-    ActiveCRF,
-    AnnotationLabel,
-    CLASSES,
-    SourceLine,
-    extract_features,
-    get_heuristic_label,
-    load_json_lines,
-    load_session,
-    load_session_state,
-    normalize_ocr_label,
-    save_session,
-)
+from annotate_lines_crf import load_session, load_session_state, save_session
+from lib.crf.active_learning import ActiveCRF, SourceLine, load_json_lines
+from lib.crf.features import extract_features, get_heuristic_label, normalize_ocr_label
+from lib.crf.labels import CLASSES, AnnotationLabel
 
 
 def make_line(uid: str, line_index: int, markdown: str) -> dict:

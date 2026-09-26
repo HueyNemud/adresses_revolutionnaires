@@ -14,7 +14,7 @@ from typing import Any, Iterator
 
 from rich.console import Console
 
-from chandra_document import iter_line_locations
+from lib.chandra_document import iter_line_locations
 
 console = Console()
 

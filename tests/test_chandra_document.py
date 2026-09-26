@@ -1,6 +1,6 @@
 import unittest
 
-from chandra_document import iter_line_locations
+from lib.chandra_document import iter_line_locations
 
 
 class IterLineLocationsTests(unittest.TestCase):

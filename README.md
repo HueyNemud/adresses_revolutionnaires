@@ -224,6 +224,45 @@ python autoclassify.py entries.txt
 - `--from-name`/`--to-name` doivent correspondre aux noms des balises
   `<Labels>`/`<Text>` de votre configuration Label Studio.
 
+## Audit du CRF : `audit_crf_features.py`
+
+Mesure la performance du CRF de l'étape 2 et la pertinence de chacune de ses
+features, en prenant pour référence les « silver datasets » : les CSV
+`*.ocr.lines.annotated.curated.csv`, dont la colonne `prediction_curated`
+contient la classe de chaque ligne vérifiée et corrigée à la main.
+
+```
+uv run audit_crf_features.py                 # tous les CSV curés sous annuaires/
+uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
+```
+
+- **Entrées :** les CSV curés et, à côté de chacun, le JSON
+  `<nom>.ocr.lines.json` qu'a vu l'annotateur : les features sont calculées
+  sur ce JSON (le texte a parfois été corrigé pendant la curation, notamment
+  les marqueurs de titre « # »), les classes curées y sont alignées par `uid`.
+- **Sortie :** `rapports/audit_crf/` par défaut — `rapport.md` (résumé,
+  recommandations, analyses détaillées), des tables CSV (expériences, classes,
+  statistiques de features, poids du modèle, erreurs) et `resume.json`.
+- **Contenu du rapport :** performances par classe et par entité (règles de
+  `merge_annotated_lines.py`) selon deux validations croisées
+  (intra-document, par blocs de pages contiguës ; inter-volumes) ;
+  calibration des probabilités ; information mutuelle, constance et
+  redondance des attributs ; ablations groupe par groupe et groupe seul,
+  jugées contre un plancher de bruit mesuré par des features placebo ;
+  évaluation de groupes de features candidats et d'une sélection ; courbe
+  d'apprentissage ; analyse d'erreurs.
+- **Options utiles :** `--workers` (entraînements en parallèle),
+  `--bootstrap`, `--folds`, `--no-learning-curve` / `--no-candidates` /
+  `--no-single-groups` (plus rapide), `--hyperparams` (grille c1 × c2).
+
+Le cœur du CRF est partagé entre l'annotateur et l'audit dans `lib/crf/` :
+`features.py` (groupes de features nommés : production, candidats, placebos),
+`model.py` (entraînement / inférence), `active_learning.py` (moteur de
+l'annotateur), `silver.py` (chargement des CSV curés) et `evaluation.py`
+(protocoles, métriques, bootstrap). Pour tester une nouvelle feature, il
+suffit d'ajouter un groupe candidat dans `lib/crf/features.py` : l'audit
+l'évalue automatiquement sans changer le comportement de l'annotateur.
+
 ## Fichiers finaux et ce qu'ils contiennent
 
 | Fichier | Produit par | Contenu |
