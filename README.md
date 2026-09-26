@@ -295,6 +295,26 @@ Ces motifs ne dépendent d'aucun lexique propre aux volumes. `audit_ner.py`
 mesure sur le gold la part d'entrées signalées et la part des erreurs
 attrapées, motif par motif et pour plusieurs seuils.
 
+### Explorer le résultat : `tools/display_directory.py`
+
+```bash
+uv run streamlit run tools/display_directory.py
+```
+
+Visualiseur du CSV final d'un volume (`*.merged.ner.csv` ou
+`*.merged.ner.curated.csv`, choisi dans `annuaires/` ou téléversé) :
+
+- **Contexte** : empans colorés par classe ; chaque entrée est replacée dans
+  sa rubrique (chemin des titres), avec un bandeau à chaque changement de
+  rubrique en ordre du fichier.
+- **Filtres** : type de ligne, rubrique (sous-rubriques comprises), pages,
+  recherche (texte ou expression régulière), signature, entrées suspectes et
+  motifs, confiance maximale.
+- **Statistiques** sur tout le fichier : signatures, motifs, et rubriques
+  classées par nombre d'entrées suspectes, pour organiser la relecture.
+- **Fichiers antérieurs au drapeau** (sans `ner_suspect`) : les motifs
+  structurels sont recalculés depuis `tagged_text`.
+
 ### Entraînement (machine GPU)
 
 ```bash

@@ -16,7 +16,7 @@ uv run python -m unittest discover -s tests                # all tests (unittest
 uv run python -m unittest tests.test_export_lines_csv      # one test module
 uv run python -m unittest tests.test_export_lines_csv.<Class>.<test_name>   # one test
 ./run_pipeline.sh annuaires/<dossier>                      # all steps on the first *.ocr.json in a folder
-uv run streamlit run tools/display_directory.py            # viewer for merged / GLiNER CSVs
+uv run streamlit run tools/display_directory.py            # viewer for a volume's final NER CSV (*.merged.ner[.curated].csv)
 uv run audit_crf_features.py                               # CRF/feature audit on curated CSVs → rapports/audit_crf/
 uv run tools/sample_ner_gold.py                            # (once) stratified NER gold sample → data/ner/gold_v1.ls.json
 uv run audit_ner.py [--model DIR] [--sweep]                # NER audit on the reviewed gold → rapports/audit_ner/
