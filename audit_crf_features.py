@@ -73,6 +73,7 @@ from lib.crf.evaluation import (
 from lib.crf.features import (
     CANDIDATE_GROUPS,
     FEATURE_GROUPS,
+    LEGACY_GROUPS,
     PLACEBO_GROUPS,
     PRODUCTION_GROUPS,
     extract_features_from_context,
@@ -101,7 +102,8 @@ METRIC_LABELS = {
     "entry_f1": "F1 ENTRY (entités)",
     "title_f1": "F1 TITLE (entités)",
 }
-SHAPES_VARIANT = "shapes_sans_markdown"
+TITLE_CANDIDATES = ("small_word_start", "block_continuation", "uppercase")
+TITLE_METRICS = ("f1_B-TITLE", "f1_I-TITLE", "title_f1")
 
 
 # ----------------------------------------------------------------------
@@ -204,12 +206,14 @@ class Statistics:
 
     def metrics(self, cm: np.ndarray, ent: np.ndarray) -> dict[str, np.ndarray]:
         entity = entity_f1(ent)[2]
+        class_f1 = prf(cm)[2]
         return {
             "macro_f1": macro_f1(cm, self.classes_mask),
             "macro_f1_freq": macro_f1(cm, self.frequent_mask),
             "accuracy": accuracy(cm),
             "entry_f1": entity[..., 0],
             "title_f1": entity[..., 1],
+            **{f"f1_{label}": class_f1[..., k] for k, label in enumerate(CLASSES) if self.classes_mask[k]},
         }
 
     def point(self, evaluated: Evaluated) -> dict[str, float]:
@@ -258,10 +262,6 @@ def without(groups: Sequence[str], *removed: str) -> tuple[str, ...]:
     return tuple(g for g in groups if g not in removed)
 
 
-def shapes_variant_groups(base: Sequence[str]) -> tuple[str, ...]:
-    return without(base, "starts_lower", "token_shapes") + ("token_shapes_plain", "markdown_emphasis")
-
-
 def config_name(config: TrainingConfig) -> str:
     return f"c1={config.c1:g}, c2={config.c2:g}, iter={config.max_iterations}"
 
@@ -269,7 +269,10 @@ def config_name(config: TrainingConfig) -> str:
 def build_experiments(args: argparse.Namespace) -> dict[str, list[Experiment]]:
     ablatable = [g for g in PRODUCTION_GROUPS if g != "bias"]
     families: dict[str, list[Experiment]] = {
-        "reference": [Experiment("production", PRODUCTION_GROUPS, description="Features de production")],
+        "reference": [
+            Experiment("production", PRODUCTION_GROUPS, description="Features de production"),
+            Experiment("production_v1", LEGACY_GROUPS, description="Features de production historiques (v1)"),
+        ],
         "placebo": [Experiment(f"+{g}", PRODUCTION_GROUPS + (g,), description="Témoin") for g in PLACEBO_GROUPS],
         "ablation": [Experiment(f"−{g}", without(PRODUCTION_GROUPS, g), description=f"Production sans {g}") for g in ablatable],
     }
@@ -279,15 +282,7 @@ def build_experiments(args: argparse.Namespace) -> dict[str, list[Experiment]]:
         families["candidates"] = [
             Experiment(f"+{g}", PRODUCTION_GROUPS + (g,), description=f"Production + {g}")
             for g in CANDIDATE_GROUPS
-            if g not in ("token_shapes_plain",)
         ] + [Experiment("+tous_candidats", PRODUCTION_GROUPS + CANDIDATE_GROUPS, description="Production + tous les candidats")]
-        families["variants"] = [
-            Experiment(
-                SHAPES_VARIANT,
-                shapes_variant_groups(PRODUCTION_GROUPS),
-                description="starts_lower + token_shapes remplacés par token_shapes_plain + markdown_emphasis",
-            )
-        ]
     configs = [TrainingConfig(max_iterations=200), TrainingConfig(max_iterations=500)]
     if args.hyperparams:
         configs += [
@@ -552,7 +547,7 @@ def performance_section(report: Report, ctx: Context) -> dict:
     for protocol in ctx.protocols:
         st = ctx.stats[protocol]
         rows = []
-        for name in ("majoritaire", "heuristique", "production"):
+        for name in ("majoritaire", "heuristique", "production_v1", "production"):
             m = st.with_ci(ctx.ev(name, protocol))
             rows.append([name, fmt(m["accuracy"][0]), fmt_ci(*m["macro_f1"]), fmt_ci(*m["macro_f1_freq"]), fmt_ci(*m["entry_f1"]), fmt_ci(*m["title_f1"])])
         report.add(f"### 2.{ctx.protocols.index(protocol) + 1} {PROTOCOL_LABELS[protocol]}", md_table(["Système", "Exactitude", "macro-F1", "macro-F1 fréq.", "F1 ENTRY (entités)", "F1 TITLE (entités)"], rows))
@@ -682,6 +677,74 @@ def inventory_section(report: Report, table: FeatureTable, stats: list[dict], re
         else "Aucune paire au-dessus du seuil.",
     )
     return {"attributs_constants": dead}
+
+
+def evolution_section(report: Report, ctx: Context) -> dict:
+    """Production actuelle (v2) contre features historiques (v1)."""
+    report.add(
+        "## 2bis. Évolution des features : v2 contre v1",
+        "v1 = features de production historiques (texte brut, `previous_source_gap`, `is_page_marker`, "
+        "`prev_ends_dash`) ; v2 = production actuelle : features calculées sur le texte sans typographie Markdown, "
+        "proportion d'italique (`italic`), fin de la ligne précédente et transition fin → début (`prev_line`), "
+        "features constantes supprimées. Δ = v2 − v1, bootstrap apparié par page.",
+    )
+    summary = {}
+    for protocol in ctx.protocols:
+        st = ctx.stats[protocol]
+        v1, v2 = ctx.ev("production_v1", protocol), ctx.ev("production", protocol)
+        delta = st.delta(v2, v1)
+        p1, p2 = st.point(v1), st.point(v2)
+        rows = [
+            [METRIC_LABELS[m], fmt(p1[m]), fmt(p2[m]), fmt_delta(*delta[m]), verdict(delta[m], ctx.floors[protocol][m])]
+            for m in ("macro_f1_freq", "macro_f1", "entry_f1", "title_f1")
+        ]
+        rows += [
+            [f"F1 {CLASSES[k]}", fmt(p1[f"f1_{CLASSES[k]}"]), fmt(p2[f"f1_{CLASSES[k]}"]), fmt_delta(*delta[f"f1_{CLASSES[k]}"]), verdict(delta[f"f1_{CLASSES[k]}"], ctx.floors[protocol][f"f1_{CLASSES[k]}"])]
+            for k in range(N_CLASSES)
+            if st.classes_mask[k]
+        ]
+        errors_v1 = int((~v1.scored.correct).sum())
+        errors_v2 = int((~v2.scored.correct).sum())
+        report.add(
+            f"**{PROTOCOL_LABELS[protocol]}** — erreurs : {errors_v1} (v1) → {errors_v2} (v2).",
+            md_table(["Métrique", "v1", "v2", "Δ v2 − v1 [IC 95 %]", "Verdict (vs plancher de bruit)"], rows),
+        )
+        summary[protocol] = {
+            "erreurs_v1": errors_v1,
+            "erreurs_v2": errors_v2,
+            **{m: {"v1": p1[m], "v2": p2[m], "delta": delta[m][0], "ic95": list(delta[m][1])} for m in p1},
+        }
+    return summary
+
+
+def title_candidates_section(report: Report, ctx: Context, experiments: Sequence[Experiment]) -> dict:
+    """Candidats ciblant les titres, jugés sur les F1 des classes de titre."""
+    report.add(
+        "### 5.2 Candidats ciblant les titres (I-TITLE)",
+        "La macro-F1 des classes fréquentes, qui sert aux verdicts, exclut I-TITLE (quelques dizaines de lignes) : "
+        "un candidat ciblant les titres y paraît toujours neutre. Ils sont donc jugés ici sur le F1 de B-TITLE, "
+        "d'I-TITLE et des entités TITLE, chacun contre son propre plancher de bruit (placebos, section 4.3). "
+        "Avec si peu de lignes I-TITLE, les intervalles sont larges : un verdict « neutre » signifie surtout "
+        "« pas démontrable sur ce corpus ».",
+    )
+    verdicts: dict = {}
+    for protocol in ctx.protocols:
+        rows = []
+        for experiment in experiments:
+            delta = ctx.delta(experiment.name, protocol)
+            row = [f"`{experiment.name}`"]
+            for metric in TITLE_METRICS:
+                v = verdict(delta[metric], ctx.floors[protocol][metric])
+                verdicts.setdefault(experiment.name, {}).setdefault(protocol, {})[metric] = v
+                row.append(fmt_delta(*delta[metric]) + (f" **{v}**" if v != "neutre" else ""))
+            row.append(fmt_delta(*delta[VERDICT_METRIC]))
+            rows.append(row)
+        floors = ", ".join(f"{m} {ctx.floors[protocol][m]:.3f}" for m in TITLE_METRICS)
+        report.add(
+            f"**{PROTOCOL_LABELS[protocol]}** (planchers de bruit : {floors})",
+            md_table(["Candidat", "Δ F1 B-TITLE", "Δ F1 I-TITLE", "Δ F1 TITLE (entités)", "Δ macro-F1 fréq."], rows),
+        )
+    return verdicts
 
 
 def placebo_section(report: Report, ctx: Context, placebos: Sequence[Experiment]) -> None:
@@ -885,7 +948,7 @@ def error_analysis_section(report: Report, ctx: Context, protocol: str, examples
 def strata_section(report: Report, ctx: Context, protocol: str) -> None:
     """Taux d'erreur par strate d'observation : où le modèle manque d'information."""
     scored = ctx.ev("production", protocol).scored
-    keys = ("ocr_data_block_label", "is_page_start", "is_heading", "first_in_block", "follows_blank", "prev_last_char", "alpha_order", "starts_bold")
+    keys = ("ocr_data_block_label", "is_page_start", "is_heading", "first_in_block", "follows_blank", "prev_end", "end_start", "italic", "uppercase", "first_is_small_word")
     groups = PRODUCTION_GROUPS + CANDIDATE_GROUPS
     per_doc = {d: extract_features_from_context(doc.context, groups) for d, doc in enumerate(ctx.documents)}
     total_errors = int((~scored.correct).sum())
@@ -907,7 +970,7 @@ def strata_section(report: Report, ctx: Context, protocol: str) -> None:
     )
 
 
-def select_groups(ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, variant_verdicts: dict, dead_groups: Sequence[str]) -> tuple[tuple[str, ...], list[str]]:
+def select_groups(ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, dead_groups: Sequence[str]) -> tuple[tuple[str, ...], list[str]]:
     """Construit une sélection de features à partir des verdicts :
     retire les groupes constants ou nuisibles, ajoute les candidats utiles."""
     def improves(v: dict) -> bool:
@@ -923,9 +986,6 @@ def select_groups(ctx: Context, ablation_verdicts: dict, candidate_verdicts: dic
         if improves(v) and group in groups:
             groups.remove(group)
             reasons.append(f"retrait de `{group}` (son retrait améliore)")
-    if SHAPES_VARIANT in variant_verdicts and improves(variant_verdicts[SHAPES_VARIANT]):
-        groups = list(shapes_variant_groups(groups))
-        reasons.append("formes de tokens calculées sans emphase Markdown")
     for name, v in candidate_verdicts.items():
         group = name.lstrip("+")
         if group in CANDIDATE_GROUPS and improves(v) and group not in groups:
@@ -990,7 +1050,7 @@ def main() -> None:
     floors = {
         p: {
             m: max(abs(stats[p].delta(evaluated[(e.name, p)], evaluated[("production", p)])[m][0]) for e in families["placebo"])
-            for m in METRIC_LABELS
+            for m in stats[p].point(evaluated[("production", p)])
         }
         for p in protocols
     }
@@ -1009,6 +1069,7 @@ def main() -> None:
     )
     summary["corpus"] = corpus_section(report, documents, out)
     summary["performances"] = performance_section(report, ctx)
+    summary["evolution_v1_v2"] = evolution_section(report, ctx)
     summary["calibration"] = calibration_section(report, ctx)
 
     # 4. Audit des features
@@ -1018,6 +1079,10 @@ def main() -> None:
     dead_groups = constant_groups(feature_stats)
     report.add(
         "## 4. Audit des features",
+        "Sauf mention contraire, les attributs sont calculés sur le texte normalisé : sans marqueurs d'emphase "
+        "Markdown, sans « # » de tête ni espaces de fin. Les « # » restent lus par `heading`, l'italique est "
+        "résumé par `italic`. Les groupes `*_v1` reproduisent les features historiques et ne servent qu'à la "
+        "comparaison (section 2bis).",
         md_table(["Groupe", "Statut", "Description"], [[g.name, g.kind, g.description] for g in FEATURE_GROUPS.values()], "lll"),
     )
     summary["features"] = inventory_section(report, table, feature_stats, redundancy_pairs(table, 0.8), out)
@@ -1040,9 +1105,8 @@ def main() -> None:
     console.print("Poids du modèle complet…")
     weights_section(report, *model_weights(documents, table.key_group), out)
 
-    # 5. Candidats, variante, sélection
+    # 5. Candidats et sélection
     candidate_verdicts: dict = {}
-    variant_verdicts: dict = {}
     selection_reasons: list[str] = []
     selection: Experiment | None = None
     if "candidates" in families:
@@ -1056,19 +1120,8 @@ def main() -> None:
             families["candidates"],
         )
         all_comparisons += rows
-        rows, variant_verdicts = comparison_section(
-            report,
-            ctx,
-            "### 5.2 Formes de tokens sans emphase Markdown",
-            "Selon les volumes, l'OCR produit du gras (`**Nom**`) ou de l'italique en début d'entrée : les formes "
-            "de tokens voient alors `*` (SYM) au lieu d'une majuscule, et un modèle appris sur un volume sans gras "
-            "se trompe sur un volume avec gras. Variante : `starts_lower` et `token_shapes` remplacés par les mêmes "
-            "attributs calculés après retrait de l'emphase (`token_shapes_plain`), l'emphase devenant un attribut "
-            "explicite (`markdown_emphasis`).",
-            families["variants"],
-        )
-        all_comparisons += rows
-        selected_groups, selection_reasons = select_groups(ctx, ablation_verdicts, candidate_verdicts, variant_verdicts, dead_groups)
+        summary["candidats_titres"] = title_candidates_section(report, ctx, [e for e in families["candidates"] if e.name.lstrip("+") in TITLE_CANDIDATES])
+        selected_groups, selection_reasons = select_groups(ctx, ablation_verdicts, candidate_verdicts, dead_groups)
         if selected_groups != PRODUCTION_GROUPS:
             selection = Experiment("sélection", selected_groups, description="Sélection issue des verdicts")
             console.print(f"Évaluation de la sélection : {', '.join(selection_reasons)}")
@@ -1088,14 +1141,13 @@ def main() -> None:
             all_comparisons += rows
             summary["selection"] = {"groupes": list(selected_groups), "raisons": selection_reasons, "verdicts": selection_verdict}
     summary["verdicts_candidats"] = candidate_verdicts
-    summary["verdicts_variantes"] = variant_verdicts
 
     # 6. Courbe d'apprentissage et hyperparamètres
     report.add("## 6. Régime de peu d'annotations et hyperparamètres")
     if args.learning_curve:
         lines_per_page = sum(d.labeled_count for d in documents) / sum(len(page_boundaries(d)) - 1 for d in documents)
         budgets = [1, 2, 4, 8, 16, 32]
-        lc_experiments = [families["reference"][0]]
+        lc_experiments = [families["reference"][1], families["reference"][0]]
         if selection is not None:
             lc_experiments.append(selection)
         if "candidates" in families:
@@ -1186,7 +1238,7 @@ def main() -> None:
     report.replace(
         "<!-- RECOMMANDATIONS -->",
         "## Recommandations\n\n"
-        + "\n".join(recommendations(summary, ctx, ablation_verdicts, candidate_verdicts, variant_verdicts, dead_groups, best_rules)),
+        + "\n".join(recommendations(summary, ctx, ablation_verdicts, candidate_verdicts, dead_groups, best_rules)),
     )
     (out / "rapport.md").write_text(report.render(), encoding="utf-8")
     (out / "resume.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2, default=float), encoding="utf-8")
@@ -1195,6 +1247,14 @@ def main() -> None:
 
 def executive_summary(summary: dict, ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict) -> list[str]:
     lines = []
+    for protocol in ctx.protocols:
+        e = summary["evolution_v1_v2"][protocol]
+        m, entry = e["macro_f1_freq"], e["entry_f1"]
+        lines.append(
+            f"- **v2 contre v1 ({SHORT[protocol]})** : macro-F1 fréq. {m['v1']:.3f} → {m['v2']:.3f} "
+            f"({fmt_delta(m['delta'], m['ic95'])}), F1 ENTRY {entry['v1']:.3f} → {entry['v2']:.3f}, "
+            f"erreurs {e['erreurs_v1']} → {e['erreurs_v2']}."
+        )
     perf = summary["performances"]
     for protocol in ctx.protocols:
         p = perf[protocol]
@@ -1241,7 +1301,7 @@ def executive_summary(summary: dict, ctx: Context, ablation_verdicts: dict, cand
     return lines
 
 
-def recommendations(summary: dict, ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, variant_verdicts: dict, dead_groups: Sequence[str], best_rules: dict) -> list[str]:
+def recommendations(summary: dict, ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, dead_groups: Sequence[str], best_rules: dict) -> list[str]:
     """Recommandations dérivées mécaniquement des résultats (à discuter)."""
     items = []
     if dead_groups:
@@ -1258,13 +1318,6 @@ def recommendations(summary: dict, ctx: Context, ablation_verdicts: dict, candid
         where = ", ".join(SHORT[p] for p, x in v.items() if x == "améliore")
         also = " mais utile en " + ", ".join(SHORT[p] for p, x in v.items() if x == "dégrade") if "dégrade" in v.values() else ""
         items.append(f"1. **Repenser `{group}`** : le retirer améliore les résultats ({where}){also} — il encode probablement une particularité de volume plutôt qu'une régularité générale.")
-    if SHAPES_VARIANT in variant_verdicts:
-        v = variant_verdicts[SHAPES_VARIANT]
-        text = ", ".join(f"{SHORT[p]} : {x}" for p, x in v.items())
-        if "améliore" in v.values() and "dégrade" not in v.values():
-            items.append(f"1. **Calculer les formes de tokens sans l'emphase Markdown** (variante 5.2 — {text}) : la mise en forme varie d'un volume à l'autre et ne doit pas masquer la casse du premier mot.")
-        else:
-            items.append(f"1. Variante « formes sans emphase Markdown » (5.2) : {text}.")
     gains = [n.lstrip("+") for n, v in candidate_verdicts.items() if n != "+tous_candidats" and "améliore" in v.values() and "dégrade" not in v.values()]
     if gains:
         items.append(f"1. **Intégrer les candidats validés** : {names(gains)} (gain significatif et supérieur au plancher de bruit dans au moins un protocole, sans perte au-delà du bruit dans l'autre — voir le détail en 5.1, une perte inférieure au plancher reste possible).")

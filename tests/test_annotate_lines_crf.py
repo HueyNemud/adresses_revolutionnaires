@@ -141,9 +141,10 @@ class ActiveCRFTests(unittest.TestCase):
     def test_features_use_four_boundary_shapes_without_shape_ngrams(self) -> None:
         features = extract_features(["**Didier, R. du Bac, 12."])[0]
 
-        self.assertEqual(features["shape_start_0"], "SYM")
-        self.assertEqual(features["shape_start_1"], "SYM")
-        self.assertEqual(features["shape_start_2"], "TITLE")
+        # Les marqueurs d'emphase Markdown sont ignorés par les formes de tokens.
+        self.assertEqual(features["shape_start_0"], "TITLE")
+        self.assertEqual(features["shape_start_1"], "PUNCT")
+        self.assertEqual(features["shape_start_2"], "UPPER")
         self.assertEqual(features["shape_start_3"], "PUNCT")
         self.assertIn("token_count", features)
         self.assertNotIn("starts_upper", features)

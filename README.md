@@ -256,7 +256,7 @@ uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
   `--no-single-groups` (plus rapide), `--hyperparams` (grille c1 × c2).
 
 Le cœur du CRF est partagé entre l'annotateur et l'audit dans `lib/crf/` :
-`features.py` (groupes de features nommés : production, candidats, placebos),
+`features.py` (groupes de features nommés : production, jeu historique v1 conservé pour comparaison, candidats, placebos),
 `model.py` (entraînement / inférence), `active_learning.py` (moteur de
 l'annotateur), `silver.py` (chargement des CSV curés) et `evaluation.py`
 (protocoles, métriques, bootstrap). Pour tester une nouvelle feature, il
