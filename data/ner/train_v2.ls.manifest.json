@@ -10,135 +10,136 @@
   "seed": 42,
   "output": "data/ner/train_v2.ls.json"
  },
- "candidats": 61796,
+ "candidats": 137879,
  "écartés": {
-  "gold": 623,
-  "doublon": 6872,
-  "sans SUBJ initial": 3
+  "gold": 648,
+  "doublon": 15000,
+  "sans SUBJ initial": 22
  },
- "exemples": 14999,
+ "exemples": 15008,
  "par_source": {
-  "corpus": 14019,
-  "sample_entry_5000_20260918_111801.ls-annotations": 980
+  "corpus": 14986,
+  "sample_entry_5000_20260918_111801.ls-annotations": 22
  },
  "par_volume": {
-  "1807_AD75-PER292": 3472,
-  "BNF_bpt6k1175057p_LaTynnaAnX_1801_1802": 308,
-  "AD75_PER292-1824": 370,
-  "BNF_bd6t58275556_LaTynnaAnVI_1797-1798": 150,
-  "1804-1805_BNF_bpt6k62915570_LaTynnaAnXIII": 3920,
-  "1803-1804_BNF-bpt6k124554j-LaTynnaAnXII": 3684,
-  "AD75_PER292-1809": 117,
-  "1808_AD75-PER292": 2943,
-  "BNF_bpt6k62915570_LaTynnaAnXIII_1804_1805": 11,
-  "AD75_PER292-1808": 15,
-  "AD75_PER292-1807": 6,
-  "BNF_bpt6k124554j_LaTynnaAnXII_1803_1804": 3
+  "1804-1805_BNF_bpt6k62915570_LaTynnaAnXIII": 2024,
+  "BNF_bd6t58275556_LaTynnaAnVI_1797-1798": 1346,
+  "1808_AD75-PER292": 1332,
+  "1807_AD75-PER292": 1549,
+  "AD75_PER292-1824": 3287,
+  "1803-1804_BNF-bpt6k124554j-LaTynnaAnXII": 1852,
+  "AD75_PER292-1809": 1423,
+  "BNF_bpt6k1175057p_LaTynnaAnX_1801_1802": 2173,
+  "AD75_PER292-1808": 8,
+  "BNF_bpt6k62915570_LaTynnaAnXIII_1804_1805": 7,
+  "BNF_bpt6k124554j_LaTynnaAnXII_1803_1804": 3,
+  "AD75_PER292-1807": 4
  },
  "par_signature": {
-  "SUBJ,ADDR": 8725,
-  "SUBJ,DESC,ADDR": 5535,
-  "SUBJ,DESC": 614,
-  "SUBJ,DESC,ADDR,DESC": 18,
-  "SUBJ,ADDR,DESC,ADDR,DESC": 1,
-  "SUBJ": 76,
-  "SUBJ,ADDR,SUBJ,ADDR": 7,
-  "SUBJ,DESC,ADDR,DESC,ADDR": 2,
+  "SUBJ,DESC,ADDR": 7756,
+  "SUBJ,ADDR": 6262,
+  "SUBJ,DESC": 843,
+  "SUBJ,ADDR,DESC": 30,
+  "SUBJ": 66,
+  "SUBJ,DESC,ADDR,DESC": 33,
   "SUBJ,DESC,ADDR,DESC,ADDR,DESC,ADDR,DESC": 2,
-  "SUBJ,ADDR,DESC": 14,
+  "SUBJ,ADDR,SUBJ,ADDR": 7,
+  "SUBJ,ADDR,DESC,ADDR,DESC": 1,
   "SUBJ,DESC,ADDR,ADDR": 1,
+  "SUBJ,DESC,SUBJ,DESC": 1,
   "SUBJ,ADDR,DESC,ADDR": 3,
+  "SUBJ,DESC,ADDR,DESC,ADDR": 2,
   "SUBJ,ADDR,SUBJ,DESC,ADDR": 1
  },
  "règles_appliquées": {
-  "identité→SUBJ": 288,
-  "bornes": 469,
-  "orphelins": 109,
-  "localisation→ADDR": 144,
-  "fusion": 57,
-  "voie→ADDR": 7
+  "identité→SUBJ": 538,
+  "bornes": 512,
+  "fusion": 233,
+  "orphelins": 588,
+  "localisation→ADDR": 542,
+  "voie→ADDR": 13
  },
- "formes_distinctes": 1420,
+ "formes_distinctes": 2328,
  "20_formes_principales": [
   [
    "w , w , 9",
-   1391
-  ],
-  [
-   "w , w , 9 — w",
-   1200
-  ],
-  [
-   "w ( w ) , w , 9 — w",
-   695
+   734
   ],
   [
    "w , w , w , 9",
-   653
+   670
   ],
   [
-   "w ( w ) , w , 9",
-   588
-  ],
-  [
-   "w , ( w ) w , 9",
-   431
-  ],
-  [
-   "w , w",
-   355
-  ],
-  [
-   "w , w , w",
-   270
-  ],
-  [
-   "w , w et w , 9",
-   267
-  ],
-  [
-   "w , w — w",
-   226
-  ],
-  [
-   "w ( w ) , w , w , 9",
-   218
-  ],
-  [
-   "w et w , w , 9",
-   216
-  ],
-  [
-   "w , w , w , 9 — w",
-   202
+   "w , w , 9 — w",
+   610
   ],
   [
    "w , w , 9 w",
-   193
+   395
   ],
   [
-   "w et w , w , 9 — w",
-   181
+   "w ( w ) , w , 9",
+   328
   ],
   [
-   "w , w et w , w , 9",
-   170
+   "w , w , w , 9 — w",
+   315
   ],
   [
-   "w ( w ) , w",
-   166
+   "w ( w ) , w , 9 — w",
+   296
   ],
   [
-   "w ( w ) , w et w , 9",
-   164
+   "w ( w ) , w , w , 9",
+   262
   ],
   [
-   "w , w , 9 — 9 — w",
-   164
+   "w , ( w ) w , 9",
+   244
+  ],
+  [
+   "w ( w ) , w , 9 w",
+   213
+  ],
+  [
+   "w , w",
+   203
+  ],
+  [
+   "w , w , w",
+   165
+  ],
+  [
+   "w , w et w , 9",
+   152
   ],
   [
    "w et w , w , w , 9",
-   142
+   129
+  ],
+  [
+   "w , w — w",
+   126
+  ],
+  [
+   "w et w , w , 9",
+   108
+  ],
+  [
+   "w ( w ) , w",
+   106
+  ],
+  [
+   "w ( w ) w , w , 9",
+   101
+  ],
+  [
+   "w , w , w , 9 w",
+   101
+  ],
+  [
+   "w , w , et 9 , w , 9",
+   93
   ]
  ]
 }
