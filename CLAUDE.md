@@ -51,7 +51,7 @@ Each step is a standalone CLI script at the repo root (argparse, `rich` console 
 
 The line-level BIO classes (steps 2–4) and the span classes `SUBJ/DESC/ADDR` (step 5) are separate label spaces. If you rename a line class, update `merge_annotated_lines.py` too — unknown classes are treated as out-of-scope and only flagged in the report.
 
-`tools/` holds ad-hoc utilities (Label Studio annotation correction/HTML viewer, entry counts per title tree, sampling of merged entries across `annuaires/`). `main.py` is a legacy one-off script with hardcoded filenames.
+`tools/` holds the NER training and gold tools (`train_gliner.py`, `build_ner_training.py`, `sample_ner_gold.py`), the result viewer (`display_directory.py`) and entry counts per title tree (`entry_counter.py`). `main.py` is a legacy one-off script with hardcoded filenames.
 
 ## Data
 
