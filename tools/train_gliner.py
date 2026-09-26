@@ -32,17 +32,15 @@ codes courts SUBJ/DESC/ADDR prive le modèle de sens exploitable. Ce script
 les fait correspondre par défaut à des libellés descriptifs en anglais
 (l'encodeur de labels de `knowledgator/gliner-bi-base-v2.0` est pré-entraîné
 en anglais), configurables via `--label-subj`/`--label-desc`/`--label-addr`.
-Ces libellés et le texte d'entrée sont enregistrés dans
-`<modèle>/ner_config.json`, relu par `infer_gliner.py` et `audit_ner.py`.
+Ces libellés sont enregistrés dans `<modèle>/ner_config.json`, relu par
+`infer_gliner.py` et `audit_ner.py`.
 
-Texte d'entrée (`--input`)
---------------------------
-- `normalized` (défaut) : emphase Markdown retirée (`lib.ner.spans.
-  normalize_markdown`), comme le gold ; aucune frontière ne tombe dans une
-  paire de marqueurs `**…**` ;
-- `raw` : texte `markdown` d'origine (comme v1), quand la tâche fournit
-  `data.raw_text` ; les empans y sont transportés. L'italique y reste un
-  indice possible de DESC : c'est une option à mesurer, pas un réglage.
+Texte d'entrée
+--------------
+Le modèle apprend sur le texte normalisé (emphase Markdown retirée,
+`lib.ner.spans.normalize_markdown`), comme le gold : aucune frontière ne
+tombe dans une paire de marqueurs `**…**`. Garder l'emphase n'apportait rien
+de mesurable sur le gold.
 
 Jeu gold et validation
 ----------------------
@@ -66,7 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from rich.console import Console
 
-from lib.ner.gliner import NerConfig
+from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig
 from lib.ner.spans import (
     Span,
     Token,
@@ -75,7 +73,6 @@ from lib.ner.spans import (
     normalize_markdown,
     project_spans,
     tokenize_with_offsets,
-    unproject_spans,
 )
 
 console = Console()
@@ -87,18 +84,9 @@ DEFAULT_EPOCHS = 3.0
 DEFAULT_BATCH_SIZE = 8
 DEFAULT_LEARNING_RATE = 5e-5
 DEFAULT_THRESHOLD = 0.5
-DEFAULT_INPUT = "normalized"
 DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
 DEFAULT_MODELS_DIR = Path("models")
 
-# Libellés descriptifs par défaut envoyés au modèle (voir docstring du
-# module). Les clés SUBJ/DESC/ADDR restent la référence interne du script
-# (rapport, CLI) ; seules les valeurs sont vues par GLiNER.
-DEFAULT_LABEL_TEXT = {
-    "SUBJ": "person or business name",
-    "DESC": "activity description",
-    "ADDR": "postal address",
-}
 
 
 # --------------------------------------------------------------------------
@@ -161,25 +149,15 @@ def _dedupe_and_prune_nested(ner: list[list]) -> list[list]:
     return pruned
 
 
-def model_text_and_spans(data: dict, spans: list[Span], input_kind: str) -> tuple[str, list[Span]]:
-    """Texte donné au modèle et empans transportés sur ce texte.
-
-    `data.text` porte les empans. En `normalized`, il est normalisé s'il ne
-    l'est pas déjà (anciens JSON dont le texte garde l'emphase) ; en `raw`,
-    on revient à `data.raw_text` quand il est fourni et cohérent.
-    """
+def model_text_and_spans(data: dict, spans: list[Span]) -> tuple[str, list[Span]]:
+    """Texte normalisé donné au modèle et empans transportés sur ce texte
+    (`data.text` porte les empans ; il est normalisé s'il ne l'est pas déjà,
+    cas d'un JSON dont le texte garde l'emphase)."""
     text = data.get("text", "")
     normalized = normalize_markdown(text)
-    if input_kind == "normalized":
-        if normalized.text == text:
-            return text, spans
-        return normalized.text, project_spans(spans, normalized)
-    raw_text = data.get("raw_text")
-    if raw_text:
-        raw_normalized = normalize_markdown(raw_text)
-        if raw_normalized.text == text:
-            return raw_text, unproject_spans(spans, raw_normalized)
-    return text, spans
+    if normalized.text == text:
+        return text, spans
+    return normalized.text, project_spans(spans, normalized)
 
 
 def split_group(data: dict, uid: str) -> str:
@@ -193,7 +171,6 @@ def convert_task(
     task: dict,
     label_text: dict[str, str],
     report: ConversionReport,
-    input_kind: str,
     excluded_texts: set[str],
 ) -> ConvertedExample | None:
     """Convertit une tâche Label Studio en exemple GLiNER, ou None si elle
@@ -219,7 +196,7 @@ def convert_task(
                 if raw_label not in label_text:
                     report.unknown_labels[raw_label] += 1
     spans = ls_task_spans(task) or []
-    text, spans = model_text_and_spans(data, spans, input_kind)
+    text, spans = model_text_and_spans(data, spans)
 
     tokens = tokenize_with_offsets(text)
     if not tokens:
@@ -260,7 +237,7 @@ def gold_texts(path: Path | None) -> set[str]:
 
 
 def load_examples(
-    input_paths: list[Path], label_text: dict[str, str], input_kind: str, excluded_texts: set[str]
+    input_paths: list[Path], label_text: dict[str, str], excluded_texts: set[str]
 ) -> tuple[list[ConvertedExample], ConversionReport]:
     report = ConversionReport()
     examples: list[ConvertedExample] = []
@@ -270,7 +247,7 @@ def load_examples(
             raise ValueError(f"{input_path} : le JSON doit être une liste de tâches Label Studio.")
         report.total_examples += len(tasks)
         for task in tasks:
-            example = convert_task(task, label_text, report, input_kind, excluded_texts)
+            example = convert_task(task, label_text, report, excluded_texts)
             if example is not None:
                 examples.append(example)
     report.kept_examples = len(examples)
@@ -365,7 +342,6 @@ def evaluate(
 def format_report(
     *,
     input_paths: list[Path],
-    input_kind: str,
     gold_path: Path | None,
     output_dir: Path,
     model_name: str,
@@ -394,7 +370,6 @@ def format_report(
         f"Taille de batch               : {batch_size}",
         f"Taux d'apprentissage          : {learning_rate}",
         f"Seuil de décision (évaluation): {threshold}",
-        f"Texte d'entrée du modèle      : {input_kind}",
         "Correspondance label -> texte envoyé au modèle :",
     ]
     for short, text in label_text.items():
@@ -465,12 +440,6 @@ def parse_args() -> argparse.Namespace:
         help="JSON Label Studio (ex. data/ner/train_v2.ls.json de tools/build_ner_training.py), un ou plusieurs.",
     )
     parser.add_argument(
-        "--input",
-        choices=("normalized", "raw"),
-        default=DEFAULT_INPUT,
-        help=f"Texte donné au modèle : emphase Markdown retirée ou texte d'origine (défaut : {DEFAULT_INPUT}).",
-    )
-    parser.add_argument(
         "--gold",
         type=Path,
         default=DEFAULT_GOLD,
@@ -481,7 +450,7 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=None,
-        help="Dossier du modèle entraîné (défaut : models/<première entrée>-<input>.gliner-model/).",
+        help="Dossier du modèle entraîné (défaut : models/<première entrée>.gliner-model/).",
     )
     parser.add_argument(
         "-r",
@@ -587,12 +556,12 @@ def main() -> None:
     gliner_labels = list(label_text.values())
 
     stem = args.input_paths[0].name.split(".", 1)[0]
-    output_dir = args.output_dir or DEFAULT_MODELS_DIR / f"{stem}-{args.input}.gliner-model"
+    output_dir = args.output_dir or DEFAULT_MODELS_DIR / f"{stem}.gliner-model"
     report_path = args.report or (output_dir / "eval_report.txt")
 
-    console.print(f"Lecture et conversion de [yellow]{', '.join(p.name for p in args.input_paths)}[/yellow] (texte {args.input})...")
+    console.print(f"Lecture et conversion de [yellow]{', '.join(p.name for p in args.input_paths)}[/yellow]...")
     try:
-        examples, conversion_report = load_examples(args.input_paths, label_text, args.input, gold_texts(args.gold))
+        examples, conversion_report = load_examples(args.input_paths, label_text, gold_texts(args.gold))
     except (json.JSONDecodeError, ValueError) as error:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
@@ -659,7 +628,7 @@ def main() -> None:
         )
         trainer.save_model()
         # Libellés et texte d'entrée, relus par infer_gliner.py et audit_ner.py.
-        NerConfig(label_text, args.input).save(output_dir)
+        NerConfig(label_text).save(output_dir)
     except Exception as error:  # Surface large et imprévisible côté torch/HF Trainer.
         console.print(f"[bold red]Erreur pendant l'entraînement :[/bold red] {error}")
         return
@@ -672,7 +641,6 @@ def main() -> None:
     report_path.write_text(
         format_report(
             input_paths=args.input_paths,
-            input_kind=args.input,
             gold_path=args.gold if args.gold.exists() else None,
             output_dir=output_dir,
             model_name=args.model,

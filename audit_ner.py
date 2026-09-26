@@ -5,10 +5,7 @@ Compare un ou plusieurs systèmes à la relecture humaine du gold
 dans Label Studio), et écrit `rapports/audit_ner/rapport.md` et
 `rapports/audit_ner/erreurs.csv`.
 
-Systèmes évalués :
-- toujours, depuis le gold lui-même : `v1` (sortie brute du modèle
-  GLiNER v1), `v1_curated` (même sortie après la curation partielle) et
-  `pré-annotation` (ce que l'annotateur a relu) ;
+Systèmes évalués (au moins un) :
 - `--model DOSSIER` : un modèle GLiNER, exécuté sur place (CPU : quelques
   secondes pour quelques centaines d'entrées) ; `--sweep` balaie le seuil ;
 - `--predictions NOM=FICHIER` : des prédictions déjà calculées, JSON Label
@@ -33,7 +30,7 @@ import csv
 import json
 import math
 import time
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,7 +55,6 @@ console = Console()
 
 DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
 DEFAULT_OUTPUT_DIR = Path("rapports/audit_ner")
-BUILTIN_SYSTEMS = (("v1", "v1_tagged"), ("v1_curated", "v1_curated_tagged"))
 REVIEW_BUDGETS = (0.05, 0.10, 0.20, 0.30)
 SWEEP_THRESHOLDS = (0.2, 0.3, 0.4, 0.5, 0.6, 0.7)
 
@@ -67,7 +63,6 @@ SWEEP_THRESHOLDS = (0.2, 0.3, 0.4, 0.5, 0.6, 0.7)
 class GoldEntry:
     data: dict
     gold: list[Span]
-    pre_annotation: list[Span] | None  # absente si l'export Label Studio omet les prédictions
 
     @property
     def text(self) -> str:
@@ -95,30 +90,16 @@ def load_gold(path: Path, split: str, pre_annotation_as_gold: bool) -> tuple[lis
         data = task["data"]
         if split != "all" and data.get("split") != split:
             continue
-        pre = ls_task_spans(task, prefer="predictions")
         reviewed = [a for a in task.get("annotations") or [] if not a.get("was_cancelled")]
         if pre_annotation_as_gold:
-            gold = pre or []
+            gold = ls_task_spans(task, prefer="predictions") or []
         elif reviewed:
             gold = spans_from_ls_result(reviewed[-1].get("result", []))
         else:
             unreviewed += 1
             continue
-        entries.append(GoldEntry(data, gold, pre))
+        entries.append(GoldEntry(data, gold))
     return entries, unreviewed
-
-
-def builtin_systems(entries: Sequence[GoldEntry]) -> list[System]:
-    systems = []
-    for name, column in BUILTIN_SYSTEMS:
-        predictions = []
-        for entry in entries:
-            tagged = entry.data.get(column)
-            predictions.append(parse_tagged_text(tagged)[1] if tagged else None)
-        systems.append(System(name, predictions))
-    if any(entry.pre_annotation is not None for entry in entries):
-        systems.append(System("pré-annotation", [entry.pre_annotation for entry in entries]))
-    return systems
 
 
 def load_prediction_file(name: str, path: Path, entries: Sequence[GoldEntry]) -> System:
@@ -149,7 +130,7 @@ def model_systems(model_dir: Path, entries: Sequence[GoldEntry], threshold: floa
     from lib.ner.gliner import NerConfig, load_model, predict_spans
 
     config = NerConfig.load(model_dir)
-    console.print(f"Chargement de [cyan]{model_dir}[/cyan] (entrée : {config.input}, libellés : {config.label_text})...")
+    console.print(f"Chargement de [cyan]{model_dir}[/cyan] (libellés : {config.label_text})...")
     model = load_model(model_dir)
     raw_texts = [entry.data["raw_text"] for entry in entries]
     # Le seuil demandé d'abord : c'est lui qui sert de référence aux Δ.
@@ -320,7 +301,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--threshold", type=float, default=0.5, help="Seuil GLiNER (défaut : 0.5).")
     parser.add_argument("--sweep", action="store_true", help=f"Évalue aussi les seuils {SWEEP_THRESHOLDS}.")
     parser.add_argument("--predictions", action="append", default=[], metavar="NOM=FICHIER", help="Prédictions précalculées (JSON Label Studio ou CSV tagged_text), répétable.")
-    parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier modèle ou fichier fourni, sinon v1).")
+    parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier système).")
     parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--pre-annotation-as-gold", action="store_true", help="Référence = pré-annotation (test de la chaîne uniquement).")
@@ -339,23 +320,24 @@ def main() -> None:
         return
     console.print(f"{len(entries)} entrées gold relues (split {args.split}), {unreviewed} non relues ignorées.")
 
-    systems = builtin_systems(entries)
-    extra: list[System] = []
+    systems: list[System] = []
     for model_dir in args.model:
-        extra += model_systems(model_dir, entries, args.threshold, args.sweep)
+        systems += model_systems(model_dir, entries, args.threshold, args.sweep)
     for item in args.predictions:
         name, _, path = item.partition("=")
         if not path:
             console.print(f"[bold red]Erreur :[/bold red] --predictions attend NOM=FICHIER, reçu '{item}'.")
             return
-        extra.append(load_prediction_file(name, Path(path), entries))
-    systems += extra
+        systems.append(load_prediction_file(name, Path(path), entries))
+    if not systems:
+        console.print("[bold red]Erreur :[/bold red] aucun système à évaluer (--model ou --predictions).")
+        return
 
     names = [system.name for system in systems]
     if args.reference and args.reference not in names:
         console.print(f"[bold red]Erreur :[/bold red] référence '{args.reference}' inconnue ({', '.join(names)}).")
         return
-    reference = names.index(args.reference or (extra[0].name if extra else "v1"))
+    reference = names.index(args.reference or names[0])
 
     pages = {key: index for index, key in enumerate(dict.fromkeys(f"{e.data['document']}#{e.data['page']}" for e in entries))}
     clusters = np.array([pages[f"{e.data['document']}#{e.data['page']}"] for e in entries])

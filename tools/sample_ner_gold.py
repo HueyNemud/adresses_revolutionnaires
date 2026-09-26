@@ -3,8 +3,9 @@
 Univers : toutes les ENTRY des `*.merged.csv` de `annuaires/`, textes
 dédoublonnés (une même personne est souvent listée sous plusieurs
 rubriques), **moins les textes déjà vus à l'entraînement** (`--exclude` :
-JSON Label Studio ou CSV d'échantillons ; l'exclusion se fait sur le texte
-normalisé car les uid des anciens fichiers ne correspondent plus).
+JSON Label Studio ou CSV d'échantillons, par défaut les jeux
+`data/ner/train*.ls.json` ; l'exclusion se fait sur le texte normalisé, car
+les uid ne sont pas comparables d'un fichier à l'autre).
 
 Plan de sondage stratifié, chaque entrée dans une seule strate (par ordre
 de priorité) :
@@ -55,7 +56,7 @@ console = Console()
 
 DEFAULT_ROOT = Path("annuaires")
 DEFAULT_OUTPUT = Path("data/ner/gold_v1.ls.json")
-DEFAULT_EXCLUDE = sorted(Path("models").glob("sample_entry_*"))
+DEFAULT_EXCLUDE = sorted(Path("data/ner").glob("train*.ls.json"))
 COMMON_SIGNATURES = {"SUBJ,ADDR", "SUBJ,DESC,ADDR"}
 STRATA = ("désaccord", "signature rare", "forme rare", "courant")
 
@@ -75,12 +76,12 @@ def excluded_texts(paths: list[Path]) -> set[str]:
 
 
 def pre_annotation(entry: Entry) -> list:
-    return entry.annotations.get("v1_curated") or entry.annotations.get("v1") or []
+    return entry.annotations.get("ner_curated") or entry.annotations.get("ner") or []
 
 
 def stratum(entry: Entry, shape_counts: Counter, rare_shape: int, pre_signature: str) -> str:
-    v1, curated = entry.annotations.get("v1"), entry.annotations.get("v1_curated")
-    corrected = v1 is not None and curated is not None and canonical_spans(entry.text, v1) != canonical_spans(entry.text, curated)
+    raw, curated = entry.annotations.get("ner"), entry.annotations.get("ner_curated")
+    corrected = raw is not None and curated is not None and canonical_spans(entry.text, raw) != canonical_spans(entry.text, curated)
     if corrected:
         return "désaccord"
     if pre_signature not in COMMON_SIGNATURES:
@@ -138,7 +139,7 @@ def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str
             "split": split,
             **tagged,
         },
-        "predictions": [{"model_version": "v1_curated", "result": ls_result(entry.text, spans)}],
+        "predictions": [{"model_version": "ner_curated", "result": ls_result(entry.text, spans)}],
     }
 
 
@@ -155,7 +156,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         nargs="*",
         default=DEFAULT_EXCLUDE,
-        help="Échantillons d'entraînement à exclure (JSON Label Studio ou CSV ; défaut : models/sample_entry_*).",
+        help="Échantillons d'entraînement à exclure (JSON Label Studio ou CSV ; défaut : data/ner/train*.ls.json).",
     )
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()

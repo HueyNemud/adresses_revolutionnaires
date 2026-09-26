@@ -263,69 +263,72 @@ l'annotateur), `silver.py` (chargement des CSV curés) et `evaluation.py`
 suffit d'ajouter un groupe candidat dans `lib/crf/features.py` : l'audit
 l'évalue automatiquement sans changer le comportement de l'annotateur.
 
-## Audit NER : `audit_ner.py`
+## NER : inférence, entraînement, audit
 
-Mesure la segmentation SUBJ/DESC/ADDR contre un **jeu gold relu à la main**.
-Les `tagged_text` curés ne peuvent pas servir de référence : ils ne
-diffèrent de la sortie du modèle v1 que sur 0,6 % des entrées. Les
-conventions d'annotation sont fixées dans `docs/guide_annotation_ner.md`.
+Segmentation de chaque ENTRY en empans `SUBJ` / `DESC` / `ADDR` par un
+modèle GLiNER-bi. Les conventions d'annotation sont fixées dans
+`docs/guide_annotation_ner.md`. Le modèle de référence est entraîné sur
+`data/ner/train_v2.ls.json` ; les modèles entraînés restent hors git
+(`models/`).
+
+### Inférence : `infer_gliner.py`
 
 ```bash
-uv run tools/sample_ner_gold.py              # tire data/ner/gold_v1.ls.json (déjà fait, figé)
-# → importer dans Label Studio (config : data/ner/label_studio_config.xml),
-#   corriger, exporter en JSON et remplacer data/ner/gold_v1.ls.json
-uv run audit_ner.py                          # v1, v1 curé, pré-annotation, sur le split test
-uv run audit_ner.py --model chemin/modele --sweep
-uv run audit_ner.py --predictions llm=sortie_llm.json --split dev
+uv run infer_gliner.py annuaires/<volume>/<plage>/<doc>.….merged.csv --model models/train_v2.gliner-model
 ```
 
-- **Gold :** 600 entrées stratifiées (courant / forme rare / signature
-  rare / désaccord) et pondérées pour rester représentatives du corpus,
-  en excluant les textes vus à l'entraînement ; découpage figé `dev`
-  (réglages) / `test` (décision).
+Ajoute après `entity` la colonne `tagged_text` (texte d'origine balisé,
+ex. `<SUBJ>Dupont</SUBJ>, <ADDR>rue A, 1.</ADDR>`) et les comptes
+`subject_count`, `description_count`, `address_count`. Les libellés du
+modèle sont lus dans `<modèle>/ner_config.json`, écrit à l'entraînement.
+
+### Entraînement (machine GPU)
+
+```bash
+# En local (a besoin de annuaires/, hors git) : jeu tiré par forme typographique,
+# textes du gold exclus, puis versionné.
+uv run tools/build_ner_training.py -o data/ner/train_v3.ls.json
+git add data/ner && git commit && git push
+
+# Sur la machine GPU (après git pull && uv sync) :
+uv run tools/train_gliner.py data/ner/train_v3.ls.json        # → models/train_v3.gliner-model
+```
+
+`build_ner_training.py` part des CSV NER de `annuaires/` (corrigés quand
+ils existent) : ils doivent venir du modèle courant, sinon le nouveau
+modèle réapprend les conventions de l'ancien. `train_gliner.py` exclut les
+textes du gold, valide sur un split **par page** et enregistre les
+libellés dans `<modèle>/ner_config.json`.
+
+### Audit : `audit_ner.py`
+
+Mesure la segmentation contre un **jeu gold relu à la main**
+(`data/ner/gold_v1.ls.json`, 600 entrées, tiré par
+`tools/sample_ner_gold.py` puis corrigé dans Label Studio avec
+`data/ner/label_studio_config.xml`).
+
+```bash
+uv run audit_ner.py --split dev --model models/train_v2.gliner-model --model models/train_v3.gliner-model
+uv run audit_ner.py --predictions autre=sortie.ner.csv --split dev
+```
+
+- **Gold :** entrées stratifiées (courant / forme rare / signature rare /
+  désaccord) et pondérées pour rester représentatives du corpus ; textes
+  vus à l'entraînement exclus ; découpage figé `dev` (choix, réglages) /
+  `test` (confirmation du modèle retenu, une seule fois).
 - **Métrique principale :** exactitude par entrée (part des entrées sans
-  correction à faire), avec IC par bootstrap des pages et Δ appariés entre
-  systèmes ; aussi F1 par classe, exactitude par token, types d'erreurs,
-  ventilation par volume / strate / profil, et pour un modèle, la part des
+  correction à faire), avec IC par bootstrap des pages et Δ appariés
+  contre le premier système ; aussi F1 par classe, exactitude par token,
+  types d'erreurs, ventilation par volume / strate / profil, et la part des
   erreurs trouvées en ne relisant que les entrées les moins sûres.
 - **Sortie :** `rapports/audit_ner/rapport.md` et `erreurs.csv`.
+- Une seule entrée de la strate « courant » pèse ~1,5 point sur le split
+  dev : comparer aussi les nombres bruts d'erreurs (`erreurs.csv`).
 
 Code partagé dans `lib/ner/` : `spans.py` (empans, `tagged_text`, Label
 Studio, normalisation Markdown), `shapes.py` (forme typographique),
-`corpus.py` (lecture des CSV NER), `metrics.py`, `gliner.py` (inférence).
-
-
-## Entraîner un modèle NER v2
-
-Le jeu d'entraînement est construit localement (il a besoin de
-`annuaires/`, hors git) puis versionné ; l'entraînement se fait sur une
-machine avec GPU.
-
-```bash
-# 1. En local : silver (sorties NER curées, pré-annotations LLM de v1),
-#    textes du gold exclus, tirage par forme (√).
-uv run tools/build_ner_training.py                                          # → data/ner/train_v2.ls.json
-uv run tools/build_ner_training.py --sampling random -o data/ner/train_v2_random.ls.json
-git add data/ner && git commit && git push
-
-# 2. Sur la machine GPU (après git pull && uv sync) :
-uv run tools/train_gliner.py data/ner/train_v2.ls.json                      # → models/train_v2-normalized.gliner-model
-uv run tools/train_gliner.py data/ner/train_v2.ls.json --input raw          # → models/train_v2-raw.gliner-model
-uv run tools/train_gliner.py data/ner/train_v2_random.ls.json               # → models/train_v2_random-normalized.gliner-model
-
-# 3. Mesure (sur la machine GPU ou après rapatriement du dossier du modèle) :
-uv run audit_ner.py --split dev \
-  --model models/sample_entry_5000_20260918_111801.gliner-model \
-  --model models/train_v2-normalized.gliner-model \
-  --model models/train_v2-raw.gliner-model \
-  --model models/train_v2_random-normalized.gliner-model
-```
-
-`train_gliner.py` exclut les textes du gold (`--gold`), valide sur un split
-**par page**, et enregistre libellés et type de texte (`--input
-normalized|raw`) dans `<modèle>/ner_config.json`, relu par
-`infer_gliner.py` et `audit_ner.py`. Les choix se font sur `--split dev` ;
-le split `test` ne sert qu'à confirmer le modèle retenu.
+`corpus.py` (lecture des CSV NER), `metrics.py`, `gliner.py` (chargement
+et prédiction).
 
 ## Fichiers finaux et ce qu'ils contiennent
 

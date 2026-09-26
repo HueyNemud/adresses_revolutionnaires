@@ -21,13 +21,11 @@ compteurs à 0 — une distinction volontaire entre « non applicable » et
 
 Labels et texte d'entrée
 ------------------------
-Le modèle prédit les libellés descriptifs utilisés lors de l'entraînement
-(voir train_gliner.py), pas les codes courts SUBJ/DESC/ADDR. Un modèle
-entraîné par la version actuelle de train_gliner.py les enregistre, avec le
-type de texte appris (`normalized` : emphase Markdown retirée, ou `raw`),
-dans `<modèle>/ner_config.json`, relu ici. Pour un modèle plus ancien (v1),
-ce sont les valeurs par défaut (`raw`, libellés de DEFAULT_LABEL_TEXT) ;
-`--label-subj`/`--label-desc`/`--label-addr` ne servent qu'à les forcer.
+Le modèle prédit les libellés descriptifs utilisés lors de l'entraînement,
+pas les codes courts SUBJ/DESC/ADDR : la correspondance est lue dans
+`<modèle>/ner_config.json`, écrit par tools/train_gliner.py (obligatoire).
+Le modèle voit le texte normalisé (emphase Markdown retirée) ; les empans
+sont ramenés sur le texte d'origine de la colonne pour `tagged_text`.
 
 Performance
 -----------
@@ -45,8 +43,8 @@ import argparse
 import csv
 from pathlib import Path
 
-from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig
-from lib.ner.spans import Span, normalize_markdown, project_spans, unproject_spans
+from lib.ner.gliner import NerConfig
+from lib.ner.spans import Span, normalize_markdown, unproject_spans
 
 from rich.console import Console
 from rich.progress import (
@@ -161,13 +159,11 @@ def render_tagged_text(text: str, spans: list[dict[str, object]]) -> str:
     return "".join(pieces)
 
 
-def finalize_spans(raw_text: str, spans: list[dict], input_kind: str) -> list[dict]:
-    """Empans du modèle → empans sur le texte d'origine (`raw_text`). Le
-    modèle a vu le texte normalisé (`input_kind="normalized"`) ou le texte
-    d'origine (`raw`)."""
+def finalize_spans(raw_text: str, spans: list[dict]) -> list[dict]:
+    """Empans prédits sur le texte normalisé → empans sur le texte d'origine
+    (`raw_text`)."""
     normalized = normalize_markdown(raw_text)
-    typed = [Span(s["start"], s["end"], s["label"], s.get("score")) for s in spans]
-    on_normalized = typed if input_kind == "normalized" else project_spans(typed, normalized)
+    on_normalized = [Span(s["start"], s["end"], s["label"], s.get("score")) for s in spans]
     return [
         {"label": s.label, "text": raw_text[s.start : s.end], "start": s.start, "end": s.end, "score": s.score}
         for s in unproject_spans(on_normalized, normalized)
@@ -309,33 +305,6 @@ def parse_args() -> argparse.Namespace:
         help=f"Seuil de confiance (défaut : {DEFAULT_THRESHOLD}).",
     )
     parser.add_argument(
-        "--label-subj",
-        type=str,
-        default=None,
-        help=(
-            "Force le libellé utilisé par le modèle pour SUBJ (défaut : celui de "
-            f"<modèle>/ner_config.json, sinon '{DEFAULT_LABEL_TEXT['SUBJ']}')."
-        ),
-    )
-    parser.add_argument(
-        "--label-desc",
-        type=str,
-        default=None,
-        help=(
-            "Force le libellé utilisé par le modèle pour DESC (défaut : celui de "
-            f"<modèle>/ner_config.json, sinon '{DEFAULT_LABEL_TEXT['DESC']}')."
-        ),
-    )
-    parser.add_argument(
-        "--label-addr",
-        type=str,
-        default=None,
-        help=(
-            "Force le libellé utilisé par le modèle pour ADDR (défaut : celui de "
-            f"<modèle>/ner_config.json, sinon '{DEFAULT_LABEL_TEXT['ADDR']}')."
-        ),
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier).",
@@ -357,10 +326,11 @@ def main() -> None:
         )
         return
 
-    config = NerConfig.load(args.model)
-    overrides = {"SUBJ": args.label_subj, "DESC": args.label_desc, "ADDR": args.label_addr}
-    label_text = {code: overrides[code] or config.label_text[code] for code in ("SUBJ", "DESC", "ADDR")}
-    console.print(f"Texte d'entrée du modèle : [cyan]{config.input}[/cyan].")
+    try:
+        label_text = NerConfig.load(args.model).label_text
+    except FileNotFoundError as error:
+        console.print(f"[bold red]Erreur :[/bold red] {error}")
+        return
     reverse_label_text = {v: k for k, v in label_text.items()}
     gliner_labels = list(label_text.values())
 
@@ -431,7 +401,7 @@ def main() -> None:
     )
     with Progress(*progress_columns, console=console) as progress:
         task_id = progress.add_task("Inférence", total=len(indices))
-        model_texts = [normalize_markdown(text).text for text in texts] if config.input == "normalized" else texts
+        model_texts = [normalize_markdown(text).text for text in texts]
         results, errors = run_inference(
             model,
             indices,
@@ -450,7 +420,7 @@ def main() -> None:
     for row_index, spans in results.items():
         row = rows[row_index]
         raw_text = row[args.text_column].strip()
-        spans = finalize_spans(raw_text, spans, config.input)
+        spans = finalize_spans(raw_text, spans)
         row["tagged_text"] = render_tagged_text(raw_text, spans)
         counts = {"SUBJ": 0, "DESC": 0, "ADDR": 0}
         for span in spans:

@@ -1,15 +1,13 @@
 """Chargement d'un modèle GLiNER entraîné et prédiction d'empans.
 
 Libellés : GLiNER prédit les libellés descriptifs vus à l'entraînement, pas
-les codes SUBJ/DESC/ADDR. Un modèle entraîné par une version récente de
-`tools/train_gliner.py` enregistre la correspondance dans
-`<modèle>/ner_config.json` ; à défaut (modèle v1), on retombe sur
-`DEFAULT_LABEL_TEXT`, qui doit alors être celui de l'entraînement.
+les codes SUBJ/DESC/ADDR. `tools/train_gliner.py` enregistre la
+correspondance dans `<modèle>/ner_config.json`, obligatoire au chargement :
+sans lui, la conversion retour vers les codes échouerait en silence.
 
-`input` indique sur quel texte le modèle a été entraîné : `raw` (colonne
-`markdown`, emphase comprise, comme v1) ou `normalized` (emphase retirée).
-Les empans prédits sont toujours rendus sur le texte normalisé, référence
-de l'évaluation.
+Le modèle travaille sur le texte normalisé (emphase Markdown retirée,
+`normalize_markdown`) ; les empans prédits sont donc sur ce texte, référence
+de l'évaluation, et `unproject_spans` les ramène sur le texte d'origine.
 """
 
 import json
@@ -17,9 +15,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from lib.ner.spans import NormalizedText, Span, normalize_markdown, project_spans, trim_spans
+from lib.ner.spans import Span, normalize_markdown, trim_spans
 
 CONFIG_FILENAME = "ner_config.json"
+# Libellés par défaut donnés au modèle à l'entraînement (l'encodeur de
+# libellés est pré-entraîné en anglais).
 DEFAULT_LABEL_TEXT = {
     "SUBJ": "person or business name",
     "DESC": "activity description",
@@ -30,18 +30,16 @@ DEFAULT_LABEL_TEXT = {
 @dataclass(frozen=True)
 class NerConfig:
     label_text: dict[str, str]
-    input: str = "raw"  # "raw" ou "normalized"
 
     @classmethod
     def load(cls, model_dir: Path) -> "NerConfig":
         path = model_dir / CONFIG_FILENAME
         if not path.exists():
-            return cls(dict(DEFAULT_LABEL_TEXT))
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return cls(data["label_text"], data.get("input", "raw"))
+            raise FileNotFoundError(f"{path} introuvable : modèle non entraîné par tools/train_gliner.py.")
+        return cls(json.loads(path.read_text(encoding="utf-8"))["label_text"])
 
     def save(self, model_dir: Path) -> None:
-        payload = {"label_text": self.label_text, "input": self.input}
+        payload = {"label_text": self.label_text}
         (model_dir / CONFIG_FILENAME).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -64,24 +62,15 @@ def predict_spans(
     """Empans (avec score) sur le **texte normalisé** de chaque entrée."""
     reverse = {text: code for code, text in config.label_text.items()}
     labels = list(config.label_text.values())
-    normalized = [normalize_markdown(text) for text in raw_texts]
-    inputs = [n.text if config.input == "normalized" else text for n, text in zip(normalized, raw_texts)]
+    inputs = [normalize_markdown(text).text for text in raw_texts]
 
     results: list[list[Span]] = []
     for start in range(0, len(inputs), batch_size):
         chunk = inputs[start : start + batch_size]
         predictions = model.batch_predict_entities(chunk, labels, threshold=threshold)
-        for index, entities in enumerate(predictions):
+        for text, entities in zip(chunk, predictions):
             spans = [Span(e["start"], e["end"], reverse.get(e["label"], e["label"]), float(e["score"])) for e in entities]
-            results.append(_to_normalized(spans, normalized[start + index], config.input))
+            results.append(trim_spans(text, spans))
         if on_batch:
             on_batch(len(chunk))
     return results
-
-
-def _to_normalized(spans: list[Span], normalized: NormalizedText, input_kind: str) -> list[Span]:
-    if input_kind == "normalized":
-        return trim_spans(normalized.text, spans)
-    # Le texte brut donné au modèle est `markdown.strip()`, celui dont
-    # `normalize_markdown` conserve les positions d'origine.
-    return project_spans(spans, normalized)

@@ -3,8 +3,13 @@
 Pour chaque document `annuaires/<volume>/<plage>/<doc>.….merged.csv`, on
 lit, quand ils existent, les deux fichiers NER voisins :
 
-- `….merged.ner.csv` : sortie brute du modèle GLiNER v1 ;
-- `….merged.ner.curated.csv` : la même, partiellement corrigée à la main.
+- `….merged.ner.csv` (source `ner`) : sortie brute de `infer_gliner.py` ;
+- `….merged.ner.curated.csv` (source `ner_curated`) : la même, corrigée à la
+  main.
+
+Ces fichiers portent la sortie du modèle qui les a produits : ceux des
+volumes actuels viennent encore du modèle v1 tant qu'ils n'ont pas été
+régénérés.
 
 Tout est ramené sur le **texte normalisé** (`normalize_markdown` : emphase
 Markdown retirée), qui est le texte de référence des annotations gold. Une
@@ -79,8 +84,8 @@ def load_document(merged_path: Path) -> list[Entry]:
     document, volume = document_names(merged_path)
     base = str(merged_path).removesuffix(MERGED_SUFFIX)
     sources = {
-        "v1": Path(base + RAW_NER_SUFFIX),
-        "v1_curated": Path(base + CURATED_NER_SUFFIX),
+        "ner": Path(base + RAW_NER_SUFFIX),
+        "ner_curated": Path(base + CURATED_NER_SUFFIX),
     }
     tagged_by_source = {
         name: {row["uid"]: row.get("tagged_text", "") for row in _read_rows(path) if row.get("entity") == "ENTRY"}
