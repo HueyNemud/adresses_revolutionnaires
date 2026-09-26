@@ -22,10 +22,6 @@ scores, qualité du score de confiance comme outil de tri pour la relecture,
 et efficacité du drapeau `ner_suspect` d'`infer_gliner.py`
 (`lib.ner.suspicion`, seuil `--min-score`) : part d'entrées signalées et
 part des erreurs attrapées, motif par motif.
-
-`--pre-annotation-as-gold` évalue contre la pré-annotation au lieu de la
-relecture : uniquement pour tester la chaîne avant que le gold soit
-corrigé ; le rapport le signale en tête.
 """
 
 import argparse
@@ -41,8 +37,8 @@ from pathlib import Path
 import numpy as np
 from rich.console import Console
 
-from audit_crf_features import fmt, fmt_ci, fmt_delta, md_code, md_table
-from lib.crf.evaluation import review_capture, roc_auc
+from lib.reporting import fmt, fmt_ci, fmt_delta, md_code, md_table
+from lib.stats import review_capture, roc_auc
 from lib.ner.metrics import METRICS, Comparison, Scored, compare, page_bootstrap, paired_delta, summarize
 from lib.ner.suspicion import DEFAULT_MIN_SCORE, REASONS, SEPARATOR, suspicion_reasons
 from lib.ner.spans import (
@@ -88,7 +84,7 @@ class System:
 # ----------------------------------------------------------------------
 # Chargement
 # ----------------------------------------------------------------------
-def load_gold(path: Path, split: str, pre_annotation_as_gold: bool) -> tuple[list[GoldEntry], int]:
+def load_gold(path: Path, split: str) -> tuple[list[GoldEntry], int]:
     tasks = json.loads(path.read_text(encoding="utf-8"))
     entries, unreviewed = [], 0
     for task in tasks:
@@ -96,14 +92,10 @@ def load_gold(path: Path, split: str, pre_annotation_as_gold: bool) -> tuple[lis
         if split != "all" and data.get("split") != split:
             continue
         reviewed = [a for a in task.get("annotations") or [] if not a.get("was_cancelled")]
-        if pre_annotation_as_gold:
-            gold = ls_task_spans(task, prefer="predictions") or []
-        elif reviewed:
-            gold = spans_from_ls_result(reviewed[-1].get("result", []))
-        else:
+        if not reviewed:
             unreviewed += 1
             continue
-        entries.append(GoldEntry(data, gold))
+        entries.append(GoldEntry(data, spans_from_ls_result(reviewed[-1].get("result", []))))
     return entries, unreviewed
 
 
@@ -254,8 +246,6 @@ def write_report(
         "(représentatives du corpus entier). Conventions : `docs/guide_annotation_ner.md`.",
         "",
     ]
-    if args.pre_annotation_as_gold:
-        lines += ["> ⚠ **Test de la chaîne uniquement** : la référence est la pré-annotation, pas la relecture humaine.", ""]
 
     lines += ["## Résumé", "", "Exactitude = part des entrées sans aucune correction à faire (métrique principale).", ""]
     rows = []
@@ -355,7 +345,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier système).")
     parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--pre-annotation-as-gold", action="store_true", help="Référence = pré-annotation (test de la chaîne uniquement).")
     parser.add_argument("-o", "--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help=f"Dossier du rapport (défaut : {DEFAULT_OUTPUT_DIR}).")
     return parser.parse_args()
 
@@ -365,7 +354,7 @@ def main() -> None:
     if not args.gold.exists():
         console.print(f"[bold red]Erreur :[/bold red] gold '{args.gold}' introuvable (voir tools/sample_ner_gold.py).")
         return
-    entries, unreviewed = load_gold(args.gold, args.split, args.pre_annotation_as_gold)
+    entries, unreviewed = load_gold(args.gold, args.split)
     if not entries:
         console.print(f"[yellow]Aucune entrée relue dans le split '{args.split}' ({unreviewed} non relues).[/yellow]")
         return

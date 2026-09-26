@@ -58,19 +58,34 @@ def predict_spans(
     threshold: float,
     batch_size: int = 16,
     on_batch: Callable[[int], None] | None = None,
-) -> list[list[Span]]:
-    """Empans (avec score) sur le **texte normalisé** de chaque entrée."""
+    on_error: Callable[[int, Exception], None] | None = None,
+) -> list[list[Span] | None]:
+    """Empans (avec score) sur le **texte normalisé** de chaque entrée,
+    prédits par lots. Si un lot échoue (un texte pathologique suffit), ses
+    textes sont retentés un par un : un texte qui échoue encore vaut None et
+    est signalé à `on_error(indice, erreur)`, sans perdre le reste du lot."""
     reverse = {text: code for code, text in config.label_text.items()}
     labels = list(config.label_text.values())
     inputs = [normalize_markdown(text).text for text in raw_texts]
 
-    results: list[list[Span]] = []
+    def to_spans(text: str, entities: list[dict]) -> list[Span]:
+        spans = [Span(e["start"], e["end"], reverse.get(e["label"], e["label"]), float(e["score"])) for e in entities]
+        return trim_spans(text, spans)
+
+    results: list[list[Span] | None] = []
     for start in range(0, len(inputs), batch_size):
         chunk = inputs[start : start + batch_size]
-        predictions = model.batch_predict_entities(chunk, labels, threshold=threshold)
-        for text, entities in zip(chunk, predictions):
-            spans = [Span(e["start"], e["end"], reverse.get(e["label"], e["label"]), float(e["score"])) for e in entities]
-            results.append(trim_spans(text, spans))
+        try:
+            predictions = model.batch_predict_entities(chunk, labels, threshold=threshold)
+            results += [to_spans(text, entities) for text, entities in zip(chunk, predictions)]
+        except Exception:  # Surface large et imprévisible côté torch.
+            for offset, text in enumerate(chunk):
+                try:
+                    results.append(to_spans(text, model.predict_entities(text, labels, threshold=threshold)))
+                except Exception as error:
+                    results.append(None)
+                    if on_error:
+                        on_error(start + offset, error)
         if on_batch:
             on_batch(len(chunk))
     return results

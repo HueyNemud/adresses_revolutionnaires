@@ -21,9 +21,9 @@ Colonnes ajoutées (insérées juste après la colonne `entity`) :
 Ces colonnes restent vides pour les lignes qui ne sont pas de type
 ENTRY (`OUT OF SCOPE`, `TITLE`, ...) ou dont le texte est vide : ce sont des
 lignes non traitées, pas des lignes traitées sans résultat. Une ligne ENTRY
-traitée mais sans aucun empan détecté obtient `tagged_text=""` et des
-compteurs à 0 — une distinction volontaire entre « non applicable » et
-« traité, rien trouvé ».
+traitée mais sans aucun empan détecté obtient son texte sans balise, des
+compteurs à 0 et le motif `aucun empan` — une distinction volontaire entre
+« non applicable » et « traité, rien trouvé ».
 
 Labels et texte d'entrée
 ------------------------
@@ -33,25 +33,17 @@ pas les codes courts SUBJ/DESC/ADDR : la correspondance est lue dans
 Le modèle voit le texte normalisé (emphase Markdown retirée) ; les empans
 sont ramenés sur le texte d'origine de la colonne pour `tagged_text`.
 
-Performance
------------
-GLiNER tourne en local (GPU ou CPU) : contrairement à `autoclassify.py`
-(appels réseau à Ollama, où un pool de threads apporte un vrai gain), le
-bon levier ici est le batching natif de la bibliothèque
-(`model.batch_predict_entities`), qui traite plusieurs textes en un seul
-passage tenseur — un pool de threads n'apporterait rien pour de l'inférence
-locale sur un seul modèle. Si un batch entier échoue (une entrée
-pathologique peut faire échouer tout le lot), chaque élément du batch est
-retenté individuellement pour isoler la ligne fautive sans perdre le reste.
+Inférence
+---------
+Par lots (`lib.ner.gliner.predict_spans`) : un lot qui échoue est retenté
+texte par texte, et une ligne qui échoue encore est signalée sans perdre le
+reste du lot.
 """
 
 import argparse
 import csv
+from collections import Counter
 from pathlib import Path
-
-from lib.ner.gliner import NerConfig
-from lib.ner.spans import Span, normalize_markdown, unproject_spans
-from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, confidence, suspicion_reasons
 
 from rich.console import Console
 from rich.progress import (
@@ -63,6 +55,10 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from lib.ner.gliner import NerConfig, load_model, predict_spans
+from lib.ner.spans import LABELS, normalize_markdown, render_tagged_text, unproject_spans
+from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, confidence, suspicion_reasons
+
 console = Console()
 
 DEFAULT_ENTITY_COLUMN = "entity"
@@ -71,13 +67,8 @@ DEFAULT_TEXT_COLUMN = "markdown"
 DEFAULT_BATCH_SIZE = 16
 DEFAULT_THRESHOLD = 0.5
 
-
-NEW_COLUMNS = ["tagged_text", "subject_count", "description_count", "address_count", "ner_confidence", "ner_suspect"]
-COUNT_COLUMN_FOR_LABEL = {
-    "SUBJ": "subject_count",
-    "DESC": "description_count",
-    "ADDR": "address_count",
-}
+COUNT_COLUMN_FOR_LABEL = {"SUBJ": "subject_count", "DESC": "description_count", "ADDR": "address_count"}
+NEW_COLUMNS = ["tagged_text", *COUNT_COLUMN_FOR_LABEL.values(), "ner_confidence", "ner_suspect"]
 
 
 # --------------------------------------------------------------------------
@@ -131,124 +122,6 @@ def select_entries(
         else:
             empty_text_indices.append(index)
     return indices, texts, empty_text_indices
-
-
-# --------------------------------------------------------------------------
-# Rendu balisé
-# --------------------------------------------------------------------------
-
-
-def render_tagged_text(text: str, spans: list[dict[str, object]]) -> str:
-    """Rend le texte source intégral, avec chaque empan détecté entouré de
-    balises `<LABEL>...</LABEL>` à sa position exacte. Rien n'est retiré :
-    le texte de liaison (ponctuation, espaces) entre/avant/après les empans
-    est conservé tel quel, et les balises apparaissent dans l'ordre du
-    texte source (tri par position de départ).
-    """
-
-    def escape(fragment: str) -> str:
-        return fragment.replace("<", "&lt;").replace(">", "&gt;")
-
-    ordered = sorted(spans, key=lambda span: span["start"])
-    pieces: list[str] = []
-    cursor = 0
-    for span in ordered:
-        start, end, label = span["start"], span["end"], span["label"]
-        if start < cursor:
-            # Empan chevauchant un empan déjà rendu (ne devrait pas arriver
-            # avec une NER "plate") : ignoré plutôt que de produire un
-            # balisage incohérent (balises imbriquées ou qui se recouvrent).
-            continue
-        pieces.append(escape(text[cursor:start]))
-        pieces.append(f"<{label}>{escape(text[start:end])}</{label}>")
-        cursor = end
-    pieces.append(escape(text[cursor:]))
-    return "".join(pieces)
-
-
-def finalize_spans(raw_text: str, spans: list[dict]) -> list[dict]:
-    """Empans prédits sur le texte normalisé → empans sur le texte d'origine
-    (`raw_text`)."""
-    normalized = normalize_markdown(raw_text)
-    on_normalized = [Span(s["start"], s["end"], s["label"], s.get("score")) for s in spans]
-    return [
-        {"label": s.label, "text": raw_text[s.start : s.end], "start": s.start, "end": s.end, "score": s.score}
-        for s in unproject_spans(on_normalized, normalized)
-    ]
-
-
-# --------------------------------------------------------------------------
-# Inférence
-# --------------------------------------------------------------------------
-
-
-def run_inference(
-    model,
-    indices: list[int],
-    texts: list[str],
-    gliner_labels: list[str],
-    reverse_label_text: dict[str, str],
-    threshold: float,
-    batch_size: int,
-    verbose: bool,
-    progress: Progress,
-    task_id,
-) -> tuple[dict[int, list[dict]], list[tuple[int, str]]]:
-    """Exécute l'inférence par lots ; retourne (empans par indice de ligne,
-    erreurs [(indice, message), ...])."""
-    results: dict[int, list[dict]] = {}
-    errors: list[tuple[int, str]] = []
-
-    for start in range(0, len(texts), batch_size):
-        chunk_indices = indices[start : start + batch_size]
-        chunk_texts = texts[start : start + batch_size]
-
-        try:
-            batch_predictions = model.batch_predict_entities(
-                chunk_texts, gliner_labels, threshold=threshold
-            )
-        except Exception:
-            # Un texte pathologique peut faire échouer tout le lot : on
-            # retente un par un pour isoler la ligne fautive sans perdre le
-            # reste du lot.
-            batch_predictions = []
-            for text in chunk_texts:
-                try:
-                    batch_predictions.append(
-                        model.predict_entities(text, gliner_labels, threshold=threshold)
-                    )
-                except Exception as item_error:
-                    batch_predictions.append(item_error)
-
-        for row_index, text, predictions in zip(
-            chunk_indices, chunk_texts, batch_predictions
-        ):
-            if isinstance(predictions, Exception):
-                errors.append((row_index, str(predictions)))
-                console.print(f"[red]✗[/red] ligne {row_index} : {predictions}")
-            else:
-                spans = [
-                    {
-                        "label": reverse_label_text.get(pred["label"], pred["label"]),
-                        "text": pred["text"],
-                        "start": pred["start"],
-                        "end": pred["end"],
-                        "score": pred["score"],
-                    }
-                    for pred in predictions
-                ]
-                results[row_index] = spans
-                if verbose:
-                    console.print(
-                        f"[green]✓[/green] ligne {row_index}  {render_tagged_text(text, spans)}"
-                    )
-                elif not spans:
-                    console.print(
-                        f"[yellow]⚠[/yellow] ligne {row_index} : aucun empan détecté"
-                    )
-            progress.update(task_id, advance=1)
-
-    return results, errors
 
 
 # --------------------------------------------------------------------------
@@ -325,165 +198,103 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def write_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def main() -> None:
     args = parse_args()
-
     if not args.input_csv.exists():
-        console.print(
-            f"[bold red]Erreur :[/bold red] Fichier '{args.input_csv}' introuvable."
-        )
+        console.print(f"[bold red]Erreur :[/bold red] Fichier '{args.input_csv}' introuvable.")
         return
-    if not args.model.exists():
-        console.print(
-            f"[bold red]Erreur :[/bold red] Dossier de modèle '{args.model}' introuvable."
-        )
-        return
-
     try:
-        label_text = NerConfig.load(args.model).label_text
+        config = NerConfig.load(args.model)
     except FileNotFoundError as error:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
-    reverse_label_text = {v: k for k, v in label_text.items()}
-    gliner_labels = list(label_text.values())
-
     output_path = args.output or args.input_csv.with_suffix(".ner.csv")
 
     console.print(f"Lecture de [yellow]{args.input_csv.name}[/yellow]...")
     try:
         fieldnames, rows = load_rows(args.input_csv)
-        output_fieldnames = insert_columns_after(
-            fieldnames, args.entity_column, NEW_COLUMNS
-        )
+        output_fieldnames = insert_columns_after(fieldnames, args.entity_column, NEW_COLUMNS)
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
-
     for row in rows:
-        for col in NEW_COLUMNS:
-            row.setdefault(col, "")
+        for column in NEW_COLUMNS:
+            row.setdefault(column, "")
 
-    indices, texts, empty_text_indices = select_entries(
-        rows, args.entity_column, args.entry_value, args.text_column
-    )
-    console.print(
-        f"[green]{len(indices)}[/green] ligne(s) '{args.entry_value}' à traiter sur "
-        f"{len(rows)} lignes au total."
-    )
+    indices, texts, empty_text_indices = select_entries(rows, args.entity_column, args.entry_value, args.text_column)
+    console.print(f"[green]{len(indices)}[/green] ligne(s) '{args.entry_value}' à traiter sur {len(rows)} lignes au total.")
     if empty_text_indices:
-        console.print(
-            f"[yellow]{len(empty_text_indices)} ligne(s) '{args.entry_value}' au texte vide, "
-            "ignorée(s).[/yellow]"
-        )
-
+        console.print(f"[yellow]{len(empty_text_indices)} ligne(s) '{args.entry_value}' au texte vide, ignorée(s).[/yellow]")
     if not indices:
-        console.print(
-            "[yellow]Aucune ligne à traiter — écriture du fichier inchangé.[/yellow]"
-        )
-        with output_path.open("w", encoding="utf-8", newline="") as f_out:
-            writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
-        return
-
-    try:
-        from gliner import GLiNER
-    except ImportError as error:
-        console.print(
-            f"[bold red]Erreur :[/bold red] dépendance manquante ({error}). "
-            "Installez-la avec : pip install gliner torch"
-        )
+        console.print("[yellow]Aucune ligne à traiter — écriture du fichier inchangé.[/yellow]")
+        write_rows(output_path, output_fieldnames, rows)
         return
 
     console.print(f"Chargement du modèle [cyan]{args.model}[/cyan]...")
     try:
-        model = GLiNER.from_pretrained(str(args.model))
-        model.eval()
+        model = load_model(args.model)
     except Exception as error:  # Surface large et imprévisible côté torch/HF Hub.
         console.print(f"[bold red]Erreur au chargement du modèle :[/bold red] {error}")
         return
 
-    progress_columns = (
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TextColumn("•"),
-        TimeElapsedColumn(),
-        TextColumn("restant :"),
-        TimeRemainingColumn(),
-    )
-    with Progress(*progress_columns, console=console) as progress:
-        task_id = progress.add_task("Inférence", total=len(indices))
-        model_texts = [normalize_markdown(text).text for text in texts]
-        results, errors = run_inference(
-            model,
-            indices,
-            model_texts,
-            gliner_labels,
-            reverse_label_text,
-            args.threshold,
-            args.batch_size,
-            args.verbose,
-            progress,
-            task_id,
+    errors: list[int] = []
+
+    def report_error(position: int, error: Exception) -> None:
+        errors.append(indices[position])
+        console.print(f"[red]✗[/red] ligne {indices[position]} : {error}")
+
+    columns = (TextColumn("[progress.description]{task.description}"), BarColumn(), MofNCompleteColumn(),
+               TextColumn("•"), TimeElapsedColumn(), TextColumn("restant :"), TimeRemainingColumn())
+    with Progress(*columns, console=console) as progress:
+        task = progress.add_task("Inférence", total=len(indices))
+        predictions = predict_spans(
+            model, config, texts, args.threshold, args.batch_size,
+            on_batch=lambda n: progress.update(task, advance=n), on_error=report_error,
         )
 
-    total_counts = {"SUBJ": 0, "DESC": 0, "ADDR": 0}
-    zero_span_rows = 0
+    span_counts: Counter[str] = Counter()
+    reason_counts: Counter[str] = Counter()
     suspect_rows = 0
-    reason_counts: dict[str, int] = {}
-    for row_index, spans in results.items():
+    for row_index, text, spans in zip(indices, texts, predictions):
+        if spans is None:
+            continue
         row = rows[row_index]
-        raw_text = row[args.text_column].strip()
+        normalized = normalize_markdown(text)
         # Suspicion évaluée sur le texte normalisé, celui qu'a vu le modèle.
-        typed = [Span(s["start"], s["end"], s["label"], s.get("score")) for s in spans]
-        reasons = suspicion_reasons(normalize_markdown(raw_text).text, typed, args.min_score)
-        score = confidence(typed)
+        reasons = suspicion_reasons(normalized.text, spans, args.min_score)
+        score = confidence(spans)
         row["ner_confidence"] = f"{score:.4f}" if score is not None else ""
         row["ner_suspect"] = SEPARATOR.join(reasons)
-        if reasons:
-            suspect_rows += 1
-            for reason in reasons:
-                reason_counts[reason] = reason_counts.get(reason, 0) + 1
-        spans = finalize_spans(raw_text, spans)
-        row["tagged_text"] = render_tagged_text(raw_text, spans)
-        counts = {"SUBJ": 0, "DESC": 0, "ADDR": 0}
-        for span in spans:
-            counts[span["label"]] = counts.get(span["label"], 0) + 1
-        for label, count in counts.items():
-            row[COUNT_COLUMN_FOR_LABEL[label]] = count
-            total_counts[label] += count
-        if not spans:
-            zero_span_rows += 1
+        suspect_rows += bool(reasons)
+        reason_counts.update(reasons)
+        row["tagged_text"] = render_tagged_text(text, unproject_spans(spans, normalized))
+        counts = Counter(span.label for span in spans)
+        for label in LABELS:
+            row[COUNT_COLUMN_FOR_LABEL[label]] = counts[label]
+        span_counts.update(counts)
+        if args.verbose:
+            console.print(f"[green]✓[/green] ligne {row_index}  {row['tagged_text']}")
 
-    with output_path.open("w", encoding="utf-8", newline="") as f_out:
-        writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_rows(output_path, output_fieldnames, rows)
 
-    console.print(
-        "\n[bold green]✅ Inférence terminée :[/bold green] "
-        f"[yellow]{output_path}[/yellow] "
-        f"({len(results)}/{len(indices)} lignes traitées)"
-    )
-    console.print(
-        f"Empans détectés — SUBJ : {total_counts['SUBJ']}  ·  "
-        f"DESC : {total_counts['DESC']}  ·  ADDR : {total_counts['ADDR']}"
-    )
-    if zero_span_rows:
+    processed = len(indices) - len(errors)
+    console.print(f"\n[bold green]✅ Inférence terminée :[/bold green] [yellow]{output_path}[/yellow] ({processed}/{len(indices)} lignes traitées)")
+    console.print("Empans détectés — " + "  ·  ".join(f"{label} : {span_counts[label]}" for label in LABELS))
+    if processed:
+        detail = ", ".join(f"{reason} {count}" for reason, count in reason_counts.most_common())
         console.print(
-            f"[yellow]⚠ {zero_span_rows} ligne(s) traitée(s) sans aucun empan détecté.[/yellow]"
-        )
-    if results:
-        detail = ", ".join(f"{reason} {count}" for reason, count in sorted(reason_counts.items(), key=lambda item: -item[1]))
-        console.print(
-            f"Entrées suspectes (colonne ner_suspect) : [yellow]{suspect_rows}[/yellow] / {len(results)} "
-            f"({suspect_rows / len(results):.1%})" + (f" — {detail}" if detail else "")
+            f"Entrées suspectes (colonne ner_suspect) : [yellow]{suspect_rows}[/yellow] / {processed} "
+            f"({suspect_rows / processed:.1%})" + (f" — {detail}" if detail else "")
         )
     if errors:
-        console.print(
-            f"[red]✗ {len(errors)} ligne(s) en échec (voir le détail ci-dessus).[/red]"
-        )
+        console.print(f"[red]✗ {len(errors)} ligne(s) en échec (voir le détail ci-dessus).[/red]")
 
 
 if __name__ == "__main__":

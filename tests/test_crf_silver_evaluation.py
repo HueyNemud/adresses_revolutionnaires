@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from lib.stats import roc_auc
 from lib.crf.evaluation import (
     Experiment,
     N_CLASSES,
@@ -15,7 +16,6 @@ from lib.crf.evaluation import (
     page_confusions,
     page_entity_counts,
     prf,
-    roc_auc,
     run_experiments,
     score_lines,
     within_document_splits,

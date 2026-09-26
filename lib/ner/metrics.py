@@ -17,7 +17,7 @@ Métriques secondaires :
 Agrégation : chaque entrée porte un poids (inverse de sa probabilité
 d'inclusion dans l'échantillon gold stratifié) et une grappe (la page).
 Les intervalles de confiance sont obtenus par bootstrap des pages, comme
-pour l'audit du CRF (`lib.crf.evaluation`), et les comparaisons entre
+pour l'audit du CRF (`lib.stats`), et les comparaisons entre
 systèmes sont appariées (mêmes rééchantillonnages).
 """
 
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from lib.crf.evaluation import bootstrap_weights, interval, resample
+from lib.stats import bootstrap_weights, interval, resample
 from lib.ner.spans import LABELS, Span, canonical_spans, signature, tokenize_with_offsets
 
 TOKEN_CLASSES = ("O", *LABELS)
