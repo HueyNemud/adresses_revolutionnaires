@@ -7,10 +7,6 @@ lit, quand ils existent, les deux fichiers NER voisins :
 - `….merged.ner.curated.csv` (source `ner_curated`) : la même, corrigée à la
   main.
 
-Ces fichiers portent la sortie du modèle qui les a produits : ceux des
-volumes actuels viennent encore du modèle v1 tant qu'ils n'ont pas été
-régénérés.
-
 Tout est ramené sur le **texte normalisé** (`normalize_markdown` : emphase
 Markdown retirée), qui est le texte de référence des annotations gold. Une
 annotation dont le texte ne correspond plus à celui de l'entrée (le

@@ -4,11 +4,8 @@ Studio attendu par `tools/train_gliner.py`.
 Source : les ENTRY de `annuaires/` avec leur annotation NER, corrigée à la
 main (`*.ner.curated.csv`) ou, à défaut, brute (`*.ner.csv`), ramenée sur
 le texte normalisé. Ces CSV doivent venir du modèle courant
-(`infer_gliner.py`) : ceux produits par le modèle v1 portent ses anciennes
-conventions (voir `docs/guide_annotation_ner.md`), et un modèle entraîné
-dessus les réapprendrait. Le jeu `data/ner/train.ls.json`, qui a servi
-au modèle actuel, a été construit à partir de ces sorties v1 corrigées par
-des règles de convention, retirées depuis.
+(`infer_gliner.py`) et suivre `docs/guide_annotation_ner.md` : un modèle
+réapprend les écarts de convention de ses données.
 
 Filtres : textes du jeu gold exclus (dev **et** test, comparaison sur le
 texte normalisé) ; textes dédoublonnés ; entrées sans empan, ou qui ne

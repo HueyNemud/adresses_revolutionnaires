@@ -1,7 +1,7 @@
-"""Entraîne un modèle GLiNER-bi (bi-encoder) sur les pré-annotations NER
-SUBJ/DESC/ADDR produites par autoclassify_labelstudio.py (ou exportées
-depuis Label Studio après relecture humaine), avec un split 80/20 et un
-rapport d'évaluation .txt.
+"""Entraîne un modèle GLiNER-bi (bi-encoder) sur des annotations NER
+SUBJ/DESC/ADDR au format Label Studio (jeu construit par
+`tools/build_ner_training.py`, ou export Label Studio relu), avec un split
+de validation par page et un rapport d'évaluation .txt.
 
 Conversion des annotations
 --------------------------

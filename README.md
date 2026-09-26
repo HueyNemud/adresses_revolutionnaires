@@ -20,9 +20,9 @@ uv sync
 
 Cette chaîne de traitement transforme un PDF d'annuaire ancien numérisé en une base de données d'entrées à l'intérieur d'une hiérarchie de titres.
 
-1. un **CSV d'entrées à l'intérieur d'une hiérarchie de titres**, produit par appren annotation CRF ligne par ligne assistée par apprentissage actif ;
-2. un **jeu de pré-annotations NER pour Label Studio**, où chaque entrée est
-   décomposée en empans (SUBJ / DESC / ADDR) via un LLM local (Ollama).
+1. un **CSV d'entrées à l'intérieur d'une hiérarchie de titres**, produit par une annotation CRF ligne par ligne assistée par apprentissage actif ;
+2. le même CSV **segmenté en empans NER** (SUBJ / DESC / ADDR) par un modèle
+   GLiNER, avec les entrées à relire en priorité signalées.
 
 ### Vue d'ensemble
 
@@ -33,8 +33,8 @@ flowchart TD
     C -->|"annotate_lines_crf.py<br/>(annotation interactive, CRF)"| D["JSON annoté<br/><code>predictions_crf.json</code><br/>+ session <code>.crf-session.json</code>"]
     D -->|"export_lines_csv.py"| E["CSV une ligne = une ligne Markdown<br/><code>&lt;entrée&gt;.csv</code>"]
     E -->|"merge_annotated_lines.py"| F["CSV d'entités fusionnées<br/><code>&lt;entrée&gt;.merged.csv</code><br/>+ <code>&lt;entrée&gt;.merged.report.txt</code>"]
-    F -.->|"extraction manuelle de la<br/>colonne 'markdown', 1 entrée/ligne"| G["entries.txt"]
-    G -->|"autoclassify.py<br/>(Ollama, structured output)"| H["Pré-annotations NER Label Studio<br/><code>entries.ls-annotations.json</code>"]
+    F -->|"infer_gliner.py<br/>(modèle GLiNER)"| H["CSV NER<br/><code>&lt;entrée&gt;.merged.ner.csv</code><br/>(tagged_text, ner_suspect)"]
+    H -.->|"relecture des entrées suspectes"| H2["<code>&lt;entrée&gt;.merged.ner.curated.csv</code>"]
 
     C -.->|"export_lines_csv.py<br/>(CSV brut, sans prédiction)"| E2["CSV pré-annotation<br/>(inspection seulement)"]
 
@@ -195,75 +195,7 @@ flowchart LR
   hors-champ et **signalée séparément** dans le rapport (garde-fou contre
   un futur renommage de classe côté annotation).
 
-## Étape 5 — Pré-annotation NER pour Label Studio : `autoclassify.py`
-
-Étape indépendante du CSV fusionné : à partir d'un fichier texte (une
-entrée d'annuaire par ligne — typiquement la colonne `markdown` du CSV
-fusionné, exportée manuellement une fois les `ENTRY` validées), interroge
-un modèle Ollama local pour segmenter chaque entrée en empans classés, et
-produit un fichier de prédictions Label Studio.
-
-```
-python autoclassify.py entries.txt
-```
-
-- **Entrée :** un fichier texte, une entrée par ligne.
-- **Sortie :** `<entrée>.ls-annotations.json` — une tâche Label Studio par
-  ligne (`data.text` + `predictions[0].result[]` avec `start`/`end`
-  calculés par recherche dans le texte, pas fournis par le modèle).
-- **Classes :** `SUBJ` (entité désignée), `DESC` (descriptif d'activité),
-  `ADDR` (adresse) — indépendantes des classes BIO des étapes 2-4 : ce
-  script classe des empans *à l'intérieur* d'une entrée déjà reconstituée,
-  pas des lignes.
-- Utilise le mode **structured output** d'Ollama (schéma JSON Pydantic
-  passé à `format=`), pas `format="json"` libre : la forme de la réponse
-  est contrainte, pas seulement sa validité JSON.
-- Si le modèle altère le texte d'un segment (le repérage par recherche
-  échoue), l'entrée est marquée en échec et journalée — jamais d'empan mal
-  positionné produit en silence.
-- `--from-name`/`--to-name` doivent correspondre aux noms des balises
-  `<Labels>`/`<Text>` de votre configuration Label Studio.
-
-## Audit du CRF : `audit_crf_features.py`
-
-Mesure la performance du CRF de l'étape 2 et la pertinence de chacune de ses
-features, en prenant pour référence les « silver datasets » : les CSV
-`*.ocr.lines.annotated.curated.csv`, dont la colonne `prediction_curated`
-contient la classe de chaque ligne vérifiée et corrigée à la main.
-
-```
-uv run audit_crf_features.py                 # tous les CSV curés sous annuaires/
-uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
-```
-
-- **Entrées :** les CSV curés et, à côté de chacun, le JSON
-  `<nom>.ocr.lines.json` qu'a vu l'annotateur : les features sont calculées
-  sur ce JSON (le texte a parfois été corrigé pendant la curation, notamment
-  les marqueurs de titre « # »), les classes curées y sont alignées par `uid`.
-- **Sortie :** `rapports/audit_crf/` par défaut — `rapport.md` (résumé,
-  recommandations, analyses détaillées), des tables CSV (expériences, classes,
-  statistiques de features, poids du modèle, erreurs) et `resume.json`.
-- **Contenu du rapport :** performances par classe et par entité (règles de
-  `merge_annotated_lines.py`) selon deux validations croisées
-  (intra-document, par blocs de pages contiguës ; inter-volumes) ;
-  calibration des probabilités ; information mutuelle, constance et
-  redondance des attributs ; ablations groupe par groupe et groupe seul,
-  jugées contre un plancher de bruit mesuré par des features placebo ;
-  évaluation de groupes de features candidats et d'une sélection ; courbe
-  d'apprentissage ; analyse d'erreurs.
-- **Options utiles :** `--workers` (entraînements en parallèle),
-  `--bootstrap`, `--folds`, `--no-learning-curve` / `--no-candidates` /
-  `--no-single-groups` (plus rapide), `--hyperparams` (grille c1 × c2).
-
-Le cœur du CRF est partagé entre l'annotateur et l'audit dans `lib/crf/` :
-`features.py` (groupes de features nommés : production, jeu historique v1 conservé pour comparaison, candidats, placebos),
-`model.py` (entraînement / inférence), `active_learning.py` (moteur de
-l'annotateur), `silver.py` (chargement des CSV curés) et `evaluation.py`
-(protocoles, métriques, bootstrap). Pour tester une nouvelle feature, il
-suffit d'ajouter un groupe candidat dans `lib/crf/features.py` : l'audit
-l'évalue automatiquement sans changer le comportement de l'annotateur.
-
-## NER : inférence, entraînement, audit
+## Étape 5 — Segmentation NER (SUBJ / DESC / ADDR)
 
 Segmentation de chaque ENTRY en empans `SUBJ` / `DESC` / `ADDR` par un
 modèle GLiNER-bi. Les conventions d'annotation sont fixées dans
@@ -274,7 +206,7 @@ modèle GLiNER-bi. Les conventions d'annotation sont fixées dans
 ### Inférence : `infer_gliner.py`
 
 ```bash
-uv run infer_gliner.py annuaires/<volume>/<plage>/<doc>.….merged.csv --model models/train.gliner-model
+uv run infer_gliner.py annuaires/<volume>/<plage>/<doc>.….merged.csv --model models/<nom>.gliner-model
 ```
 
 Ajoute après `entity` la colonne `tagged_text` (texte d'origine balisé,
@@ -318,18 +250,18 @@ Visualiseur du CSV final d'un volume (`*.merged.ner.csv` ou
 ### Entraînement (machine GPU)
 
 ```bash
-# En local (a besoin de annuaires/, hors git) : jeu tiré par forme typographique,
-# textes du gold exclus, puis versionné.
-uv run tools/build_ner_training.py -o data/ner/train_v3.ls.json
+# En local (a besoin de annuaires/, hors git) : régénère data/ner/train.ls.json,
+# tiré par forme typographique, textes du gold exclus, puis versionné.
+uv run tools/build_ner_training.py
 git add data/ner && git commit && git push
 
 # Sur la machine GPU (après git pull && uv sync) :
-uv run tools/train_gliner.py data/ner/train_v3.ls.json        # → models/train_v3.gliner-model
+uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model
 ```
 
 `build_ner_training.py` part des CSV NER de `annuaires/` (corrigés quand
-ils existent) : ils doivent venir du modèle courant, sinon le nouveau
-modèle réapprend les conventions de l'ancien. `train_gliner.py` exclut les
+ils existent) : ils doivent suivre le guide d'annotation, car le modèle
+réapprend les écarts de convention de ses données. `train_gliner.py` exclut les
 textes du gold, valide sur un split **par page** et enregistre les
 libellés dans `<modèle>/ner_config.json`.
 
@@ -341,7 +273,7 @@ Mesure la segmentation contre un **jeu gold relu à la main**
 `data/ner/label_studio_config.xml`).
 
 ```bash
-uv run audit_ner.py --split dev --model models/train.gliner-model --model models/train_v3.gliner-model
+uv run audit_ner.py --split dev --model models/<actuel>.gliner-model --model models/<nom>.gliner-model
 uv run audit_ner.py --predictions autre=sortie.ner.csv --split dev
 ```
 
@@ -360,8 +292,58 @@ uv run audit_ner.py --predictions autre=sortie.ner.csv --split dev
 
 Code partagé dans `lib/ner/` : `spans.py` (empans, `tagged_text`, Label
 Studio, normalisation Markdown), `shapes.py` (forme typographique),
-`corpus.py` (lecture des CSV NER), `metrics.py`, `gliner.py` (chargement
-et prédiction).
+`corpus.py` (lecture des CSV NER), `metrics.py`, `suspicion.py` (motifs de
+relecture), `gliner.py` (chargement et prédiction). Outils statistiques et
+mise en forme des rapports partagés avec l'audit CRF : `lib/stats.py`,
+`lib/reporting.py`.
+
+### Pré-annotation par LLM (facultative) : `autoclassify_labelstudio.py`
+
+Pré-annote les entrées d'un CSV (colonne `markdown`) avec un modèle Ollama
+local, en sortie structurée (schéma Pydantic), et écrit des prédictions
+Label Studio (`<entrée>.ls-annotations.json`). Coûteux sur des milliers
+d'entrées : réservé à l'amorçage d'un nouveau type d'annuaire. Une entrée
+dont le modèle altère le texte est journalisée en échec, jamais placée de
+travers.
+
+## Audit du CRF : `audit_crf_features.py`
+
+Mesure la performance du CRF de l'étape 2 et la pertinence de chacune de ses
+features, en prenant pour référence les « silver datasets » : les CSV
+`*.ocr.lines.annotated.curated.csv`, dont la colonne `prediction_curated`
+contient la classe de chaque ligne vérifiée et corrigée à la main.
+
+```
+uv run audit_crf_features.py                 # tous les CSV curés sous annuaires/
+uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
+```
+
+- **Entrées :** les CSV curés et, à côté de chacun, le JSON
+  `<nom>.ocr.lines.json` qu'a vu l'annotateur : les features sont calculées
+  sur ce JSON (le texte a parfois été corrigé pendant la curation, notamment
+  les marqueurs de titre « # »), les classes curées y sont alignées par `uid`.
+- **Sortie :** `rapports/audit_crf/` par défaut — `rapport.md` (résumé,
+  recommandations, analyses détaillées), des tables CSV (expériences, classes,
+  statistiques de features, poids du modèle, erreurs) et `resume.json`.
+- **Contenu du rapport :** performances par classe et par entité (règles de
+  `merge_annotated_lines.py`) selon deux validations croisées
+  (intra-document, par blocs de pages contiguës ; inter-volumes) ;
+  calibration des probabilités ; information mutuelle, constance et
+  redondance des attributs ; ablations groupe par groupe et groupe seul,
+  jugées contre un plancher de bruit mesuré par des features placebo ;
+  évaluation de groupes de features candidats et d'une sélection ; courbe
+  d'apprentissage ; analyse d'erreurs.
+- **Options utiles :** `--workers` (entraînements en parallèle),
+  `--bootstrap`, `--folds`, `--no-learning-curve` / `--no-candidates` /
+  `--no-single-groups` (plus rapide), `--hyperparams` (grille c1 × c2).
+
+Le cœur du CRF est partagé entre l'annotateur et l'audit dans `lib/crf/` :
+`features.py` (groupes de features nommés : production, jeu historique v1 conservé pour comparaison, candidats, placebos),
+`model.py` (entraînement / inférence), `active_learning.py` (moteur de
+l'annotateur), `silver.py` (chargement des CSV curés) et `evaluation.py`
+(protocoles, métriques, bootstrap). Pour tester une nouvelle feature, il
+suffit d'ajouter un groupe candidat dans `lib/crf/features.py` : l'audit
+l'évalue automatiquement sans changer le comportement de l'annotateur.
 
 ## Fichiers finaux et ce qu'ils contiennent
 
@@ -369,7 +351,8 @@ et prédiction).
 |---|---|---|
 | `<entrée>.merged.csv` | `merge_annotated_lines.py` | Une ligne par entité : `ENTRY`, `TITLE` ou `OUT OF SCOPE`, avec texte fusionné et provenance (uid, page, etc. concaténés) |
 | `<entrée>.merged.report.txt` | `merge_annotated_lines.py` | Comptages (entités finales, lignes fusionnées) et listes de cas à vérifier (ancres manquantes, ordre alphabétique) |
-| `<entrée>.ls-annotations.json` | `autoclassify.py` | Pré-annotations NER par empans (SUBJ/DESC/ADDR), importables directement dans Label Studio |
+| `<entrée>.merged.ner.csv` | `infer_gliner.py` | Le CSV fusionné, avec pour chaque ENTRY le texte balisé `tagged_text` (SUBJ/DESC/ADDR), les comptes d'empans, `ner_confidence` et les motifs de relecture `ner_suspect` |
+| `<entrée>.merged.ner.curated.csv` | relecture manuelle | Le même, corrigé |
 
 ## Conventions communes à tous les scripts
 
@@ -379,6 +362,6 @@ et prédiction).
   pour les échecs attendus).
 - Vérification de l'existence des fichiers d'entrée avant tout traitement ;
   gestion d'erreurs typée plutôt que des `except Exception` génériques
-  (à l'exception assumée du traitement par lot LLM dans `autoclassify.py`,
+  (à l'exception assumée du traitement par lot LLM dans `autoclassify_labelstudio.py`,
   où l'objectif est la résilience du lot face à des pannes réseau/modèle
   imprévisibles).

@@ -1,6 +1,6 @@
 # Guide d'annotation NER des entrées d'annuaire (SUBJ / DESC / ADDR)
 
-> **Statut : validé (2026-09-26).** Les points marqués **[Arbitré]** sont des choix de convention que les données v1 appliquaient de façon incohérente. Ce guide est la **source unique** des conventions : consignes Label Studio, relecture et contrôles de cohérence en dérivent.
+Source unique des conventions : la relecture dans Label Studio, le jeu gold (`data/ner/gold.ls.json`) et les jeux d'entraînement les suivent.
 
 ## Principe
 
@@ -16,9 +16,9 @@ Test de décision : *si on retire le segment, perd-on l'identité du sujet (SUBJ
 
 ## Règles générales
 
-1. **Ponctuation de liaison hors empans** : la virgule, le point, le point-virgule ou le tiret qui *séparent* deux empans ne sont annotés dans aucun des deux. La ponctuation *interne* à un empan (`R. S. Denis, 25.`) en fait partie, **y compris le point final** de l'adresse.
-2. **Emphase Markdown ignorée** : `*`, `**` ne sont que de la typographie OCR. Les frontières se placent comme si elles n'existaient pas ; le texte est normalisé (emphase retirée) pour l'annotation et l'évaluation. Pour le modèle, garder ou non l'emphase est une option mesurée par `audit_ner.py` (l'italique signale souvent une description dans les volumes 1807-1808). *(Actuellement : `<SUBJ>**Cetto</SUBJ> <DESC>(…)**</DESC>`, frontière placée à l'intérieur du gras.)*
-3. **Pas de texte orphelin** : tout mot (hors ponctuation de liaison) appartient à un empan. *(143 entrées actuelles laissent du texte non annoté, ex. `<SUBJ>Villard</SUBJ>, R. de Lille, 539, <DESC>F. de Gr.</DESC>`.)*
+1. **Ponctuation de liaison hors empans** : la virgule, le point, le point-virgule ou le tiret qui *séparent* deux empans ne sont annotés dans aucun des deux. La ponctuation *interne* à un empan (`R. S. Denis, 25.`) en fait partie, **y compris le point final** de l'adresse. L'évaluation ignore la ponctuation en bord d'empan.
+2. **Emphase Markdown ignorée** : `*`, `**` ne sont que de la typographie OCR. Le texte est annoté, évalué et donné au modèle sans elle (`normalize_markdown`) ; aucune frontière ne tombe donc à l'intérieur d'une paire de marqueurs.
+3. **Pas de texte orphelin** : tout mot (hors ponctuation de liaison) appartient à un empan.
 4. **Un SUBJ par entrée, en tête**, sauf entrée qui en fusionne réellement deux (erreur de fusion de lignes : chaque sujet reçoit son SUBJ).
 
 ## SUBJ : qui ?
@@ -27,16 +27,13 @@ Inclure dans le SUBJ tout ce qui **distingue cette personne ou raison sociale d'
 
 - Nom, prénoms, initiales, **y compris entre parenthèses** :
   `<SUBJ>Andry ( Ch. L. Fr. )</SUBJ>, <ADDR>R. des Ecouffes, 8. — Dr. de l'H.</ADDR>`
-  *(Dans les données v1, ≈ 600 entrées (1 %) placent ainsi prénoms, civilité ou rang familial en DESC ; les ≈ 5 800 autres parenthèses en DESC après le nom sont de vraies descriptions.)*
-- **[Arbitré] Toujours SUBJ** : civilité, état civil, rang familial : `(Mad.)`, `(Me.)`, `(Ve.)`, `veuve`, `fils`, `aîné`, `jeune`, `le jeune`, `père et fils`, `frères`, avec ou sans parenthèses :
+- Civilité, état civil, rang familial, avec ou sans parenthèses : `(Mad.)`, `(Me.)`, `(Ve.)`, `veuve`, `fils`, `aîné`, `jeune`, `le jeune`, `père et fils`, `frères` :
   `<SUBJ>Lafitte (le jeune), ( J. Bapt. )</SUBJ>, <ADDR>R. Favart, 425. — Lepelletier.</ADDR>`
   `<SUBJ>Rasmann (frères)</SUBJ>, <ADDR>Place des Vosges, 297. — Indivisibilité.</ADDR>`
-  *(Aujourd'hui incohérent : `Coustellier aîné` en SUBJ mais `Berthé` + `<DESC>(aîné)</DESC>`.)*
-- Titres de noblesse : `(le baron d')`, `(Ve. de)`, `comtesse`. En revanche, les grades et fonctions (`général`, `sénateur`, `notaire`) vont dans DESC.
+- Titres de noblesse : `(le baron d')`, `(Ve. de)`, `comtesse`. En revanche, les grades et fonctions (`général`, `sénateur`, `notaire`, `(D. R.)`) vont dans DESC.
 - Associés et raison sociale : `et comp.`, `et Cie`, `Robert frères et Paradis`, `Barbereux (M.e Ad.) et Boubée aîné`.
 - Titre d'un journal ou d'un établissement listé comme sujet : `<SUBJ>Journal de Paris</SUBJ>`.
-- **[Arbitré] Précision d'homonymie ou raison sociale entre parenthèses → SUBJ** : `Sibire ( lomb. Serilly )`, `Gerboin (Lomb. Lussan)`, `Delavéronnière (Moysse et Sollivet)`.
-  La parenthèse sert à distinguer le sujet ou à nommer une raison sociale ; ce n'est pas une adresse de contact. (Les données v1 la plaçaient souvent en DESC quand elle commence par une minuscule.)
+- Précision d'homonymie ou raison sociale entre parenthèses : `Sibire ( lomb. Serilly )`, `Gerboin (Lomb. Lussan)`, `Delavéronnière (Moysse et Sollivet)`. La parenthèse sert à distinguer le sujet ; ce n'est pas une adresse de contact.
 
 ## DESC : quoi ?
 
@@ -44,20 +41,20 @@ Inclure dans le SUBJ tout ce qui **distingue cette personne ou raison sociale d'
   `<SUBJ>Bresler</SUBJ> <DESC>(piano)</DESC>, <ADDR>R. Ste. Avoie, 155. — Réunion.</ADDR>`
   `<SUBJ>Rabillon</SUBJ> <DESC>( histoire )</DESC>, …` (spécialité sous un titre « Peintres »)
   `<SUBJ>Warnier</SUBJ> <DESC>(en cuivre)</DESC>, …`
-- Fonction, qualité, titre honorifique ou de charge : `( médecin du Gouvernement ) , professeur de l'école de méd.`, `(de l'Impératrice)`, `(de Malte)`.
+- Produits ou articles, même introduits par « et » : `<SUBJ>Duval</SUBJ>, <DESC>et madras</DESC>, <ADDR>rue N.-St.-Denis, 13.</ADDR>`.
+- Fonction, qualité, titre honorifique ou de charge : `( médecin du Gouvernement ) , professeur de l'école de méd.`, `(de l'Impératrice)`, `(de Malte)`, `(D. R.)`.
 - Informations commerciales (prix, périodicité, rédacteurs d'un journal) : `12 f. pour 3 mois, …`, `par Sedillot jeune`.
-- **Renvois** : `<SUBJ>Marotte</SUBJ>. <DESC>Voyez Carlier et Marotte.</DESC>`. Pas d'étiquette dédiée : le renvoi dit où trouver l'information, pas qui est le sujet. *(252 entrées, cohérent aujourd'hui.)*
-- Parenthèses successives de natures différentes : couper selon la question. `<SUBJ>Aubert (veuve)</SUBJ> <DESC>(fourbiss.)</DESC>`.
-- **[Arbitré] Mention mixte identité / activité** : `(Mad.) (de Malte)`, `(Me.) (sage-femme)` : la civilité va dans SUBJ, la qualité ou la fonction dans DESC.
+- Enseigne : `( Café du Caveau )`, `Au Grand Monarque` (dénomination commerciale), sauf si elle sert manifestement à localiser (« près du Café … »).
+- **Renvois** : `<SUBJ>Marotte</SUBJ>. <DESC>Voyez Carlier et Marotte.</DESC>`. Pas d'étiquette dédiée : le renvoi dit où trouver l'information, pas qui est le sujet.
+- Parenthèses successives de natures différentes : couper selon la question. `<SUBJ>Aubert (veuve)</SUBJ> <DESC>(fourbiss.)</DESC>`, `<SUBJ>Lolive (Mad.)</SUBJ> <DESC>(de Malte)</DESC>`.
 
 ## ADDR : où ?
 
-- Adresse complète, **y compris la section ou le quartier après le tiret** : `<ADDR>R. Vivienne, 44. — Mail.</ADDR>`, `<ADDR>R. de Varennes, 464.—O.</ADDR>` (≈ 23 000 entrées, cohérent).
+- Adresse complète, **y compris la section ou le quartier après le tiret** : `<ADDR>R. Vivienne, 44. — Mail.</ADDR>`, `<ADDR>R. de Varennes, 464.—O.</ADDR>`.
+- Section ou quartier placé après l'adresse sans tiret : `R. S. Denis, 19. Amis de la Patrie.`, `rue du Harlay, 5. (Indivisib.)`, `R. de Boulogne, 65. F. G.`
 - Adresses multiples et « et » : un **seul** ADDR couvrant l'ensemble : `<ADDR>rue de Richelieu, 10; et de Quiberon, 5.</ADDR>`, `<ADDR>Palais du Tribunal, galerie de bois, 260, et R. de l'Arbre Sec, 249. — G. Françaises.</ADDR>`.
-- Repères de localisation : `près l'opéra`, `en face le corps de garde`, `près la municipalité` → dans l'ADDR.
-- **[Arbitré] Section ou quartier placé après l'adresse sans tiret → ADDR** : `R. S. Denis, 19. Amis de la Patrie.`, `rue du Harlay, 5. (Indivisib.)`, `rue des Lavandières, 29, G. F.`, `R. de Boulogne, 65. F. G.`
-  Ce sont des noms de sections ou de faubourgs. Dans les données v1, ils sont annotés DESC (signature SUBJ,ADDR,DESC, 53 cas).
-- **[Arbitré] Enseigne → DESC** : `( *Café du Caveau* )`, `Au Grand Monarque` (dénomination commerciale, pas localisation), sauf si elle sert manifestement à localiser (« près du Café … »).
+- Repères de localisation : `près l'opéra`, `en face le corps de garde`, `près la municipalité`.
+- Lieux sans nom de rue : `marché Boulainvilliers, 13.`, `allée d'Antin`, `pal. du Trib., passage du Perron, 94.`
 
 ## Cas particuliers
 
