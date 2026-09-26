@@ -199,9 +199,22 @@ flowchart LR
 
 Segmentation de chaque ENTRY en empans `SUBJ` / `DESC` / `ADDR` par un
 modèle GLiNER-bi. Les conventions d'annotation sont fixées dans
-`docs/guide_annotation_ner.md`. Le modèle de référence est entraîné sur
-`data/ner/train.ls.json` ; les modèles entraînés restent hors git
+`docs/guide_annotation_ner.md`. Les modèles entraînés restent hors git
 (`models/`).
+
+Deux jeux de données versionnés, aux rôles séparés :
+
+| | `data/ner/gold.ls.json` | `data/ner/train.ls.json` |
+|---|---|---|
+| Rôle | **évaluer** (`audit_ner.py`) | **entraîner** (`tools/train_gliner.py`) |
+| Taille | 600 entrées | ~15 000 entrées |
+| Origine | tiré une fois (`tools/sample_ner_gold.py`), relu entrée par entrée dans Label Studio ; l'export remplace le fichier | construit (`tools/build_ner_training.py`) à partir des CSV `*.merged.ner.csv` / `*.merged.ner.curated.csv` de `annuaires/` |
+| Qualité | vérité terrain | sortie du modèle, corrigée à la main là où un `*.ner.curated.csv` existe |
+
+Le gold ne sert **jamais** à l'entraînement : ses textes sont exclus du jeu
+d'entraînement, sans quoi l'audit mesurerait le modèle sur des entrées déjà
+vues. Les corrections manuelles alimentent l'entraînement par les
+`*.ner.curated.csv` (relecture guidée par `ner_suspect` et le viewer).
 
 ### Inférence : `infer_gliner.py`
 
@@ -250,8 +263,9 @@ Visualiseur du CSV final d'un volume (`*.merged.ner.csv` ou
 ### Entraînement (machine GPU)
 
 ```bash
-# En local (a besoin de annuaires/, hors git) : régénère data/ner/train.ls.json,
-# tiré par forme typographique, textes du gold exclus, puis versionné.
+# En local (a besoin de annuaires/, hors git) : régénère data/ner/train.ls.json
+# à partir des CSV NER (corrigés en priorité), tiré par forme typographique,
+# textes du gold exclus, puis versionné.
 uv run tools/build_ner_training.py
 git add data/ner && git commit && git push
 
@@ -259,18 +273,18 @@ git add data/ner && git commit && git push
 uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model
 ```
 
-`build_ner_training.py` part des CSV NER de `annuaires/` (corrigés quand
-ils existent) : ils doivent suivre le guide d'annotation, car le modèle
-réapprend les écarts de convention de ses données. `train_gliner.py` exclut les
-textes du gold, valide sur un split **par page** et enregistre les
-libellés dans `<modèle>/ner_config.json`.
+Le jeu d'entraînement vaut ce que valent ces CSV : ils doivent suivre le
+guide d'annotation, car le modèle réapprend les écarts de convention de ses
+données. `train_gliner.py` exclut à nouveau les textes du gold (sécurité),
+valide sur un split **par page** et enregistre les libellés dans
+`<modèle>/ner_config.json`.
 
 ### Audit : `audit_ner.py`
 
-Mesure la segmentation contre un **jeu gold relu à la main**
-(`data/ner/gold.ls.json`, 600 entrées, tiré par
-`tools/sample_ner_gold.py` puis corrigé dans Label Studio avec
-`data/ner/label_studio_config.xml`).
+Mesure la segmentation contre le **jeu gold relu à la main**
+(`data/ner/gold.ls.json`, voir le tableau ci-dessus ; configuration Label
+Studio : `data/ner/label_studio_config.xml`). Le gold est figé : on ne le
+retire pas à chaque modèle, sinon les scores ne seraient plus comparables.
 
 ```bash
 uv run audit_ner.py --split dev --model models/<actuel>.gliner-model --model models/<nom>.gliner-model
