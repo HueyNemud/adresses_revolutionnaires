@@ -18,7 +18,10 @@ principale, part des entrées sans correction à faire), F1 par classe,
 exactitude par token ; pondérées par le plan de sondage du gold, IC 95 %
 par bootstrap des pages, Δ appariés contre la référence (▲ / ▼ =
 intervalle entièrement au-dessus / au-dessous de 0). Pour un modèle avec
-scores, qualité du score de confiance comme outil de tri pour la relecture.
+scores, qualité du score de confiance comme outil de tri pour la relecture,
+et efficacité du drapeau `ner_suspect` d'`infer_gliner.py`
+(`lib.ner.suspicion`, seuil `--min-score`) : part d'entrées signalées et
+part des erreurs attrapées, motif par motif.
 
 `--pre-annotation-as-gold` évalue contre la pré-annotation au lieu de la
 relecture : uniquement pour tester la chaîne avant que le gold soit
@@ -41,6 +44,7 @@ from rich.console import Console
 from audit_crf_features import fmt, fmt_ci, fmt_delta, md_code, md_table
 from lib.crf.evaluation import review_capture, roc_auc
 from lib.ner.metrics import METRICS, Comparison, Scored, compare, page_bootstrap, paired_delta, summarize
+from lib.ner.suspicion import DEFAULT_MIN_SCORE, REASONS, SEPARATOR, suspicion_reasons
 from lib.ner.spans import (
     Span,
     ls_task_spans,
@@ -56,6 +60,7 @@ console = Console()
 DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
 DEFAULT_OUTPUT_DIR = Path("rapports/audit_ner")
 REVIEW_BUDGETS = (0.05, 0.10, 0.20, 0.30)
+SUSPICION_THRESHOLDS = (0.5, 0.7, 0.8, 0.9, 0.95, 0.99)
 SWEEP_THRESHOLDS = (0.2, 0.3, 0.4, 0.5, 0.6, 0.7)
 
 
@@ -164,6 +169,48 @@ def uncertainty(spans: list[Span] | None) -> float:
     return 1 - min(scores) if scores else 1.0
 
 
+def flag_row(label: str, flagged: Sequence[bool], errors: Sequence[bool], weights: Sequence[float]) -> list[str]:
+    """Signalées (pondéré), erreurs attrapées (pondéré), précision
+    (pondérée), puis les mêmes en nombres bruts."""
+    caught = [f and e for f, e in zip(flagged, errors)]
+    error_weight = sum(w for e, w in zip(errors, weights) if e)
+    flagged_weight = sum(w for f, w in zip(flagged, weights) if f)
+    caught_weight = sum(w for c, w in zip(caught, weights) if c)
+    return [
+        label,
+        fmt(weighted_rate(flagged, weights)),
+        fmt(caught_weight / error_weight if error_weight else math.nan),
+        fmt(caught_weight / flagged_weight if flagged_weight else math.nan),
+        f"{sum(flagged)} / {len(flagged)}",
+        f"{sum(caught)} / {sum(errors)}",
+    ]
+
+
+def suspicion_section(entries: Sequence[GoldEntry], systems: Sequence[System], min_score: float) -> list[str]:
+    headers = ["", "signalées", "erreurs attrapées", "précision", "brut : signalées", "brut : erreurs attrapées"]
+    lines = [
+        f"## Entrées suspectes (`ner_suspect`, `--min-score` {min_score})",
+        "",
+        "Drapeau d'`infer_gliner.py` (`lib/ner/suspicion.py`). *Signalées* : part des entrées signalées ; *erreurs "
+        "attrapées* : part des entrées erronées qui sont signalées ; *précision* : part des signalées qui sont erronées. "
+        "Valeurs pondérées (corpus entier), puis nombres bruts sur l'échantillon gold. Une ligne par motif, puis le seuil "
+        "de score balayé pour le drapeau complet.",
+        "",
+    ]
+    weights = [float(entry.data.get("weight", 1.0)) for entry in entries]
+    for system in systems:
+        errors = [not c.exact for c in system.comparisons]
+        reasons = [suspicion_reasons(e.text, spans or [], min_score) for e, spans in zip(entries, system.predictions)]
+        rows = [flag_row("**drapeau (≥ 1 motif)**", [bool(r) for r in reasons], errors, weights)]
+        rows += [flag_row(reason, [reason in r for r in reasons], errors, weights) for reason in REASONS]
+        if system.has_scores:
+            for threshold in SUSPICION_THRESHOLDS:
+                flagged = [bool(suspicion_reasons(e.text, spans or [], threshold)) for e, spans in zip(entries, system.predictions)]
+                rows.append(flag_row(f"drapeau, `--min-score` {threshold}", flagged, errors, weights))
+        lines += [f"### `{system.name}`", "", md_table(headers, rows), ""]
+    return lines
+
+
 def weighted_rate(flags: Sequence[bool], weights: Sequence[float]) -> float:
     total = sum(weights)
     return sum(w for flag, w in zip(flags, weights) if flag) / total if total else math.nan
@@ -255,6 +302,8 @@ def write_report(
             rows.append([system.name, fmt(roc_auc(u, errors)), *(fmt(share) for _, _, share in capture)])
         lines += [md_table(["système", "AUC", *(f"relire {b:.0%}" for b in REVIEW_BUDGETS)], rows), ""]
 
+    lines += suspicion_section(entries, systems, args.min_score)
+
     lines += [
         "## Exemples d'erreurs",
         "",
@@ -270,10 +319,10 @@ def write_report(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_errors(path: Path, entries: Sequence[GoldEntry], systems: Sequence[System]) -> None:
+def write_errors(path: Path, entries: Sequence[GoldEntry], systems: Sequence[System], min_score: float) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["système", "type", "clé", "strate", "volume", "gold", "prédit", "incertitude"])
+        writer.writerow(["système", "type", "clé", "strate", "volume", "gold", "prédit", "incertitude", "suspect"])
         for system in systems:
             for entry, spans, comparison in zip(entries, system.predictions, system.comparisons):
                 if comparison.exact:
@@ -287,6 +336,7 @@ def write_errors(path: Path, entries: Sequence[GoldEntry], systems: Sequence[Sys
                     render_tagged_text(entry.text, entry.gold),
                     render_tagged_text(entry.text, spans or []),
                     f"{uncertainty(spans):.4f}" if system.has_scores else "",
+                    SEPARATOR.join(suspicion_reasons(entry.text, spans or [], min_score)),
                 ])
 
 
@@ -300,6 +350,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, action="append", default=[], help="Dossier d'un modèle GLiNER à évaluer (répétable).")
     parser.add_argument("--threshold", type=float, default=0.5, help="Seuil GLiNER (défaut : 0.5).")
     parser.add_argument("--sweep", action="store_true", help=f"Évalue aussi les seuils {SWEEP_THRESHOLDS}.")
+    parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE, help=f"Seuil « score bas » du drapeau ner_suspect (défaut : {DEFAULT_MIN_SCORE}).")
     parser.add_argument("--predictions", action="append", default=[], metavar="NOM=FICHIER", help="Prédictions précalculées (JSON Label Studio ou CSV tagged_text), répétable.")
     parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier système).")
     parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
@@ -347,7 +398,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     report_path = args.output_dir / "rapport.md"
     write_report(report_path, args, entries, unreviewed, systems, scored, bootstrap, reference)
-    write_errors(args.output_dir / "erreurs.csv", entries, systems)
+    write_errors(args.output_dir / "erreurs.csv", entries, systems, args.min_score)
 
     for system, score in zip(systems, scored):
         (value, ci), *_ = summarize(score, bootstrap)

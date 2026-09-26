@@ -282,6 +282,19 @@ ex. `<SUBJ>Dupont</SUBJ>, <ADDR>rue A, 1.</ADDR>`) et les comptes
 `subject_count`, `description_count`, `address_count`. Les libellés du
 modèle sont lus dans `<modèle>/ner_config.json`, écrit à l'entraînement.
 
+Deux colonnes servent à la relecture : `ner_confidence` (score minimal des
+empans de l'entrée) et `ner_suspect`, la liste des motifs qui justifient de
+relire l'entrée en priorité (vide sinon) :
+- `aucun empan` ;
+- `score bas` (sous `--min-score`, défaut 0,9) ;
+- `texte non couvert` (un mot hors de tout empan) ;
+- `SUBJ absent en tête` ;
+- `signature inhabituelle` (ex. deux SUBJ : deux entrées fusionnées).
+
+Ces motifs ne dépendent d'aucun lexique propre aux volumes. `audit_ner.py`
+mesure sur le gold la part d'entrées signalées et la part des erreurs
+attrapées, motif par motif et pour plusieurs seuils.
+
 ### Entraînement (machine GPU)
 
 ```bash

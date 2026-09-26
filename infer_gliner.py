@@ -10,9 +10,15 @@ Colonnes ajoutées (insérées juste après la colonne `entity`) :
     conservé tel quel : c'est l'ENTRY entière qui est annotée, rien n'est
     retiré. Les balises respectent l'ordre du texte source.
   - `subject_count`, `description_count`, `address_count` : nombre
-    d'empans de chaque classe dans `tagged_text`.
+    d'empans de chaque classe dans `tagged_text` ;
+  - `ner_confidence` : score minimal des empans de l'entrée (0 sans empan) ;
+  - `ner_suspect` : motifs de relecture prioritaire, séparés par « | »
+    (vide : rien à signaler) : `aucun empan`, `score bas` (sous
+    `--min-score`), `texte non couvert`, `SUBJ absent en tête`,
+    `signature inhabituelle` (voir lib/ner/suspicion.py). Trier ou filtrer
+    sur cette colonne donne la file de relecture.
 
-Ces quatre colonnes restent vides pour les lignes qui ne sont pas de type
+Ces colonnes restent vides pour les lignes qui ne sont pas de type
 ENTRY (`OUT OF SCOPE`, `TITLE`, ...) ou dont le texte est vide : ce sont des
 lignes non traitées, pas des lignes traitées sans résultat. Une ligne ENTRY
 traitée mais sans aucun empan détecté obtient `tagged_text=""` et des
@@ -45,6 +51,7 @@ from pathlib import Path
 
 from lib.ner.gliner import NerConfig
 from lib.ner.spans import Span, normalize_markdown, unproject_spans
+from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, confidence, suspicion_reasons
 
 from rich.console import Console
 from rich.progress import (
@@ -65,7 +72,7 @@ DEFAULT_BATCH_SIZE = 16
 DEFAULT_THRESHOLD = 0.5
 
 
-NEW_COLUMNS = ["tagged_text", "subject_count", "description_count", "address_count"]
+NEW_COLUMNS = ["tagged_text", "subject_count", "description_count", "address_count", "ner_confidence", "ner_suspect"]
 COUNT_COLUMN_FOR_LABEL = {
     "SUBJ": "subject_count",
     "DESC": "description_count",
@@ -305,6 +312,12 @@ def parse_args() -> argparse.Namespace:
         help=f"Seuil de confiance (défaut : {DEFAULT_THRESHOLD}).",
     )
     parser.add_argument(
+        "--min-score",
+        type=float,
+        default=DEFAULT_MIN_SCORE,
+        help=f"Score minimal d'empan sous lequel une entrée est signalée « score bas » (défaut : {DEFAULT_MIN_SCORE}).",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier).",
@@ -417,9 +430,21 @@ def main() -> None:
 
     total_counts = {"SUBJ": 0, "DESC": 0, "ADDR": 0}
     zero_span_rows = 0
+    suspect_rows = 0
+    reason_counts: dict[str, int] = {}
     for row_index, spans in results.items():
         row = rows[row_index]
         raw_text = row[args.text_column].strip()
+        # Suspicion évaluée sur le texte normalisé, celui qu'a vu le modèle.
+        typed = [Span(s["start"], s["end"], s["label"], s.get("score")) for s in spans]
+        reasons = suspicion_reasons(normalize_markdown(raw_text).text, typed, args.min_score)
+        score = confidence(typed)
+        row["ner_confidence"] = f"{score:.4f}" if score is not None else ""
+        row["ner_suspect"] = SEPARATOR.join(reasons)
+        if reasons:
+            suspect_rows += 1
+            for reason in reasons:
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
         spans = finalize_spans(raw_text, spans)
         row["tagged_text"] = render_tagged_text(raw_text, spans)
         counts = {"SUBJ": 0, "DESC": 0, "ADDR": 0}
@@ -448,6 +473,12 @@ def main() -> None:
     if zero_span_rows:
         console.print(
             f"[yellow]⚠ {zero_span_rows} ligne(s) traitée(s) sans aucun empan détecté.[/yellow]"
+        )
+    if results:
+        detail = ", ".join(f"{reason} {count}" for reason, count in sorted(reason_counts.items(), key=lambda item: -item[1]))
+        console.print(
+            f"Entrées suspectes (colonne ner_suspect) : [yellow]{suspect_rows}[/yellow] / {len(results)} "
+            f"({suspect_rows / len(results):.1%})" + (f" — {detail}" if detail else "")
         )
     if errors:
         console.print(

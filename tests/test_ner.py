@@ -117,3 +117,33 @@ class MetricsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SuspicionTests(unittest.TestCase):
+    def reasons(self, tagged_text: str, scores=None, min_score: float = 0.9):
+        from lib.ner.suspicion import suspicion_reasons
+
+        text, spans = parse_tagged_text(tagged_text)
+        if scores:
+            spans = [span._replace(score=score) for span, score in zip(spans, scores)]
+        return suspicion_reasons(text, spans, min_score)
+
+    def test_clean_entry_is_not_suspect(self):
+        self.assertEqual(self.reasons("<SUBJ>Dupont</SUBJ>, <ADDR>rue A, 1.</ADDR>", [0.99, 0.98]), [])
+
+    def test_each_reason(self):
+        self.assertEqual(self.reasons("Dupont, rue A, 1."), ["aucun empan"])
+        self.assertEqual(self.reasons("<SUBJ>Dupont</SUBJ>, <ADDR>rue A, 1.</ADDR>", [0.99, 0.5]), ["score bas"])
+        self.assertEqual(self.reasons("<SUBJ>Dupont</SUBJ>, rue A, 1."), ["texte non couvert"])
+        self.assertEqual(self.reasons("<DESC>Dupont</DESC>, <ADDR>rue A, 1.</ADDR>"), ["SUBJ absent en tête"])
+        self.assertEqual(
+            self.reasons("<SUBJ>Lebon</SUBJ>, <ADDR>rue B, 4.</ADDR> <SUBJ>Lejeune</SUBJ>, <ADDR>rue C, 5.</ADDR>"),
+            ["signature inhabituelle"],
+        )
+
+    def test_confidence_is_minimal_span_score(self):
+        from lib.ner.suspicion import confidence
+
+        self.assertEqual(confidence([Span(0, 1, "SUBJ", 0.9), Span(2, 3, "ADDR", 0.7)]), 0.7)
+        self.assertEqual(confidence([]), 0.0)
+        self.assertIsNone(confidence([Span(0, 1, "SUBJ")]))

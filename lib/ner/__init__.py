@@ -6,6 +6,8 @@ Conventions : `docs/guide_annotation_ner.md`.
   Label Studio, normalisation Markdown, tokens GLiNER ;
 - `shapes` : « forme » typographique d'une entrée (sans étiquette), pour
   l'échantillonnage et la ventilation des résultats ;
+- `suspicion` : entrées à relire en priorité (score du modèle, structure
+  des empans) ;
 - `corpus` : lecture des CSV `*.merged.ner*.csv` du dossier `annuaires/` ;
 - `metrics` : comparaison entrée par entrée, agrégats pondérés, bootstrap
   par page.
