@@ -263,6 +263,74 @@ l'annotateur), `silver.py` (chargement des CSV curés) et `evaluation.py`
 suffit d'ajouter un groupe candidat dans `lib/crf/features.py` : l'audit
 l'évalue automatiquement sans changer le comportement de l'annotateur.
 
+## Audit NER : `audit_ner.py`
+
+Mesure la segmentation SUBJ/DESC/ADDR contre un **jeu gold relu à la main**.
+Les `tagged_text` curés ne peuvent pas servir de référence : ils ne
+diffèrent de la sortie du modèle v1 que sur 0,6 % des entrées. Les
+conventions d'annotation sont fixées dans `docs/guide_annotation_ner.md`.
+
+```bash
+uv run tools/sample_ner_gold.py              # tire data/ner/gold_v1.ls.json (déjà fait, figé)
+# → importer dans Label Studio (config : data/ner/label_studio_config.xml),
+#   corriger, exporter en JSON et remplacer data/ner/gold_v1.ls.json
+uv run audit_ner.py                          # v1, v1 curé, pré-annotation, sur le split test
+uv run audit_ner.py --model chemin/modele --rules --sweep
+uv run audit_ner.py --predictions llm=sortie_llm.json --split dev
+```
+
+- **Gold :** 600 entrées stratifiées (courant / forme rare / signature
+  rare / désaccord) et pondérées pour rester représentatives du corpus,
+  en excluant les textes vus à l'entraînement ; découpage figé `dev`
+  (réglages) / `test` (décision).
+- **Métrique principale :** exactitude par entrée (part des entrées sans
+  correction à faire), avec IC par bootstrap des pages et Δ appariés entre
+  systèmes ; aussi F1 par classe, exactitude par token, types d'erreurs,
+  ventilation par volume / strate / profil, et pour un modèle, la part des
+  erreurs trouvées en ne relisant que les entrées les moins sûres.
+- **Sortie :** `rapports/audit_ner/rapport.md` et `erreurs.csv`.
+
+Code partagé dans `lib/ner/` : `spans.py` (empans, `tagged_text`, Label
+Studio, normalisation Markdown), `shapes.py` (forme typographique),
+`rules.py` (règles de convention, remplace `tools/correct_annotations.py`),
+`corpus.py` (lecture des CSV NER), `metrics.py`, `gliner.py` (inférence).
+
+Mesures actuelles sur le split test (exactitude par entrée) : modèle v1
+0,974 ; v1 + règles de convention 0,994. `infer_gliner.py` applique ces
+règles par défaut (`--no-rules` pour les désactiver).
+
+## Entraîner un modèle NER v2
+
+Le jeu d'entraînement est construit localement (il a besoin de
+`annuaires/`, hors git) puis versionné ; l'entraînement se fait sur une
+machine avec GPU.
+
+```bash
+# 1. En local : silver conforme au guide (v1 curé + règles, pré-annotations
+#    LLM de v1 + règles), textes du gold exclus, tirage par forme (√).
+uv run tools/build_ner_training.py                                          # → data/ner/train_v2.ls.json
+uv run tools/build_ner_training.py --sampling random -o data/ner/train_v2_random.ls.json
+git add data/ner && git commit && git push
+
+# 2. Sur la machine GPU (après git pull && uv sync) :
+uv run tools/train_gliner.py data/ner/train_v2.ls.json                      # → models/train_v2-normalized.gliner-model
+uv run tools/train_gliner.py data/ner/train_v2.ls.json --input raw          # → models/train_v2-raw.gliner-model
+uv run tools/train_gliner.py data/ner/train_v2_random.ls.json               # → models/train_v2_random-normalized.gliner-model
+
+# 3. Mesure (sur la machine GPU ou après rapatriement du dossier du modèle) :
+uv run audit_ner.py --split dev --rules \
+  --model models/sample_entry_5000_20260918_111801.gliner-model \
+  --model models/train_v2-normalized.gliner-model \
+  --model models/train_v2-raw.gliner-model \
+  --model models/train_v2_random-normalized.gliner-model
+```
+
+`train_gliner.py` exclut les textes du gold (`--gold`), valide sur un split
+**par page**, et enregistre libellés et type de texte (`--input
+normalized|raw`) dans `<modèle>/ner_config.json`, relu par
+`infer_gliner.py` et `audit_ner.py`. Les choix se font sur `--split dev` ;
+le split `test` ne sert qu'à confirmer le modèle retenu.
+
 ## Fichiers finaux et ce qu'ils contiennent
 
 | Fichier | Produit par | Contenu |

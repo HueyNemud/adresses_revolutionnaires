@@ -32,19 +32,51 @@ codes courts SUBJ/DESC/ADDR prive le modèle de sens exploitable. Ce script
 les fait correspondre par défaut à des libellés descriptifs en anglais
 (l'encodeur de labels de `knowledgator/gliner-bi-base-v2.0` est pré-entraîné
 en anglais), configurables via `--label-subj`/`--label-desc`/`--label-addr`.
+Ces libellés et le texte d'entrée sont enregistrés dans
+`<modèle>/ner_config.json`, relu par `infer_gliner.py` et `audit_ner.py`.
+
+Texte d'entrée (`--input`)
+--------------------------
+- `normalized` (défaut) : emphase Markdown retirée (`lib.ner.spans.
+  normalize_markdown`), comme le gold ; aucune frontière ne tombe dans une
+  paire de marqueurs `**…**` ;
+- `raw` : texte `markdown` d'origine (comme v1), quand la tâche fournit
+  `data.raw_text` ; les empans y sont transportés. L'italique y reste un
+  indice possible de DESC : c'est une option à mesurer, pas un réglage.
+
+Jeu gold et validation
+----------------------
+Les textes du gold (`--gold`, dev et test) sont exclus des données, quelle
+que soit leur source. Le split de validation se fait **par page** (les
+entrées d'une même page ne se répartissent pas entre entraînement et
+validation). Ce split ne sert qu'au suivi de l'entraînement ; la mesure qui
+compte est `audit_ner.py --model <modèle>` sur le gold.
 """
 
 import argparse
+import hashlib
 import json
 import math
-import random
-import re
+import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NamedTuple
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ depuis tools/
 
 from rich.console import Console
+
+from lib.ner.gliner import NerConfig
+from lib.ner.spans import (
+    Span,
+    Token,
+    char_span_to_word_span,
+    ls_task_spans,
+    normalize_markdown,
+    project_spans,
+    tokenize_with_offsets,
+    unproject_spans,
+)
 
 console = Console()
 
@@ -55,6 +87,9 @@ DEFAULT_EPOCHS = 3.0
 DEFAULT_BATCH_SIZE = 8
 DEFAULT_LEARNING_RATE = 5e-5
 DEFAULT_THRESHOLD = 0.5
+DEFAULT_INPUT = "normalized"
+DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
+DEFAULT_MODELS_DIR = Path("models")
 
 # Libellés descriptifs par défaut envoyés au modèle (voir docstring du
 # module). Les clés SUBJ/DESC/ADDR restent la référence interne du script
@@ -69,46 +104,7 @@ DEFAULT_LABEL_TEXT = {
 # --------------------------------------------------------------------------
 # Conversion Label Studio (empans en caractères) -> GLiNER (empans en mots)
 # --------------------------------------------------------------------------
-
-
-class Token(NamedTuple):
-    text: str
-    start_char: int
-    end_char: int  # exclusif
-
-
-def tokenize_with_offsets(text: str) -> list[Token]:
-    """Tokenisation par espaces avec offsets, identique à la convention
-    `words_splitter_type="whitespace"` par défaut de GLiNER."""
-    return [Token(m.group(), m.start(), m.end()) for m in re.finditer(r"\S+", text)]
-
-
-def char_span_to_word_span(
-    tokens: list[Token], start_char: int, end_char: int
-) -> tuple[int, int] | None:
-    """Convertit un empan en caractères (fin exclusive) en empan en mots
-    (fin incluse) : le mot de départ/fin est celui qui **chevauche**
-    l'empan, pas nécessairement celui qui contient littéralement son tout
-    premier ou tout dernier caractère. C'est nécessaire ici : de nombreux
-    empans de ce jeu de données incluent un espace de fin (le modèle ayant
-    segmenté le texte pour qu'ils se concatènent exactement), et exiger que
-    ce dernier caractère (un espace, donc hors de tout mot) tombe dans un
-    mot ferait rejeter à tort une majorité d'empans par ailleurs valides.
-    Élargit aussi à la frontière de mot la plus proche quand l'empan ne
-    tombe pas exactement sur une frontière (ex. une entité qui s'arrête
-    juste avant une virgule collée au mot) — une limitation inhérente à la
-    NER au niveau mot, pas une approximation supplémentaire de ce script.
-    Retourne None si l'empan ne chevauche aucun mot (bornes hors texte,
-    empan entièrement fait d'espaces en dehors de tout mot).
-    """
-    overlapping = [
-        index
-        for index, token in enumerate(tokens)
-        if token.start_char < end_char and token.end_char > start_char
-    ]
-    if not overlapping:
-        return None
-    return overlapping[0], overlapping[-1]
+# `tokenize_with_offsets` / `char_span_to_word_span` : voir lib/ner/spans.py.
 
 
 @dataclass
@@ -120,6 +116,7 @@ class ConversionReport:
     max_span_width_words: int = 0
     label_counts: Counter = field(default_factory=Counter)
     unknown_labels: Counter = field(default_factory=Counter)
+    excluded_gold: int = 0
 
 
 @dataclass
@@ -129,6 +126,7 @@ class ConvertedExample:
     tokens: list[Token]
     tokenized_text: list[str]
     ner: list[list]  # [[start_word, end_word, label_text], ...]
+    group: str = ""  # grappe du split de validation (page)
 
 
 def _dedupe_and_prune_nested(ner: list[list]) -> list[list]:
@@ -163,14 +161,45 @@ def _dedupe_and_prune_nested(ner: list[list]) -> list[list]:
     return pruned
 
 
+def model_text_and_spans(data: dict, spans: list[Span], input_kind: str) -> tuple[str, list[Span]]:
+    """Texte donné au modèle et empans transportés sur ce texte.
+
+    `data.text` porte les empans. En `normalized`, il est normalisé s'il ne
+    l'est pas déjà (anciens JSON dont le texte garde l'emphase) ; en `raw`,
+    on revient à `data.raw_text` quand il est fourni et cohérent.
+    """
+    text = data.get("text", "")
+    normalized = normalize_markdown(text)
+    if input_kind == "normalized":
+        if normalized.text == text:
+            return text, spans
+        return normalized.text, project_spans(spans, normalized)
+    raw_text = data.get("raw_text")
+    if raw_text:
+        raw_normalized = normalize_markdown(raw_text)
+        if raw_normalized.text == text:
+            return raw_text, unproject_spans(spans, raw_normalized)
+    return text, spans
+
+
+def split_group(data: dict, uid: str) -> str:
+    """Grappe du split de validation : la page quand elle est connue."""
+    volume = data.get("volume") or data.get("filename") or ""
+    page = data.get("page") or data.get("page_index") or ""
+    return f"{volume}#{page}" if volume and page else uid
+
+
 def convert_task(
-    task: dict, label_text: dict[str, str], report: ConversionReport
+    task: dict,
+    label_text: dict[str, str],
+    report: ConversionReport,
+    input_kind: str,
+    excluded_texts: set[str],
 ) -> ConvertedExample | None:
     """Convertit une tâche Label Studio en exemple GLiNER, ou None si elle
-    doit être écartée (texte vide, aucun empan convertible)."""
+    doit être écartée (texte du gold, texte vide, aucun empan convertible)."""
     data = task.get("data", {})
-    text = data.get("text", "")
-    raw_uid = data.get("uid") or "<inconnu>"
+    raw_uid = data.get("uid") or data.get("key") or "<inconnu>"
     filename = data.get("filename") or ""
     # `uid` (page.bloc.ligne) n'est unique qu'au sein d'un même fichier source :
     # ce jeu de données en agrège plusieurs (numérotation qui recommence à
@@ -178,73 +207,72 @@ def convert_task(
     # ambigu dans le rapport.
     uid = f"{filename}#{raw_uid}" if filename else raw_uid
 
+    if normalize_markdown(data.get("text", "")).text in excluded_texts:
+        report.excluded_gold += 1
+        return None
+
+    # Relecture humaine sous "annotations", pré-annotations sous
+    # "predictions" : la version relue est préférée (`ls_task_spans`).
+    for block in (task.get("annotations") or []) + [p for p in task.get("predictions") or [] if isinstance(p, dict)]:
+        for item in block.get("result", []):
+            for raw_label in item.get("value", {}).get("labels") or []:
+                if raw_label not in label_text:
+                    report.unknown_labels[raw_label] += 1
+    spans = ls_task_spans(task) or []
+    text, spans = model_text_and_spans(data, spans, input_kind)
+
     tokens = tokenize_with_offsets(text)
     if not tokens:
         report.skipped_examples.append((uid, "texte vide"))
         return None
 
-    # Une relecture humaine dans Label Studio exporte sous "annotations" ;
-    # les pré-annotations brutes (autoclassify_labelstudio.py) sous
-    # "predictions" — on préfère la version relue si les deux existent.
-    blocks = task.get("annotations") or task.get("predictions") or []
-    results = blocks[0].get("result", []) if blocks else []
-
     ner: list[list] = []
-    for item in results:
-        value = item.get("value", {})
-        raw_labels = value.get("labels") or []
-        if not raw_labels:
+    for span in spans:
+        word_span = char_span_to_word_span(tokens, span.start, span.end)
+        if word_span is None:
+            report.skipped_examples.append((uid, f"empan {text[span.start:span.end]!r} hors limites du texte"))
             continue
-        raw_label = raw_labels[0]
-        label = label_text.get(raw_label)
-        if label is None:
-            report.unknown_labels[raw_label] += 1
-            continue
-
-        span = char_span_to_word_span(tokens, value.get("start", -1), value.get("end", -1))
-        if span is None:
-            report.skipped_examples.append(
-                (uid, f"empan {value.get('text', '')!r} hors limites du texte")
-            )
-            continue
-        start_word, end_word = span
-
-        if tokens[start_word].start_char != value.get("start") or tokens[end_word].end_char != value.get("end"):
+        start_word, end_word = word_span
+        if tokens[start_word].start_char != span.start or tokens[end_word].end_char != span.end:
             report.boundary_snapped += 1
-
-        width = end_word - start_word + 1
-        report.max_span_width_words = max(report.max_span_width_words, width)
-        report.label_counts[raw_label] += 1
-        ner.append([start_word, end_word, label])
+        report.max_span_width_words = max(report.max_span_width_words, end_word - start_word + 1)
+        report.label_counts[span.label] += 1
+        ner.append([start_word, end_word, label_text[span.label]])
 
     if not ner:
         report.skipped_examples.append((uid, "aucun empan valide"))
         return None
-
-    ner = _dedupe_and_prune_nested(ner)
 
     return ConvertedExample(
         uid=uid,
         text=text,
         tokens=tokens,
         tokenized_text=[tok.text for tok in tokens],
-        ner=ner,
+        ner=_dedupe_and_prune_nested(ner),
+        group=split_group(data, uid),
     )
 
 
-def load_examples(
-    input_path: Path, label_text: dict[str, str]
-) -> tuple[list[ConvertedExample], ConversionReport]:
-    tasks = json.loads(input_path.read_text(encoding="utf-8"))
-    if not isinstance(tasks, list):
-        raise ValueError("Le JSON d'entrée doit être une liste de tâches Label Studio.")
+def gold_texts(path: Path | None) -> set[str]:
+    if path is None or not path.exists():
+        return set()
+    return {normalize_markdown(task["data"]["text"]).text for task in json.loads(path.read_text(encoding="utf-8"))}
 
-    report = ConversionReport(total_examples=len(tasks))
+
+def load_examples(
+    input_paths: list[Path], label_text: dict[str, str], input_kind: str, excluded_texts: set[str]
+) -> tuple[list[ConvertedExample], ConversionReport]:
+    report = ConversionReport()
     examples: list[ConvertedExample] = []
-    for task in tasks:
-        example = convert_task(task, label_text, report)
-        if example is not None:
-            examples.append(example)
+    for input_path in input_paths:
+        tasks = json.loads(input_path.read_text(encoding="utf-8"))
+        if not isinstance(tasks, list):
+            raise ValueError(f"{input_path} : le JSON doit être une liste de tâches Label Studio.")
+        report.total_examples += len(tasks)
+        for task in tasks:
+            example = convert_task(task, label_text, report, input_kind, excluded_texts)
+            if example is not None:
+                examples.append(example)
     report.kept_examples = len(examples)
     return examples, report
 
@@ -252,14 +280,18 @@ def load_examples(
 def split_train_test(
     examples: list[ConvertedExample], test_ratio: float, seed: int
 ) -> tuple[list[ConvertedExample], list[ConvertedExample]]:
-    """Mélange (graine fixe, pour un split reproductible) puis coupe 80/20.
-    Le mélange est indispensable : les exemples sont dans l'ordre du
-    document source, un split sans mélange biaiserait train/test par page.
-    """
-    shuffled = examples.copy()
-    random.Random(seed).shuffle(shuffled)
-    n_test = max(1, round(len(shuffled) * test_ratio)) if shuffled else 0
-    return shuffled[n_test:], shuffled[:n_test]
+    """Split reproductible **par page** : une page va entièrement en
+    entraînement ou en validation (hachage de la page et de la graine), pour
+    que la validation ne voie pas des voisines quasi identiques des lignes
+    apprises."""
+
+    def in_test(group: str) -> bool:
+        digest = hashlib.sha1(f"{seed}:{group}".encode()).digest()
+        return int.from_bytes(digest[:4], "big") / 2**32 < test_ratio
+
+    train = [example for example in examples if not in_test(example.group)]
+    test = [example for example in examples if in_test(example.group)]
+    return train, test
 
 
 # --------------------------------------------------------------------------
@@ -332,7 +364,9 @@ def evaluate(
 
 def format_report(
     *,
-    input_path: Path,
+    input_paths: list[Path],
+    input_kind: str,
+    gold_path: Path | None,
     output_dir: Path,
     model_name: str,
     label_text: dict[str, str],
@@ -350,7 +384,7 @@ def format_report(
 ) -> str:
     lines = [
         "RAPPORT D'ENTRAÎNEMENT — train_gliner.py",
-        f"Entrée   : {input_path}",
+        "Entrées  : " + ", ".join(str(path) for path in input_paths),
         f"Modèle   : {output_dir}",
         "",
         "== Configuration ==",
@@ -360,6 +394,7 @@ def format_report(
         f"Taille de batch               : {batch_size}",
         f"Taux d'apprentissage          : {learning_rate}",
         f"Seuil de décision (évaluation): {threshold}",
+        f"Texte d'entrée du modèle      : {input_kind}",
         "Correspondance label -> texte envoyé au modèle :",
     ]
     for short, text in label_text.items():
@@ -369,9 +404,10 @@ def format_report(
         "",
         "== Données ==",
         f"Exemples lus                  : {conversion_report.total_examples}",
+        f"Exemples du gold exclus       : {conversion_report.excluded_gold} (gold : {gold_path or 'aucun'})",
         f"Exemples conservés            : {conversion_report.kept_examples}",
-        f"  dont entraînement (80%)     : {n_train}",
-        f"  dont évaluation (20%)       : {n_test}",
+        f"  dont entraînement           : {n_train}",
+        f"  dont validation (par page)  : {n_test}",
         f"Empans élargis à la frontière de mot la plus proche : {conversion_report.boundary_snapped}",
         f"Largeur d'empan maximale observée : {conversion_report.max_span_width_words} mots",
     ]
@@ -386,7 +422,7 @@ def format_report(
         if len(conversion_report.skipped_examples) > 50:
             lines.append(f"  ... et {len(conversion_report.skipped_examples) - 50} de plus.")
 
-    lines += ["", "== Évaluation sur le split de test (20%) =="]
+    lines += ["", "== Évaluation sur le split de validation (par page) =="]
     lines.append(f"{'Classe':<30}{'Précision':>12}{'Rappel':>12}{'F1':>10}{'TP':>8}{'FP':>8}{'FN':>8}")
     for gliner_label, score in scores.items():
         if gliner_label == "__micro__":
@@ -404,7 +440,8 @@ def format_report(
     lines.append("")
     lines.append(
         "Note : correspondance exacte (bornes ET label) — un empan partiellement "
-        "recouvrant l'empan attendu compte comme un échec, pas un succès partiel."
+        "recouvrant l'empan attendu compte comme un échec, pas un succès partiel. "
+        "La mesure de référence est `audit_ner.py --model` sur le gold."
     )
     return "\n".join(lines) + "\n"
 
@@ -422,16 +459,29 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "input_path",
+        "input_paths",
         type=Path,
-        help="JSON de pré-annotations Label Studio (sortie de autoclassify_labelstudio.py).",
+        nargs="+",
+        help="JSON Label Studio (ex. data/ner/train_v2.ls.json de tools/build_ner_training.py), un ou plusieurs.",
+    )
+    parser.add_argument(
+        "--input",
+        choices=("normalized", "raw"),
+        default=DEFAULT_INPUT,
+        help=f"Texte donné au modèle : emphase Markdown retirée ou texte d'origine (défaut : {DEFAULT_INPUT}).",
+    )
+    parser.add_argument(
+        "--gold",
+        type=Path,
+        default=DEFAULT_GOLD,
+        help=f"Gold dont les textes sont exclus de l'entraînement (défaut : {DEFAULT_GOLD}).",
     )
     parser.add_argument(
         "-o",
         "--output-dir",
         type=Path,
         default=None,
-        help="Dossier du modèle entraîné (défaut : <entrée>.gliner-model/).",
+        help="Dossier du modèle entraîné (défaut : models/<première entrée>-<input>.gliner-model/).",
     )
     parser.add_argument(
         "-r",
@@ -521,11 +571,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    if not args.input_path.exists():
-        console.print(
-            f"[bold red]Erreur :[/bold red] Fichier '{args.input_path}' introuvable."
-        )
+    missing = [path for path in args.input_paths if not path.exists()]
+    if missing:
+        console.print(f"[bold red]Erreur :[/bold red] Fichier(s) introuvable(s) : {', '.join(map(str, missing))}.")
         return
+    if not args.gold.exists():
+        console.print(f"[yellow]⚠ gold '{args.gold}' introuvable : aucune exclusion, l'audit sur ce gold serait biaisé.[/yellow]")
 
     label_text = {
         "SUBJ": args.label_subj,
@@ -535,12 +586,13 @@ def main() -> None:
     reverse_label_text = {v: k for k, v in label_text.items()}
     gliner_labels = list(label_text.values())
 
-    output_dir = args.output_dir or args.input_path.with_suffix("").with_suffix(".gliner-model")
+    stem = args.input_paths[0].name.split(".", 1)[0]
+    output_dir = args.output_dir or DEFAULT_MODELS_DIR / f"{stem}-{args.input}.gliner-model"
     report_path = args.report or (output_dir / "eval_report.txt")
 
-    console.print(f"Lecture et conversion de [yellow]{args.input_path.name}[/yellow]...")
+    console.print(f"Lecture et conversion de [yellow]{', '.join(p.name for p in args.input_paths)}[/yellow] (texte {args.input})...")
     try:
-        examples, conversion_report = load_examples(args.input_path, label_text)
+        examples, conversion_report = load_examples(args.input_paths, label_text, args.input, gold_texts(args.gold))
     except (json.JSONDecodeError, ValueError) as error:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
@@ -552,7 +604,7 @@ def main() -> None:
     console.print(
         f"[green]{conversion_report.kept_examples}/{conversion_report.total_examples}[/green] "
         f"exemples conservés (largeur d'empan max observée : "
-        f"{conversion_report.max_span_width_words} mots)."
+        f"{conversion_report.max_span_width_words} mots) ; {conversion_report.excluded_gold} exemple(s) du gold exclu(s)."
     )
     if conversion_report.skipped_examples:
         console.print(
@@ -606,18 +658,22 @@ def main() -> None:
             bf16=use_bf16,
         )
         trainer.save_model()
+        # Libellés et texte d'entrée, relus par infer_gliner.py et audit_ner.py.
+        NerConfig(label_text, args.input).save(output_dir)
     except Exception as error:  # Surface large et imprévisible côté torch/HF Trainer.
         console.print(f"[bold red]Erreur pendant l'entraînement :[/bold red] {error}")
         return
 
-    console.print("Évaluation sur le split de test (20%)...")
+    console.print("Évaluation sur le split de validation (par page)...")
     model.eval()
     scores = evaluate(model, test_examples, gliner_labels, args.threshold)
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
         format_report(
-            input_path=args.input_path,
+            input_paths=args.input_paths,
+            input_kind=args.input,
+            gold_path=args.gold if args.gold.exists() else None,
             output_dir=output_dir,
             model_name=args.model,
             label_text=label_text,
@@ -640,9 +696,10 @@ def main() -> None:
     console.print(
         "\n[bold green]✅ Entraînement terminé :[/bold green] "
         f"[yellow]{output_dir}[/yellow] "
-        f"(F1 micro sur test : {micro.f1:.1%})"
+        f"(F1 micro sur la validation : {micro.f1:.1%})"
     )
     console.print(f"[bold green]📄 Rapport :[/bold green] [yellow]{report_path}[/yellow]")
+    console.print(f"Mesure de référence : [cyan]uv run audit_ner.py --model {output_dir} --split dev --rules[/cyan]")
 
 
 if __name__ == "__main__":

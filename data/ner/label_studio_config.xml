@@ -1,0 +1,14 @@
+<View>
+  <!-- Relecture du gold NER : conventions dans docs/guide_annotation_ner.md.
+       Qui ? SUBJ (nom, prénoms, civilité, rang familial, homonymie) ;
+       Quoi ? DESC (activité, fonction, enseigne, renvoi) ;
+       Où ? ADDR (adresse(s), section/quartier, repère).
+       Ponctuation de liaison hors empans ; aucun mot orphelin. -->
+  <Header value="$stratum · $volume · $key" size="6"/>
+  <Labels name="label" toName="text">
+    <Label value="SUBJ" background="#2aa198" hotkey="s"/>
+    <Label value="DESC" background="#b58900" hotkey="d"/>
+    <Label value="ADDR" background="#d33682" hotkey="a"/>
+  </Labels>
+  <Text name="text" value="$text" granularity="word"/>
+</View>

@@ -76,3 +76,6 @@ annuaires/*
 *.pdf
 # Cache des prédictions de audit_crf_features.py
 rapports/**/cache/
+
+# Modèles entraînés et échantillons locaux (volumineux, hors git)
+models/
