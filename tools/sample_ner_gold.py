@@ -9,8 +9,8 @@ normalisé car les uid des anciens fichiers ne correspondent plus).
 Plan de sondage stratifié, chaque entrée dans une seule strate (par ordre
 de priorité) :
 
-- `désaccord` : les règles de convention modifient la pré-annotation v1, ou
-  le curateur a corrigé la sortie v1 (cas difficiles connus) ;
+- `désaccord` : le curateur a corrigé la sortie du modèle (cas difficiles
+  connus) ;
 - `signature rare` : suite de classes autre que SUBJ,ADDR / SUBJ,DESC,ADDR ;
 - `forme rare` : forme typographique (`lib.ner.shapes.coarse_shape`) vue
   moins de `--rare-shape` fois ;
@@ -26,8 +26,8 @@ Découpage figé `dev` / `test` par page (≈ `--dev-share` des pages en dev) :
 `dev` sert aux réglages (seuil, prompt LLM, exemples few-shot), `test` à la
 décision finale uniquement.
 
-Pré-annotation : sortie v1 corrigée à la main quand elle existe, puis
-règles de convention (`lib.ner.rules`), placée en `predictions` ; Label
+Pré-annotation : sortie du modèle corrigée à la main quand elle existe,
+placée en `predictions` ; Label
 Studio exporte la version relue sous `annotations`. Le texte est normalisé
 (emphase Markdown retirée) ; `raw_text` garde le texte d'origine.
 """
@@ -48,7 +48,6 @@ from rich.console import Console
 from rich.table import Table
 
 from lib.ner.corpus import Entry, iter_corpus
-from lib.ner.rules import SectionLexicon, apply_rules
 from lib.ner.shapes import shape_profile
 from lib.ner.spans import canonical_spans, ls_result, normalize_markdown, render_tagged_text, signature
 
@@ -75,15 +74,14 @@ def excluded_texts(paths: list[Path]) -> set[str]:
     return texts
 
 
-def pre_annotation(entry: Entry, lexicon: SectionLexicon):
-    base = entry.annotations.get("v1_curated") or entry.annotations.get("v1") or []
-    return apply_rules(entry.text, base, lexicon)
+def pre_annotation(entry: Entry) -> list:
+    return entry.annotations.get("v1_curated") or entry.annotations.get("v1") or []
 
 
-def stratum(entry: Entry, rules_fired: tuple[str, ...], shape_counts: Counter, rare_shape: int, pre_signature: str) -> str:
+def stratum(entry: Entry, shape_counts: Counter, rare_shape: int, pre_signature: str) -> str:
     v1, curated = entry.annotations.get("v1"), entry.annotations.get("v1_curated")
     corrected = v1 is not None and curated is not None and canonical_spans(entry.text, v1) != canonical_spans(entry.text, curated)
-    if corrected or set(rules_fired) - {"bornes"}:
+    if corrected:
         return "désaccord"
     if pre_signature not in COMMON_SIGNATURES:
         return "signature rare"
@@ -118,7 +116,7 @@ def page_split(entry: Entry, dev_share: float) -> str:
     return "dev" if digest[0] / 256 < dev_share else "test"
 
 
-def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str, fired: tuple[str, ...]) -> dict:
+def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str) -> dict:
     tagged = {
         f"{name}_tagged": render_tagged_text(entry.text, annotation)
         for name, annotation in entry.annotations.items()
@@ -138,10 +136,9 @@ def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str
             "stratum": stratum_name,
             "weight": weight,
             "split": split,
-            "rules": ", ".join(fired),
             **tagged,
         },
-        "predictions": [{"model_version": "v1_curated+règles", "result": ls_result(entry.text, spans)}],
+        "predictions": [{"model_version": "v1_curated", "result": ls_result(entry.text, spans)}],
     }
 
 
@@ -182,13 +179,10 @@ def main() -> None:
     universe = [rng.choice(group) for _, group in sorted(by_text.items())]
     shape_counts = Counter(entry.shape for entry in universe)
 
-    annotated = [(entry.text, entry.annotations.get("v1_curated") or []) for entry in entries]
-    lexicon = SectionLexicon.from_annotations(annotated)
-
-    strata: dict[str, list[tuple[Entry, list, tuple[str, ...]]]] = defaultdict(list)
+    strata: dict[str, list[tuple[Entry, list]]] = defaultdict(list)
     for entry in universe:
-        spans, fired = pre_annotation(entry, lexicon)
-        strata[stratum(entry, fired, shape_counts, args.rare_shape, signature(spans))].append((entry, spans, fired))
+        spans = pre_annotation(entry)
+        strata[stratum(entry, shape_counts, args.rare_shape, signature(spans))].append((entry, spans))
 
     population = {name: len(strata[name]) for name in STRATA if strata[name]}
     allocation = allocate(population, args.size, args.random_share)
@@ -196,8 +190,8 @@ def main() -> None:
     tasks = []
     for name, n in allocation.items():
         weight = population[name] / n if n else math.nan
-        for entry, spans, fired in rng.sample(strata[name], n):
-            tasks.append(build_task(entry, spans, name, weight, page_split(entry, args.dev_share), fired))
+        for entry, spans in rng.sample(strata[name], n):
+            tasks.append(build_task(entry, spans, name, weight, page_split(entry, args.dev_share)))
     rng.shuffle(tasks)  # ordre de relecture sans regroupement par strate
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

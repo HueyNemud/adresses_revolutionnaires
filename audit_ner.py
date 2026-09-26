@@ -8,15 +8,13 @@ dans Label Studio), et écrit `rapports/audit_ner/rapport.md` et
 Systèmes évalués :
 - toujours, depuis le gold lui-même : `v1` (sortie brute du modèle
   GLiNER v1), `v1_curated` (même sortie après la curation partielle) et
-  `pré-annotation` (v1_curated + règles, ce que l'annotateur a relu) ;
+  `pré-annotation` (ce que l'annotateur a relu) ;
 - `--model DOSSIER` : un modèle GLiNER, exécuté sur place (CPU : quelques
   secondes pour quelques centaines d'entrées) ; `--sweep` balaie le seuil ;
 - `--predictions NOM=FICHIER` : des prédictions déjà calculées, JSON Label
   Studio (ex. sortie de `autoclassify_labelstudio.py`) ou CSV à colonne
   `tagged_text` (sortie de `infer_gliner.py`), appariées au gold par texte
-  normalisé ;
-- `--rules` ajoute, pour chaque système, sa variante « + règles »
-  (post-traitement `lib.ner.rules`).
+  normalisé.
 
 Métriques (voir `lib.ner.metrics`) : exactitude par entrée (métrique
 principale, part des entrées sans correction à faire), F1 par classe,
@@ -46,7 +44,6 @@ from rich.console import Console
 from audit_crf_features import fmt, fmt_ci, fmt_delta, md_code, md_table
 from lib.crf.evaluation import review_capture, roc_auc
 from lib.ner.metrics import METRICS, Comparison, Scored, compare, page_bootstrap, paired_delta, summarize
-from lib.ner.rules import SectionLexicon, apply_rules
 from lib.ner.spans import (
     Span,
     ls_task_spans,
@@ -165,13 +162,6 @@ def model_systems(model_dir: Path, entries: Sequence[GoldEntry], threshold: floa
         suffix = "" if value == threshold else f"@{value:.2f}"
         systems.append(System(f"{model_dir.name}{suffix}", predictions))
     return systems
-
-
-def with_rules(system: System, entries: Sequence[GoldEntry], lexicon: SectionLexicon) -> System:
-    return System(
-        f"{system.name} + règles",
-        [apply_rules(entry.text, spans, lexicon).spans if spans is not None else None for entry, spans in zip(entries, system.predictions)],
-    )
 
 
 # ----------------------------------------------------------------------
@@ -330,7 +320,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--threshold", type=float, default=0.5, help="Seuil GLiNER (défaut : 0.5).")
     parser.add_argument("--sweep", action="store_true", help=f"Évalue aussi les seuils {SWEEP_THRESHOLDS}.")
     parser.add_argument("--predictions", action="append", default=[], metavar="NOM=FICHIER", help="Prédictions précalculées (JSON Label Studio ou CSV tagged_text), répétable.")
-    parser.add_argument("--rules", action="store_true", help="Ajoute la variante « + règles » de chaque système.")
     parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier modèle ou fichier fourni, sinon v1).")
     parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
     parser.add_argument("--seed", type=int, default=0)
@@ -361,9 +350,6 @@ def main() -> None:
             return
         extra.append(load_prediction_file(name, Path(path), entries))
     systems += extra
-    if args.rules:
-        lexicon = SectionLexicon.from_annotations((entry.text, entry.gold) for entry in entries)
-        systems += [with_rules(system, entries, lexicon) for system in systems if system.name != "pré-annotation"]
 
     names = [system.name for system in systems]
     if args.reference and args.reference not in names:

@@ -1,6 +1,6 @@
 # Guide d'annotation NER des entrées d'annuaire (SUBJ / DESC / ADDR)
 
-> **Statut : validé (2026-09-26).** Les points marqués **[Arbitré]** sont des choix de convention que les données v1 appliquaient de façon incohérente. Ce guide est la **source unique** des conventions : prompt LLM, consignes Label Studio, règles automatiques (`lib/ner/rules.py`) et contrôles de cohérence en dérivent.
+> **Statut : validé (2026-09-26).** Les points marqués **[Arbitré]** sont des choix de convention que les données v1 appliquaient de façon incohérente. Ce guide est la **source unique** des conventions : consignes Label Studio, relecture et contrôles de cohérence en dérivent.
 
 ## Principe
 
@@ -36,7 +36,7 @@ Inclure dans le SUBJ tout ce qui **distingue cette personne ou raison sociale d'
 - Associés et raison sociale : `et comp.`, `et Cie`, `Robert frères et Paradis`, `Barbereux (M.e Ad.) et Boubée aîné`.
 - Titre d'un journal ou d'un établissement listé comme sujet : `<SUBJ>Journal de Paris</SUBJ>`.
 - **[Arbitré] Précision d'homonymie ou raison sociale entre parenthèses → SUBJ** : `Sibire ( lomb. Serilly )`, `Gerboin (Lomb. Lussan)`, `Delavéronnière (Moysse et Sollivet)`.
-  La parenthèse sert à distinguer le sujet ou à nommer une raison sociale ; ce n'est pas une adresse de contact. C'était déjà l'exemple du prompt LLM v1, alors que la règle 2 de `correct_annotations.py` la déplaçait en DESC (minuscule initiale).
+  La parenthèse sert à distinguer le sujet ou à nommer une raison sociale ; ce n'est pas une adresse de contact. (Les données v1 la plaçaient souvent en DESC quand elle commence par une minuscule.)
 
 ## DESC : quoi ?
 
@@ -64,14 +64,3 @@ Inclure dans le SUBJ tout ce qui **distingue cette personne ou raison sociale d'
 - **Entrée tronquée ou sans adresse** : on n'invente rien. `<SUBJ>Pajot</SUBJ>` seul est valide.
 - **Césure OCR** (`har-nois`, `Impéra- trice`) : le mot coupé reste dans un seul empan.
 - **Erreur de fusion** (deux entrées dans une ligne) : annoter chacune (`SUBJ,ADDR,SUBJ,ADDR`) ; ces cas sont aussi à signaler pour l'étape de fusion.
-
-## Correspondance avec les règles automatiques
-
-| Règle (`lib/ner/rules.py`) | Convention appliquée |
-|---|---|
-| Parenthèse de prénoms/initiales ou de civilité après SUBJ → fusionnée dans SUBJ | SUBJ : prénoms, civilité |
-| Qualificatif familial (`aîné`, `jeune`, `fils`, `frères`, `veuve`…) seul dans un DESC collé au SUBJ → SUBJ | SUBJ : rang familial |
-| DESC commençant par un tiret juste après ADDR → fusionné dans ADDR | ADDR : section après tiret (règle 1 de `correct_annotations.py`) |
-| Section connue sans tiret après ADDR → ADDR | ADDR : section/quartier |
-| Ponctuation en début/fin d'empan retirée | Règle générale 1 (règle 3 de `correct_annotations.py`) |
-| ~~Parenthèse minuscule en fin de SUBJ → DESC~~ | **Supprimée** (règle 2 de `correct_annotations.py`) : cause de `Lafitte <DESC>(le jeune)</DESC>` ; remplacée par les deux premières lignes |

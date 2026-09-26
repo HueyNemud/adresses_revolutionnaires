@@ -29,14 +29,6 @@ dans `<modèle>/ner_config.json`, relu ici. Pour un modèle plus ancien (v1),
 ce sont les valeurs par défaut (`raw`, libellés de DEFAULT_LABEL_TEXT) ;
 `--label-subj`/`--label-desc`/`--label-addr` ne servent qu'à les forcer.
 
-Post-traitement
----------------
-Par défaut (`--no-rules` pour le désactiver), les règles de convention de
-`lib/ner/rules.py` (voir docs/guide_annotation_ner.md) corrigent la sortie
-du modèle : sur le gold, elles font passer l'exactitude par entrée de v1 de
-0,974 à 0,994. Elles travaillent sur le texte normalisé ; le balisage final
-est rendu sur le texte d'origine de la colonne.
-
 Performance
 -----------
 GLiNER tourne en local (GPU ou CPU) : contrairement à `autoclassify.py`
@@ -54,7 +46,6 @@ import csv
 from pathlib import Path
 
 from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig
-from lib.ner.rules import apply_rules
 from lib.ner.spans import Span, normalize_markdown, project_spans, unproject_spans
 
 from rich.console import Console
@@ -170,15 +161,13 @@ def render_tagged_text(text: str, spans: list[dict[str, object]]) -> str:
     return "".join(pieces)
 
 
-def finalize_spans(raw_text: str, spans: list[dict], input_kind: str, use_rules: bool) -> list[dict]:
-    """Empans du modèle → empans sur le texte d'origine (`raw_text`), après
-    les règles de convention si `use_rules`. Le modèle a vu le texte
-    normalisé (`input_kind="normalized"`) ou le texte d'origine (`raw`)."""
+def finalize_spans(raw_text: str, spans: list[dict], input_kind: str) -> list[dict]:
+    """Empans du modèle → empans sur le texte d'origine (`raw_text`). Le
+    modèle a vu le texte normalisé (`input_kind="normalized"`) ou le texte
+    d'origine (`raw`)."""
     normalized = normalize_markdown(raw_text)
     typed = [Span(s["start"], s["end"], s["label"], s.get("score")) for s in spans]
     on_normalized = typed if input_kind == "normalized" else project_spans(typed, normalized)
-    if use_rules:
-        on_normalized = apply_rules(normalized.text, on_normalized).spans
     return [
         {"label": s.label, "text": raw_text[s.start : s.end], "start": s.start, "end": s.end, "score": s.score}
         for s in unproject_spans(on_normalized, normalized)
@@ -347,12 +336,6 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--rules",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Applique les règles de convention (lib/ner/rules.py) à la sortie du modèle (défaut : oui).",
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier).",
@@ -377,7 +360,7 @@ def main() -> None:
     config = NerConfig.load(args.model)
     overrides = {"SUBJ": args.label_subj, "DESC": args.label_desc, "ADDR": args.label_addr}
     label_text = {code: overrides[code] or config.label_text[code] for code in ("SUBJ", "DESC", "ADDR")}
-    console.print(f"Texte d'entrée du modèle : [cyan]{config.input}[/cyan] ; règles : [cyan]{'oui' if args.rules else 'non'}[/cyan].")
+    console.print(f"Texte d'entrée du modèle : [cyan]{config.input}[/cyan].")
     reverse_label_text = {v: k for k, v in label_text.items()}
     gliner_labels = list(label_text.values())
 
@@ -467,7 +450,7 @@ def main() -> None:
     for row_index, spans in results.items():
         row = rows[row_index]
         raw_text = row[args.text_column].strip()
-        spans = finalize_spans(raw_text, spans, config.input, args.rules)
+        spans = finalize_spans(raw_text, spans, config.input)
         row["tagged_text"] = render_tagged_text(raw_text, spans)
         counts = {"SUBJ": 0, "DESC": 0, "ADDR": 0}
         for span in spans:

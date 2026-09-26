@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 
 from lib.ner.metrics import METRICS, Scored, compare, page_bootstrap, paired_delta, summarize
-from lib.ner.rules import SectionLexicon, apply_rules, is_identity_group
 from lib.ner.shapes import coarse_shape
 from lib.ner.spans import (
     Span,
@@ -22,12 +21,6 @@ from lib.ner.spans import (
 
 def tagged(text_with_tags: str) -> tuple[str, list[Span]]:
     return parse_tagged_text(text_with_tags)
-
-
-def rules(text_with_tags: str, lexicon: SectionLexicon | None = None) -> str:
-    text, spans = tagged(text_with_tags)
-    result = apply_rules(text, spans, lexicon) if lexicon else apply_rules(text, spans)
-    return render_tagged_text(text, result.spans)
 
 
 class SpansTests(unittest.TestCase):
@@ -90,110 +83,6 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(coarse_shape("Fouteau-Beauregard, R. de Grenelle S. Honoré, 54."), "w , w , 9")
         self.assertEqual(coarse_shape("Bourdois, R. S.-Honoré, 87. — Pl. Vendôme."), "w , w , 9 — w")
         self.assertEqual(coarse_shape("Andry ( Ch. L. Fr. ), R. des Ecouffes, 8."), "w ( w ) , w , 9")
-
-
-class RulesTests(unittest.TestCase):
-    def test_identity_groups(self):
-        for inner in (" Ch. L. Fr. ", "le jeune", "Mad.", "Ve. de", "frères", " lomb. Serilly ", "Moysse et Sollivet", "de"):
-            self.assertTrue(is_identity_group(inner), inner)
-        for inner in (" histoire ", "de Malte", " du grand hospice ", "fourbiss.", "bureau de correspondance", "général"):
-            self.assertFalse(is_identity_group(inner), inner)
-
-    def test_lafitte_first_names_and_qualifier_go_to_subj(self):
-        self.assertEqual(
-            rules("<SUBJ>Lafitte</SUBJ> <DESC>(le jeune), ( J. Bapt. )</DESC>, <ADDR>R. Favart, 425. — Lepelletier.</ADDR>"),
-            "<SUBJ>Lafitte (le jeune), ( J. Bapt. )</SUBJ>, <ADDR>R. Favart, 425. — Lepelletier.</ADDR>",
-        )
-
-    def test_identity_then_activity_is_split(self):
-        self.assertEqual(
-            rules("<SUBJ>Ronder</SUBJ> <DESC>(veuve) (en gros)</DESC>, <ADDR>Q. de la Tournelle, 113.</ADDR>"),
-            "<SUBJ>Ronder (veuve)</SUBJ> <DESC>(en gros)</DESC>, <ADDR>Q. de la Tournelle, 113.</ADDR>",
-        )
-        self.assertEqual(
-            rules("<SUBJ>Chevallier</SUBJ>, <DESC>aîné ( en épicerie )</DESC>, <ADDR>R. S. Martin, 56.</ADDR>"),
-            "<SUBJ>Chevallier, aîné</SUBJ> <DESC>( en épicerie )</DESC>, <ADDR>R. S. Martin, 56.</ADDR>",
-        )
-
-    def test_activity_parenthesis_stays_desc(self):
-        source = "<SUBJ>Bresler</SUBJ> <DESC>(piano)</DESC>, <ADDR>R. Ste. Avoie, 155. — Réunion.</ADDR>"
-        self.assertEqual(rules(source), source)
-
-    def test_trailing_section_and_landmark_go_to_addr(self):
-        self.assertEqual(
-            rules("<SUBJ>Pajot</SUBJ>, <ADDR>R. S. Denis, 19</ADDR>. <DESC>Amis de la Patrie.</DESC>"),
-            "<SUBJ>Pajot</SUBJ>, <ADDR>R. S. Denis, 19. Amis de la Patrie.</ADDR>",
-        )
-        self.assertEqual(
-            rules("<SUBJ>Carpentier</SUBJ>, <ADDR>rue du Harlay, 7.</ADDR> <DESC>(Indivisibil.)</DESC>"),
-            "<SUBJ>Carpentier</SUBJ>, <ADDR>rue du Harlay, 7. (Indivisibil.)</ADDR>",
-        )
-        self.assertEqual(
-            rules("<SUBJ>Baudry</SUBJ>, <ADDR>R. S. Denis</ADDR>, <DESC>près le marché.</DESC>"),
-            "<SUBJ>Baudry</SUBJ>, <ADDR>R. S. Denis, près le marché.</ADDR>",
-        )
-
-    def test_dash_section_merged_but_not_prices(self):
-        self.assertEqual(
-            rules("<SUBJ>Morlay</SUBJ>, <ADDR>R. d'Anjou, 970.</ADDR> <DESC>— Roule.</DESC>"),
-            "<SUBJ>Morlay</SUBJ>, <ADDR>R. d'Anjou, 970. — Roule.</ADDR>",
-        )
-        source = "<SUBJ>Affiches</SUBJ>, <ADDR>R. N. S. Augustin, 582.</ADDR> — <DESC>12 f. pour 3 mois.</DESC>"
-        self.assertEqual(rules(source), source)
-
-    def test_titles_and_signboards_are_not_identity(self):
-        source = "<SUBJ>Maloet</SUBJ> <DESC>(D. R.)</DESC>, <ADDR>R. N. S. Augustin, 930.</ADDR>"
-        self.assertEqual(rules(source), source)
-        source = "<SUBJ>Lebrun</SUBJ> <DESC>(Café du Berceau Lyrique)</DESC>, <ADDR>Palais du Tribunal, 103.</ADDR>"
-        self.assertEqual(rules(source), source)
-        self.assertEqual(
-            rules("<SUBJ>Noleau ( veuve )</SUBJ> <DESC>et fils ( flaconn. )</DESC> , <ADDR>R. Bourg l'Abbé , 17.</ADDR>"),
-            "<SUBJ>Noleau ( veuve ) et fils</SUBJ> <DESC>( flaconn. )</DESC> , <ADDR>R. Bourg l'Abbé , 17.</ADDR>",
-        )
-
-    def test_orphan_text_is_filled(self):
-        self.assertEqual(
-            rules("<SUBJ>Bary</SUBJ>, marché Boulainvilliers, 13."),
-            "<SUBJ>Bary</SUBJ>, <ADDR>marché Boulainvilliers, 13.</ADDR>",
-        )
-        self.assertEqual(rules("<SUBJ>Geoffroy</SUBJ> (Réné Cl.)."), "<SUBJ>Geoffroy (Réné Cl.)</SUBJ>.")
-        self.assertEqual(
-            rules("Caille <DESC>(A. F.)</DESC> , <ADDR>rue Hautefeuille , 22.</ADDR>"),
-            "<SUBJ>Caille (A. F.)</SUBJ> , <ADDR>rue Hautefeuille , 22.</ADDR>",
-        )
-        self.assertEqual(
-            rules("<SUBJ>Le Maire</SUBJ>, mécaniciens, fabriquent les peignes; <ADDR>rue St.-Denis, 315</ADDR>."),
-            "<SUBJ>Le Maire</SUBJ>, <DESC>mécaniciens, fabriquent les peignes</DESC>; <ADDR>rue St.-Denis, 315</ADDR>.",
-        )
-        self.assertEqual(
-            rules("<SUBJ>Boquet</SUBJ> <DESC>(paysages)</DESC>, à l'Abbaye S. Germain, R. Childebert, 909."),
-            "<SUBJ>Boquet</SUBJ> <DESC>(paysages)</DESC>, <ADDR>à l'Abbaye S. Germain, R. Childebert, 909.</ADDR>",
-        )
-        self.assertEqual(rules("Correspondance des Professeurs."), "Correspondance des Professeurs.")
-
-    def test_address_like_desc_and_adjacent_merge(self):
-        self.assertEqual(
-            rules("<SUBJ>Briard (Me.)</SUBJ>, <DESC>pal. du Trib.</DESC>, passage du Perron, 94."),
-            "<SUBJ>Briard (Me.)</SUBJ>, <ADDR>pal. du Trib., passage du Perron, 94.</ADDR>",
-        )
-        for source in (
-            "<SUBJ>Douay</SUBJ>, <DESC>petite mercerie</DESC>, <ADDR>rue Transnonain, 37.</ADDR>",
-            "<SUBJ>Delapierre (Mlle.)</SUBJ> <DESC>(port.)</DESC>, <ADDR>R. S. Thomas du Louvre, 242.</ADDR>",
-        ):
-            self.assertEqual(rules(source), source)
-        self.assertEqual(
-            rules("<SUBJ>Walblet</SUBJ>, <DESC>drapier</DESC>, <DESC>nouveautés</DESC>, <ADDR>rue Vivienne, 4.</ADDR>"),
-            "<SUBJ>Walblet</SUBJ>, <DESC>drapier, nouveautés</DESC>, <ADDR>rue Vivienne, 4.</ADDR>",
-        )
-
-    def test_lexicon_learns_sections_after_dash(self):
-        corpus = [tagged(f"<SUBJ>X{i}</SUBJ>, <ADDR>R. Y, {i}. — Quartier Neuf.</ADDR>") for i in range(3)]
-        lexicon = SectionLexicon.from_annotations(corpus)
-        self.assertTrue(lexicon.matches("Quart. Neuf"))
-        self.assertEqual(
-            rules("<SUBJ>Z</SUBJ>, <ADDR>R. Y, 2</ADDR>. <DESC>Quartier Neuf.</DESC>", lexicon),
-            "<SUBJ>Z</SUBJ>, <ADDR>R. Y, 2. Quartier Neuf.</ADDR>",
-        )
 
 
 class MetricsTests(unittest.TestCase):

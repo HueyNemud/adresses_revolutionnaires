@@ -699,7 +699,7 @@ def main() -> None:
         f"(F1 micro sur la validation : {micro.f1:.1%})"
     )
     console.print(f"[bold green]📄 Rapport :[/bold green] [yellow]{report_path}[/yellow]")
-    console.print(f"Mesure de référence : [cyan]uv run audit_ner.py --model {output_dir} --split dev --rules[/cyan]")
+    console.print(f"Mesure de référence : [cyan]uv run audit_ner.py --model {output_dir} --split dev[/cyan]")
 
 
 if __name__ == "__main__":

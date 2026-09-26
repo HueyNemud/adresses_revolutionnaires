@@ -275,7 +275,7 @@ uv run tools/sample_ner_gold.py              # tire data/ner/gold_v1.ls.json (d�
 # → importer dans Label Studio (config : data/ner/label_studio_config.xml),
 #   corriger, exporter en JSON et remplacer data/ner/gold_v1.ls.json
 uv run audit_ner.py                          # v1, v1 curé, pré-annotation, sur le split test
-uv run audit_ner.py --model chemin/modele --rules --sweep
+uv run audit_ner.py --model chemin/modele --sweep
 uv run audit_ner.py --predictions llm=sortie_llm.json --split dev
 ```
 
@@ -292,12 +292,8 @@ uv run audit_ner.py --predictions llm=sortie_llm.json --split dev
 
 Code partagé dans `lib/ner/` : `spans.py` (empans, `tagged_text`, Label
 Studio, normalisation Markdown), `shapes.py` (forme typographique),
-`rules.py` (règles de convention, remplace `tools/correct_annotations.py`),
 `corpus.py` (lecture des CSV NER), `metrics.py`, `gliner.py` (inférence).
 
-Mesures actuelles sur le split test (exactitude par entrée) : modèle v1
-0,974 ; v1 + règles de convention 0,994. `infer_gliner.py` applique ces
-règles par défaut (`--no-rules` pour les désactiver).
 
 ## Entraîner un modèle NER v2
 
@@ -306,8 +302,8 @@ Le jeu d'entraînement est construit localement (il a besoin de
 machine avec GPU.
 
 ```bash
-# 1. En local : silver conforme au guide (v1 curé + règles, pré-annotations
-#    LLM de v1 + règles), textes du gold exclus, tirage par forme (√).
+# 1. En local : silver (sorties NER curées, pré-annotations LLM de v1),
+#    textes du gold exclus, tirage par forme (√).
 uv run tools/build_ner_training.py                                          # → data/ner/train_v2.ls.json
 uv run tools/build_ner_training.py --sampling random -o data/ner/train_v2_random.ls.json
 git add data/ner && git commit && git push
@@ -318,7 +314,7 @@ uv run tools/train_gliner.py data/ner/train_v2.ls.json --input raw          # �
 uv run tools/train_gliner.py data/ner/train_v2_random.ls.json               # → models/train_v2_random-normalized.gliner-model
 
 # 3. Mesure (sur la machine GPU ou après rapatriement du dossier du modèle) :
-uv run audit_ner.py --split dev --rules \
+uv run audit_ner.py --split dev \
   --model models/sample_entry_5000_20260918_111801.gliner-model \
   --model models/train_v2-normalized.gliner-model \
   --model models/train_v2-raw.gliner-model \

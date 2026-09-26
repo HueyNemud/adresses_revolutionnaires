@@ -1,8 +1,7 @@
-"""Construit un jeu d'entraînement NER (SUBJ/DESC/ADDR) conforme au guide
-d'annotation, au format Label Studio attendu par `tools/train_gliner.py`.
+"""Construit un jeu d'entraînement NER (SUBJ/DESC/ADDR) au format Label
+Studio attendu par `tools/train_gliner.py`.
 
-Sources (toutes ramenées sur le texte normalisé, puis corrigées par les
-règles de convention `lib.ner.rules`) :
+Sources (toutes ramenées sur le texte normalisé) :
 
 - `corpus` : les ENTRY de `annuaires/` avec leur annotation v1 curée
   (`*.ner.curated.csv`, à défaut `*.ner.csv`) ;
@@ -23,7 +22,7 @@ Tirage (`--sampling`) :
 
 Sorties : `<sortie>.json` (tâches avec `annotations`, `data.text` normalisé
 et `data.raw_text` d'origine) et `<sortie>.manifest.json` (paramètres,
-effectifs par source, volume, forme, règles appliquées).
+effectifs par source, volume, forme).
 """
 
 import argparse
@@ -40,7 +39,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 from rich.console import Console
 
 from lib.ner.corpus import iter_corpus
-from lib.ner.rules import SectionLexicon, apply_rules
 from lib.ner.shapes import coarse_shape
 from lib.ner.spans import Span, ls_result, ls_task_spans, normalize_markdown, project_spans, signature
 
@@ -63,7 +61,6 @@ class Candidate:
     key: str
     page: str
     shape: str
-    rules: tuple[str, ...]
 
 
 def gold_texts(path: Path) -> set[str]:
@@ -73,22 +70,16 @@ def gold_texts(path: Path) -> set[str]:
     return {task["data"]["text"] for task in json.loads(path.read_text(encoding="utf-8"))}
 
 
-def corpus_candidates(root: Path, lexicon_holder: list) -> list[Candidate]:
-    entries = list(iter_corpus(root))
-    annotated = [(e, e.annotations.get("v1_curated") or e.annotations.get("v1")) for e in entries]
-    annotated = [(e, spans) for e, spans in annotated if spans]
-    lexicon = SectionLexicon.from_annotations((e.text, spans) for e, spans in annotated)
-    lexicon_holder.append(lexicon)
+def corpus_candidates(root: Path) -> list[Candidate]:
     candidates = []
-    for entry, spans in annotated:
-        result = apply_rules(entry.text, spans, lexicon)
-        candidates.append(
-            Candidate(entry.text, entry.raw_text, result.spans, "corpus", entry.volume, entry.key, entry.page, entry.shape, result.fired)
-        )
+    for entry in iter_corpus(root):
+        spans = entry.annotations.get("v1_curated") or entry.annotations.get("v1")
+        if spans:
+            candidates.append(Candidate(entry.text, entry.raw_text, spans, "corpus", entry.volume, entry.key, entry.page, entry.shape))
     return candidates
 
 
-def extra_candidates(path: Path, lexicon: SectionLexicon) -> list[Candidate]:
+def extra_candidates(path: Path) -> list[Candidate]:
     candidates = []
     for task in json.loads(path.read_text(encoding="utf-8")):
         data = task.get("data", {})
@@ -97,19 +88,17 @@ def extra_candidates(path: Path, lexicon: SectionLexicon) -> list[Candidate]:
         if not raw_text or spans is None:
             continue
         normalized = normalize_markdown(raw_text)
-        result = apply_rules(normalized.text, project_spans(spans, normalized), lexicon)
         filename = data.get("filename", path.stem)
         candidates.append(
             Candidate(
                 normalized.text,
                 raw_text,
-                result.spans,
+                project_spans(spans, normalized),
                 path.stem,
                 filename.split(".", 1)[0],
                 f"{filename}#{data.get('uid', '')}",
                 str(data.get("page_index", "")),
                 coarse_shape(normalized.text),
-                result.fired,
             )
         )
     return candidates
@@ -154,7 +143,6 @@ def to_task(candidate: Candidate) -> dict:
             "page": candidate.page,
             "source": candidate.source,
             "shape": candidate.shape,
-            "rules": ", ".join(candidate.rules),
         },
         "annotations": [{"result": ls_result(candidate.text, candidate.spans)}],
     }
@@ -177,10 +165,9 @@ def main() -> None:
     rng = random.Random(args.seed)
     excluded = gold_texts(args.gold)
 
-    lexicon_holder: list[SectionLexicon] = []
-    pools = [corpus_candidates(args.root, lexicon_holder)]
+    pools = [corpus_candidates(args.root)]
     for path in args.extra:
-        pools.append(extra_candidates(path, lexicon_holder[0]))
+        pools.append(extra_candidates(path))
 
     seen: set[str] = set()
     candidates: list[Candidate] = []
@@ -211,7 +198,6 @@ def main() -> None:
         "par_source": Counter(c.source for c in chosen),
         "par_volume": Counter(c.volume for c in chosen),
         "par_signature": Counter(signature(c.spans) for c in chosen),
-        "règles_appliquées": Counter(rule for c in chosen for rule in set(c.rules)),
         "formes_distinctes": len({c.shape for c in chosen}),
         "20_formes_principales": Counter(c.shape for c in chosen).most_common(20),
     }
