@@ -12,8 +12,8 @@ annotation dont le texte ne correspond plus à celui de l'entrée (le
 curateur a parfois modifié le texte) ou dont le balisage est mal formé est
 ignorée (`None`) plutôt que réalignée approximativement.
 
-Jointure par `uid` (lignes sources de l'entrée) : `uuid` est régénéré à
-chaque exécution de `merge_annotated_lines.py`.
+Jointure par `uid` (lignes sources de l'entrée) : les fichiers fusionnés
+avant l'identifiant déterministe portent des `uuid` aléatoires.
 """
 
 import csv

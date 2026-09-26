@@ -29,6 +29,17 @@ Un rapport d'analyse (.txt, à côté du CSV de sortie) recense les comptages
 et les deux familles de problèmes détectés : les lignes de continuation
 sans ancre valable, et les entrées qui rompent l'ordre alphabétique (réinit-
 ialisé à chaque nouveau TITLE).
+
+Identifiant d'entité (`uuid`)
+-----------------------------
+Déterministe (`uuid5`) : il dépend du nom du document (nom du fichier
+d'entrée avant `.ocr`, ex. « 1808_AD75-PER292.6-185 ») et des `uid` des
+lignes qui composent l'entité, jamais de son texte. Il est donc identique
+d'une exécution à l'autre et survit aux corrections de texte ; il change
+seulement si la composition de l'entité change (autres lignes fusionnées),
+ce qui en fait une autre entité. Si plusieurs entités ont la même
+composition (ligne dupliquée à la curation), la deuxième reçoit le suffixe
+`#2`, la troisième `#3`, etc., dans l'ordre du fichier.
 """
 
 import argparse
@@ -36,6 +47,7 @@ import csv
 import re
 import unicodedata
 import uuid
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -61,6 +73,10 @@ KNOWN_LABELS = {
 
 NORMALIZED_ENTRY = "ENTRY"
 NORMALIZED_TITLE = "TITLE"
+
+# Espace de noms des identifiants d'entités : le changer changerait tous les
+# identifiants déjà produits.
+ENTITY_ID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "adresses_revolutionnaires/entites")
 
 
 @dataclass
@@ -90,6 +106,22 @@ def alpha_sort_key(text: str) -> str:
     normalized = unicodedata.normalize("NFKD", segment)
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
     return "".join(char for char in ascii_text if char.isalnum()).upper()
+
+
+def document_name(path: Path) -> str:
+    """« 1808_AD75-PER292.6-185.ocr.lines.annotated.curated.csv » →
+    « 1808_AD75-PER292.6-185 » (même nom à toutes les étapes du pipeline)."""
+    return path.name.split(".ocr", 1)[0] if ".ocr" in path.name else path.stem
+
+
+def assign_entity_ids(entities: list[dict[str, str]], document: str, uid_col: str) -> None:
+    """Identifiant déterministe de chaque entité (voir la docstring du module)."""
+    occurrences: Counter[str] = Counter()
+    for entity in entities:
+        key = f"{document}#{entity.get(uid_col, '')}"
+        occurrences[key] += 1
+        name = key if occurrences[key] == 1 else f"{key}#{occurrences[key]}"
+        entity["uuid"] = str(uuid.uuid5(ENTITY_ID_NAMESPACE, name))
 
 
 def _new_root(row: dict[str, str], normalized_entity: str) -> dict[str, str]:
@@ -275,11 +307,11 @@ def process_csv(
                 out_row["entity"] = LABEL_OOS
                 all_entities.append(out_row)
 
+    assign_entity_ids(all_entities, document_name(input_path), uid_col)
     with output_path.open("w", encoding="utf-8", newline="") as f_out:
         writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
         writer.writeheader()
         for entity_row in all_entities:
-            entity_row["uuid"] = str(uuid.uuid4())
             writer.writerow(entity_row)
             report.rows_written += 1
             if entity_row.get("entity") == NORMALIZED_ENTRY:
