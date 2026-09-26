@@ -6,7 +6,7 @@ main (`*.ner.curated.csv`) ou, à défaut, brute (`*.ner.csv`), ramenée sur
 le texte normalisé. Ces CSV doivent venir du modèle courant
 (`infer_gliner.py`) : ceux produits par le modèle v1 portent ses anciennes
 conventions (voir `docs/guide_annotation_ner.md`), et un modèle entraîné
-dessus les réapprendrait. Le jeu `data/ner/train_v2.ls.json`, qui a servi
+dessus les réapprendrait. Le jeu `data/ner/train.ls.json`, qui a servi
 au modèle actuel, a été construit à partir de ces sorties v1 corrigées par
 des règles de convention, retirées depuis.
 
@@ -43,7 +43,7 @@ from lib.ner.spans import Span, ls_result, signature
 console = Console()
 
 DEFAULT_ROOT = Path("annuaires")
-DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
+DEFAULT_GOLD = Path("data/ner/gold.ls.json")
 DEFAULT_OUTPUT = Path("data/ner/train.ls.json")
 DEFAULT_SIZE = 15000
 

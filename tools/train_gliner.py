@@ -84,7 +84,7 @@ DEFAULT_EPOCHS = 3.0
 DEFAULT_BATCH_SIZE = 8
 DEFAULT_LEARNING_RATE = 5e-5
 DEFAULT_THRESHOLD = 0.5
-DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
+DEFAULT_GOLD = Path("data/ner/gold.ls.json")
 DEFAULT_MODELS_DIR = Path("models")
 
 
@@ -437,7 +437,7 @@ def parse_args() -> argparse.Namespace:
         "input_paths",
         type=Path,
         nargs="+",
-        help="JSON Label Studio (ex. data/ner/train_v2.ls.json de tools/build_ner_training.py), un ou plusieurs.",
+        help="JSON Label Studio (ex. data/ner/train.ls.json de tools/build_ner_training.py), un ou plusieurs.",
     )
     parser.add_argument(
         "--gold",

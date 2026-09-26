@@ -268,13 +268,13 @@ l'évalue automatiquement sans changer le comportement de l'annotateur.
 Segmentation de chaque ENTRY en empans `SUBJ` / `DESC` / `ADDR` par un
 modèle GLiNER-bi. Les conventions d'annotation sont fixées dans
 `docs/guide_annotation_ner.md`. Le modèle de référence est entraîné sur
-`data/ner/train_v2.ls.json` ; les modèles entraînés restent hors git
+`data/ner/train.ls.json` ; les modèles entraînés restent hors git
 (`models/`).
 
 ### Inférence : `infer_gliner.py`
 
 ```bash
-uv run infer_gliner.py annuaires/<volume>/<plage>/<doc>.….merged.csv --model models/train_v2.gliner-model
+uv run infer_gliner.py annuaires/<volume>/<plage>/<doc>.….merged.csv --model models/train.gliner-model
 ```
 
 Ajoute après `entity` la colonne `tagged_text` (texte d'origine balisé,
@@ -336,12 +336,12 @@ libellés dans `<modèle>/ner_config.json`.
 ### Audit : `audit_ner.py`
 
 Mesure la segmentation contre un **jeu gold relu à la main**
-(`data/ner/gold_v1.ls.json`, 600 entrées, tiré par
+(`data/ner/gold.ls.json`, 600 entrées, tiré par
 `tools/sample_ner_gold.py` puis corrigé dans Label Studio avec
 `data/ner/label_studio_config.xml`).
 
 ```bash
-uv run audit_ner.py --split dev --model models/train_v2.gliner-model --model models/train_v3.gliner-model
+uv run audit_ner.py --split dev --model models/train.gliner-model --model models/train_v3.gliner-model
 uv run audit_ner.py --predictions autre=sortie.ner.csv --split dev
 ```
 

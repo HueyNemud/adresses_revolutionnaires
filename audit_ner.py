@@ -1,7 +1,7 @@
 """Audit de la segmentation NER SUBJ/DESC/ADDR sur le jeu gold.
 
 Compare un ou plusieurs systèmes à la relecture humaine du gold
-(`data/ner/gold_v1.ls.json`, tiré par `tools/sample_ner_gold.py` et corrigé
+(`data/ner/gold.ls.json`, tiré par `tools/sample_ner_gold.py` et corrigé
 dans Label Studio), et écrit `rapports/audit_ner/rapport.md` et
 `rapports/audit_ner/erreurs.csv`.
 
@@ -57,7 +57,7 @@ from lib.ner.spans import (
 
 console = Console()
 
-DEFAULT_GOLD = Path("data/ner/gold_v1.ls.json")
+DEFAULT_GOLD = Path("data/ner/gold.ls.json")
 DEFAULT_OUTPUT_DIR = Path("rapports/audit_ner")
 REVIEW_BUDGETS = (0.05, 0.10, 0.20, 0.30)
 SUSPICION_THRESHOLDS = (0.5, 0.7, 0.8, 0.9, 0.95, 0.99)

@@ -50,12 +50,12 @@ from rich.table import Table
 
 from lib.ner.corpus import Entry, iter_corpus
 from lib.ner.shapes import shape_profile
-from lib.ner.spans import canonical_spans, ls_result, normalize_markdown, render_tagged_text, signature
+from lib.ner.spans import canonical_spans, ls_result, normalize_markdown, signature
 
 console = Console()
 
 DEFAULT_ROOT = Path("annuaires")
-DEFAULT_OUTPUT = Path("data/ner/gold_v1.ls.json")
+DEFAULT_OUTPUT = Path("data/ner/gold.ls.json")
 DEFAULT_EXCLUDE = sorted(Path("data/ner").glob("train*.ls.json"))
 COMMON_SIGNATURES = {"SUBJ,ADDR", "SUBJ,DESC,ADDR"}
 STRATA = ("désaccord", "signature rare", "forme rare", "courant")
@@ -118,11 +118,6 @@ def page_split(entry: Entry, dev_share: float) -> str:
 
 
 def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str) -> dict:
-    tagged = {
-        f"{name}_tagged": render_tagged_text(entry.text, annotation)
-        for name, annotation in entry.annotations.items()
-        if annotation is not None
-    }
     return {
         "data": {
             "text": entry.text,
@@ -137,7 +132,6 @@ def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str
             "stratum": stratum_name,
             "weight": weight,
             "split": split,
-            **tagged,
         },
         "predictions": [{"model_version": "ner_curated", "result": ls_result(entry.text, spans)}],
     }
