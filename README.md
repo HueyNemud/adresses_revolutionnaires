@@ -175,13 +175,13 @@ Identifiants :
   lignes.
 - `parent_uuid` est l'`uuid` du titre dont dépend l'entité. Le niveau d'un
   titre est son nombre de `#` ; le parent d'un `TITLE` est le dernier titre
-  de niveau strictement inférieur qui le précède, celui d'une `ENTRY` le
-  dernier titre qui la précède. Les titres de plus haut niveau (et les
-  entrées placées avant tout titre) ont pour parent la racine artificielle
-  `00000000-0000-0000-0000-000000000000`, commune à tous les documents :
-  l'arbre a toujours une racine unique. Les lignes `OUT OF SCOPE` n'ont pas
-  de parent. Un titre sans `#` est placé au niveau le plus profond et
-  signalé dans le rapport.
+  de niveau strictement inférieur qui le précède, celui d'une `ENTRY` ou
+  d'une ligne `OUT OF SCOPE` le dernier titre qui la précède. Les titres de
+  plus haut niveau (et les entités placées avant tout titre) ont pour
+  parent la racine artificielle `00000000-0000-0000-0000-000000000000`,
+  commune à tous les documents : l'arbre a toujours une racine unique et
+  toute entité y est rattachée. Un titre sans `#` est placé au niveau le
+  plus profond et signalé dans le rapport.
 
 Le rapport donne déjà les comptes par titre ; pour les recalculer depuis
 le CSV, grouper les `ENTRY` par `parent_uuid` (entrées directes), puis

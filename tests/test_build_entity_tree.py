@@ -103,7 +103,7 @@ class ParentIdTests(unittest.TestCase):
             "1.1.0": ROOT_UUID,
             "1.1.1": ROOT_UUID,
             "1.1.2": uuid_of["1.1.1"],
-            "1.1.4": "",
+            "1.1.4": uuid_of["1.1.2"],
             "1.1.5": uuid_of["1.1.2"],
             "1.1.6": uuid_of["1.1.2"],
             "1.1.7": uuid_of["1.1.6"],

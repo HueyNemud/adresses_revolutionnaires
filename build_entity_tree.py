@@ -57,11 +57,11 @@ Le niveau d'un TITLE est le nombre de `#` en tête de son texte ; un titre
 sans `#` est considéré comme du niveau le plus profond (comme dans
 tools/display_directory.py). En parcourant les entités dans l'ordre du
 document, le parent d'un TITLE est le dernier TITLE de niveau strictement
-inférieur, et le parent d'une ENTRY est le dernier TITLE rencontré. Les
-titres de plus haut niveau, et les entrées qui précèdent tout titre, ont
-pour parent la racine artificielle `ROOT_UUID` (UUID nul), commune à tous
-les documents : l'arbre a ainsi toujours une racine unique. Les lignes
-OUT OF SCOPE n'ont pas de parent (colonne vide).
+inférieur, et le parent de toute autre entité (ENTRY, OUT OF SCOPE) est le
+dernier TITLE rencontré. Les titres de plus haut niveau, et les entités qui
+précèdent tout titre, ont pour parent la racine artificielle `ROOT_UUID`
+(UUID nul), commune à tous les documents : l'arbre a ainsi toujours une
+racine unique et chaque entité y est rattachée.
 """
 
 import argparse
@@ -170,7 +170,7 @@ def title_level(markdown: str) -> int | None:
 
 
 def assign_parent_ids(entities: list[dict[str, str]]) -> None:
-    """Titre parent de chaque TITLE et ENTRY (voir la docstring du module) ;
+    """Titre parent de chaque entité (voir la docstring du module) ;
     à appeler après assign_entity_ids."""
     stack: list[tuple[int, str]] = []  # (niveau, uuid) des titres ouverts
     for entity in entities:
@@ -181,10 +181,8 @@ def assign_parent_ids(entities: list[dict[str, str]]) -> None:
                 stack.pop()
             entity["parent_uuid"] = stack[-1][1] if stack else ROOT_UUID
             stack.append((level, entity["uuid"]))
-        elif kind == NORMALIZED_ENTRY:
-            entity["parent_uuid"] = stack[-1][1] if stack else ROOT_UUID
         else:
-            entity["parent_uuid"] = ""
+            entity["parent_uuid"] = stack[-1][1] if stack else ROOT_UUID
 
 
 def _new_root(row: dict[str, str], normalized_entity: str) -> dict[str, str]:
