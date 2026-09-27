@@ -173,3 +173,74 @@ def dedupe_records(records: list[Record]) -> dict[str, dict[str, str | None]]:
         }
         for record in records
     }
+
+
+# ----------------------------------------------------------------------
+# Correspondances (CSV `annuaires/alignements/…`)
+# ----------------------------------------------------------------------
+SOURCE_DEDUPE = "dedupe"
+SOURCE_MANUAL = "manuel"
+LINK_FIELDS = [
+    "left_file",
+    "left_uuid",
+    "right_uuid",
+    "right_file",
+    "score",
+    "source",
+    "left_section",
+    "right_section",
+    "left_tagged_text",
+    "right_tagged_text",
+]
+
+
+@dataclass(frozen=True)
+class Link:
+    left_uuid: str
+    right_uuid: str
+    score: float | None  # None : paire saisie à la main
+    source: str = SOURCE_DEDUPE
+
+
+def display_text(record: Record) -> str:
+    """Texte balisé de l'entrée, à défaut son Markdown."""
+    return record.tagged_text or record.markdown.strip()
+
+
+def write_links(path: Path, links: list[Link], left: dict[str, Record], right: dict[str, Record]) -> None:
+    """CSV des correspondances, dans l'ordre de l'annuaire de gauche. Les
+    colonnes de rubrique et de texte sont un instantané pour la relecture ;
+    seules `*_file` / `*_uuid` identifient les entrées."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(LINK_FIELDS)
+        for link in sorted(links, key=lambda link: left[link.left_uuid].order):
+            left_record, right_record = left[link.left_uuid], right[link.right_uuid]
+            writer.writerow(
+                [
+                    left_record.document,
+                    left_record.uuid,
+                    right_record.uuid,
+                    right_record.document,
+                    "" if link.score is None else f"{link.score:.4f}",
+                    link.source,
+                    left_record.section_title,
+                    right_record.section_title,
+                    display_text(left_record),
+                    display_text(right_record),
+                ]
+            )
+
+
+def read_links(path: Path) -> list[Link]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        return [
+            Link(
+                row["left_uuid"],
+                row["right_uuid"],
+                float(row["score"]) if row.get("score") else None,
+                row.get("source") or SOURCE_DEDUPE,
+            )
+            for row in csv.DictReader(handle)
+        ]

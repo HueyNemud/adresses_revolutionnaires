@@ -21,20 +21,23 @@ sont enregistrées dans un fichier d'entraînement JSON (par défaut
 exécutions suivantes réutilisent sans interaction.
 
 L'appariement est un-à-un : chaque entrée a au plus une correspondance dans
-l'autre annuaire. Sortie : un CSV trié dans l'ordre de l'annuaire de gauche,
-une ligne par correspondance :
+l'autre annuaire. Deux sorties, triées dans l'ordre de l'annuaire de gauche :
 
-- `left_file`, `left_uuid`, `right_uuid`, `right_file` : l'identification
-  des deux entrées ;
-- `score` : probabilité de correspondance estimée par Dedupe ;
-- `left_section`, `right_section`, `left_tagged_text`, `right_tagged_text` :
-  titre de la rubrique et texte balisé de chaque entrée, pour relire les
-  paires à la main et dériver un `.curated.csv` validé (seules les colonnes
-  d'identification font foi ; les autres sont un instantané pour la
-  relecture).
+- `<gauche>__<droite>.dedupe.csv` : les correspondances brutes de Dedupe ;
+- `<gauche>__<droite>.csv` : les mêmes après application du **patch** de
+  corrections manuelles (`data/alignement/<gauche>__<droite>.patch.csv`,
+  voir `lib/alignment_patch.py`), le résultat final.
 
-Les entrées absentes du CSV n'ont pas de correspondance ;
-`tools/display_alignment.py` les affiche.
+Colonnes : `left_file`, `left_uuid`, `right_uuid`, `right_file` (identification
+des deux entrées), `score` (probabilité estimée par Dedupe, vide pour une paire
+saisie à la main), `source` (`dedupe` / `manuel`), puis un instantané pour la
+relecture : `left_section`, `right_section`, `left_tagged_text`,
+`right_tagged_text`.
+
+Le patch s'édite à la main ; `tools/display_alignment.py` affiche le
+résultat et copie uuid ou lignes de patch prêtes à coller. `--apply-only`
+réapplique le patch à la sortie Dedupe existante, sans relancer Dedupe. Les
+entrées absentes du CSV final n'ont pas de correspondance.
 """
 
 import argparse
@@ -46,23 +49,13 @@ import dedupe
 from rich.console import Console
 from rich.table import Table
 
-from lib.alignment import Record, dedupe_records, load_volume
+from lib.alignment import Link, Record, dedupe_records, load_volume, read_links, write_links
+from lib.alignment_patch import PatchStats, Resolution, apply_patch, read_patch, resolve, updated_patch, validate, write_patch
 
 console = Console()
 
 DEFAULT_OUTPUT_DIR = Path("annuaires/alignements")
 DEFAULT_TRAINING_DIR = Path("data/alignement")
-OUTPUT_FIELDS = [
-    "left_file",
-    "left_uuid",
-    "right_uuid",
-    "right_file",
-    "score",
-    "left_section",
-    "right_section",
-    "left_tagged_text",
-    "right_tagged_text",
-]
 SCORE_BINS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
 
 
@@ -80,7 +73,21 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=None,
-        help=f"CSV des correspondances (défaut : {DEFAULT_OUTPUT_DIR}/<gauche>__<droite>.csv).",
+        help=(
+            f"CSV final des correspondances (défaut : {DEFAULT_OUTPUT_DIR}/<gauche>__<droite>.csv) ; "
+            "la sortie brute de Dedupe est écrite à côté, en .dedupe.csv."
+        ),
+    )
+    parser.add_argument(
+        "--patch",
+        type=Path,
+        default=None,
+        help=f"Corrections manuelles (défaut : {DEFAULT_TRAINING_DIR}/<gauche>__<droite>.patch.csv).",
+    )
+    parser.add_argument(
+        "--apply-only",
+        action="store_true",
+        help="Ne pas relancer Dedupe : réappliquer le patch à la sortie .dedupe.csv existante.",
     )
     parser.add_argument(
         "--training",
@@ -135,34 +142,60 @@ def train(linker: dedupe.RecordLink, left: dict, right: dict, training_path: Pat
     linker.train()
 
 
-def write_links(path: Path, links, left: dict[str, Record], right: dict[str, Record]) -> list[tuple[Record, Record, float]]:
-    pairs = sorted(
-        ((left[left_id], right[right_id], float(score)) for (left_id, right_id), score in links),
-        key=lambda pair: pair[0].order,
+def dedupe_path(output_path: Path) -> Path:
+    return output_path.with_suffix(".dedupe.csv")
+
+
+def infer_links(left_records: dict[str, Record], right_records: dict[str, Record], args, training_path: Path) -> list[Link]:
+    left = dedupe_records(list(left_records.values()))
+    right = dedupe_records(list(right_records.values()))
+    linker = build_linker(left, right)
+    train(linker, left, right, training_path, args.label)
+    console.print("Appariement…")
+    links = linker.join(left, right, threshold=args.threshold, constraint="one-to-one")
+    return [Link(left_id, right_id, float(score)) for (left_id, right_id), score in links]
+
+
+def patch_links(
+    links: list[Link], patch_path: Path, left_records: dict[str, Record], right_records: dict[str, Record]
+) -> tuple[list[Link], Resolution, PatchStats]:
+    """Applique le patch ; le réécrit si des lignes ont été réancrées."""
+    entries = read_patch(patch_path)
+    validate(entries)
+    resolution = resolve(entries, left_records, right_records)
+    if resolution.reanchored:
+        write_patch(patch_path, updated_patch(entries, resolution))
+    patched, stats = apply_patch(links, resolution.entries)
+    return patched, resolution, stats
+
+
+def print_patch_summary(patch_path: Path, resolution: Resolution, stats: PatchStats) -> None:
+    n_entries = len(resolution.entries) + len(resolution.orphans)
+    if not n_entries:
+        console.print(f"Aucune correction manuelle ([yellow]{patch_path}[/yellow] absent ou vide).")
+        return
+    console.print(
+        f"Patch [yellow]{patch_path}[/yellow] : {n_entries} ligne(s) — {stats.manual_pairs} paire(s) manuelle(s), "
+        f"{stats.unmatched_left} gauche et {stats.unmatched_right} droite sans correspondance, "
+        f"{stats.overridden} lien(s) Dedupe écarté(s)."
     )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(OUTPUT_FIELDS)
-        for left_record, right_record, score in pairs:
-            writer.writerow(
-                [
-                    left_record.document,
-                    left_record.uuid,
-                    right_record.uuid,
-                    right_record.document,
-                    f"{score:.4f}",
-                    left_record.section_title,
-                    right_record.section_title,
-                    left_record.tagged_text or left_record.markdown.strip(),
-                    right_record.tagged_text or right_record.markdown.strip(),
-                ]
-            )
-    return pairs
+    if resolution.reanchored:
+        console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) réancrée(s) par le texte (patch mis à jour).[/yellow]")
+    if resolution.orphans:
+        console.print(f"[bold red]⚠ {len(resolution.orphans)} ligne(s) orpheline(s), non appliquée(s) :[/bold red]")
+        for entry in resolution.orphans:
+            for side in ("left", "right"):
+                if getattr(entry, f"{side}_uuid"):
+                    console.print(
+                        f"  {side} {getattr(entry, f'{side}_uuid')} · {getattr(entry, f'{side}_section')} · "
+                        f"{getattr(entry, f'{side}_tagged_text')}",
+                        markup=False,
+                    )
 
 
-def print_summary(left_name: str, right_name: str, n_left: int, n_right: int, scores: list[float]) -> None:
-    matched = len(scores)
+def print_summary(left_name: str, right_name: str, n_left: int, n_right: int, links: list[Link]) -> None:
+    matched = len(links)
+    scores = [link.score for link in links if link.score is not None]
     table = Table(title="Correspondances", show_header=True)
     table.add_column("Annuaire")
     table.add_column("Entrées", justify="right")
@@ -195,6 +228,7 @@ def main() -> None:
     pair_name = f"{args.left.name}__{args.right.name}"
     output_path = args.output or DEFAULT_OUTPUT_DIR / f"{pair_name}.csv"
     training_path = args.training or DEFAULT_TRAINING_DIR / f"{pair_name}.training.json"
+    patch_path = args.patch or DEFAULT_TRAINING_DIR / f"{pair_name}.patch.csv"
 
     try:
         left_records = {record.uuid: record for record in load_volume(args.left)}
@@ -204,18 +238,34 @@ def main() -> None:
         sys.exit(1)
     console.print(f"{args.left.name} : {len(left_records)} entrées ; {args.right.name} : {len(right_records)} entrées")
 
-    left = dedupe_records(list(left_records.values()))
-    right = dedupe_records(list(right_records.values()))
-    linker = build_linker(left, right)
-    train(linker, left, right, training_path, args.label)
+    raw_path = dedupe_path(output_path)
+    if args.apply_only:
+        if not raw_path.exists():
+            console.print(f"[bold red]Erreur :[/bold red] '{raw_path}' introuvable : lancer d'abord sans --apply-only.")
+            sys.exit(1)
+        links = read_links(raw_path)
+        unknown = [link for link in links if link.left_uuid not in left_records or link.right_uuid not in right_records]
+        if unknown:
+            console.print(
+                f"[bold red]Erreur :[/bold red] {len(unknown)} lien(s) de '{raw_path}' désignent des entrées disparues "
+                "(étapes amont modifiées) : relancer Dedupe sans --apply-only."
+            )
+            sys.exit(1)
+    else:
+        links = infer_links(left_records, right_records, args, training_path)
+        write_links(raw_path, links, left_records, right_records)
+        console.print(f"[bold green]✅ Sortie Dedupe :[/bold green] [yellow]{raw_path}[/yellow]")
 
-    console.print("Appariement…")
-    links = linker.join(left, right, threshold=args.threshold, constraint="one-to-one")
-    pairs = write_links(output_path, links, left_records, right_records)
+    try:
+        links, resolution, stats = patch_links(links, patch_path, left_records, right_records)
+    except (OSError, csv.Error, ValueError) as error:
+        console.print(f"[bold red]Erreur dans le patch :[/bold red] {error}")
+        sys.exit(1)
+    write_links(output_path, links, left_records, right_records)
 
     console.print(f"\n[bold green]✅ Correspondances :[/bold green] [yellow]{output_path}[/yellow]")
-    print_summary(args.left.name, args.right.name, len(left_records), len(right_records), [score for *_, score in pairs])
-
+    print_patch_summary(patch_path, resolution, stats)
+    print_summary(args.left.name, args.right.name, len(left_records), len(right_records), links)
 
 if __name__ == "__main__":
     main()

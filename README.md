@@ -354,6 +354,7 @@ travers.
 uv run align_directories.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292
 uv run align_directories.py <gauche> <droite> --label        # compléter l'étiquetage
 uv run streamlit run tools/display_alignment.py                # explorer le résultat
+uv run align_directories.py <gauche> <droite> --apply-only   # réappliquer les corrections, sans Dedupe
 ```
 
 Détermine quelles entrées se correspondent entre deux éditions d'un annuaire,
@@ -374,23 +375,73 @@ avec [Dedupe](https://github.com/dedupeio/dedupe) (`RecordLink`).
   terminer). Les paires sont écrites dans
   `data/alignement/<gauche>__<droite>.training.json` (à versionner) ; les
   exécutions suivantes le réutilisent sans interaction.
-- **Sortie** : `annuaires/alignements/<gauche>__<droite>.csv`, une ligne par
-  correspondance **un-à-un** : `left_file, left_uuid, right_uuid,
-  right_file, score` (score = probabilité estimée par Dedupe ; seuil
-  `--threshold`, 0,5 par défaut), puis, pour la relecture, `left_section,
-  right_section` (titre de la rubrique) et `left_tagged_text,
-  right_tagged_text`. Une entrée absente du CSV n'a pas de correspondance.
-  La console résume les taux d'appariement et la distribution des scores.
-- **Validation manuelle** : copier le CSV en `<gauche>__<droite>.curated.csv`
-  et y supprimer, corriger ou ajouter des lignes ; seules les colonnes
-  d'identification font foi (les textes sont un instantané), et `score` peut
-  rester vide pour une paire ajoutée à la main. C'est ce fichier relu que
-  les étapes suivantes devront consommer.
+- **Sorties**, une ligne par correspondance **un-à-un**, dans l'ordre de
+  l'annuaire de gauche :
+  - `annuaires/alignements/<gauche>__<droite>.dedupe.csv` : le résultat
+    brut de Dedupe ;
+  - `annuaires/alignements/<gauche>__<droite>.csv` : le **résultat final**,
+    Dedupe + corrections manuelles.
 
-`tools/display_alignment.py` relit le CSV (brut ou `.curated.csv`) et les deux annuaires : paires
-côte à côte (rubrique en rouge quand elle diffère, score bas signalé),
-entrées non appariées de chaque côté, bilan par rubrique ; filtres par
-rubrique, texte, plage de scores.
+  Colonnes : `left_file, left_uuid, right_uuid, right_file` (identification),
+  `score` (probabilité estimée par Dedupe, seuil `--threshold`, 0,5 par
+  défaut ; vide pour une paire saisie à la main), `source` (`dedupe` /
+  `manuel`), puis un instantané pour la relecture : `left_section,
+  right_section` (titre de la rubrique), `left_tagged_text,
+  right_tagged_text`. Une entrée absente du CSV n'a pas de correspondance.
+  La console résume les taux d'appariement, la distribution des scores et
+  l'effet des corrections.
+
+### Corrections manuelles : le patch
+
+Dedupe peut être relancé à chaque amélioration des étapes amont ; les
+corrections humaines vivent donc à part, dans
+`data/alignement/<gauche>__<droite>.patch.csv` (**versionné** : `annuaires/`
+ne l'est pas), et sont réappliquées après chaque inférence
+(`lib/alignment_patch.py`).
+
+- **Une ligne = une décision** : `left_uuid` + `right_uuid` → ces deux
+  entrées se correspondent ; un seul uuid → cette entrée n'a pas de
+  correspondance. Colonnes : `left_file, left_uuid, right_uuid, right_file,
+  left_section, right_section, left_tagged_text, right_tagged_text, note`.
+- **Le patch gagne** : tout lien Dedupe qui touche un uuid du patch est
+  écarté, puis les paires du patch sont ajoutées (`source = manuel`).
+  *Valider* une paire correcte la protège des relances (son score est gardé).
+- **Réancrage** : si une étape amont re-segmente une entrée, son uuid
+  change. On cherche alors l'entrée unique de même texte normalisé dans la
+  même rubrique (d'où l'instantané texte + rubrique) et le patch est mis à
+  jour. Sans candidat unique, la ligne est **orpheline** : signalée en
+  console et dans le viewer, jamais appliquée, conservée dans le patch pour
+  correction à la main.
+- Un uuid présent dans deux lignes, ou une ligne sans uuid, est une erreur.
+
+### Explorer : `tools/display_alignment.py`
+
+Choix de l'alignement par son `.dedupe.csv` ; les deux annuaires sont relus
+en entier et le patch est appliqué en mémoire, donc l'écran montre toujours
+le résultat final.
+
+- **Une seule table dans l'ordre naturel des listes** : correspondances et
+  entrées de gauche sans correspondance dans l'ordre de l'annuaire de gauche ;
+  une entrée de droite sans correspondance est insérée après la paire qui
+  contient l'entrée de droite appariée qui la précède. Un bandeau marque
+  chaque changement de rubrique.
+- **Filtres** : cases à cocher des types de lignes (correspondances, sans correspondance à
+  gauche, sans correspondance à droite), rubrique, recherche, plage de
+  scores, rubriques différentes, corrections manuelles. Tri par score
+  possible pour relire les cas limites.
+- **Rubrique en rouge** quand elle diffère entre les deux entrées, score bas
+  signalé, badges `manuel` et « confirmée sans correspondance » ; bilan par
+  rubrique dans un encadré dépliable.
+- **Copie pour le patch** : le bouton `uuid` de chaque entrée copie son uuid ;
+  le bouton `copier` copie une ligne de patch prête à coller (la paire pour
+  une correspondance, l'entrée seule pour une entrée sans correspondance) ;
+  `en-tête du patch` copie la ligne d'en-tête pour créer le fichier.
+
+Le patch s'édite à la main (tableur ou éditeur de texte) : coller une
+ligne copiée valide une paire ou confirme une absence de correspondance ; pour
+apparier deux entrées, coller la ligne de l'une et y reporter l'`uuid` (et
+le fichier) de l'autre. `--apply-only` régénère ensuite le CSV final en
+quelques secondes.
 
 ## Audit du CRF : `audit_crf_features.py`
 
@@ -439,8 +490,9 @@ l'évalue automatiquement sans changer le comportement de l'annotateur.
 | `<entrée>.merged.report.txt` | `build_entity_tree.py` | Comptages (entités finales, lignes fusionnées), arbre des titres avec entrées directes et récursives et listes de cas à vérifier (ancres manquantes, titres sans `#`, ordre alphabétique) |
 | `<entrée>.merged.ner.csv` | `infer_gliner.py` | Le CSV fusionné, avec pour chaque ENTRY le texte balisé `tagged_text` (SUBJ/DESC/ADDR), les comptes d'empans, `ner_confidence` et les motifs de relecture `ner_suspect` |
 | `<entrée>.merged.ner.curated.csv` | relecture manuelle | Le même, corrigé |
-| `annuaires/alignements/<gauche>__<droite>.csv` | `align_directories.py` | Correspondances un-à-un entre les ENTRY de deux annuaires : `left_file`, `left_uuid`, `right_uuid`, `right_file`, `score`, et pour la relecture rubriques et textes balisés des deux entrées |
-| `annuaires/alignements/<gauche>__<droite>.curated.csv` | relecture manuelle | Le même, validé (lignes supprimées, corrigées ou ajoutées) |
+| `annuaires/alignements/<gauche>__<droite>.dedupe.csv` | `align_directories.py` | Correspondances un-à-un proposées par Dedupe entre les ENTRY de deux annuaires |
+| `data/alignement/<gauche>__<droite>.patch.csv` | édition manuelle | Corrections manuelles, versionnées : paires imposées et entrées sans correspondance |
+| `annuaires/alignements/<gauche>__<droite>.csv` | `align_directories.py` | Résultat final (Dedupe + patch) : `left_file`, `left_uuid`, `right_uuid`, `right_file`, `score`, `source`, et pour la relecture rubriques et textes balisés des deux entrées |
 
 ## Conventions communes à tous les scripts
 
