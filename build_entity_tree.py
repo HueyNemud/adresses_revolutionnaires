@@ -1,8 +1,17 @@
-"""Fusionne les prédictions CRF par entités logiques depuis un CSV.
+"""Reconstitue les entités logiques et l'arbre des titres depuis un CSV de
+lignes annotées.
 
 Script conçu pour traiter les sorties de annotate_lines_crf.py (par ex.
-bpt6k62915570-114_326-ocr.lines.annotated.csv), en reconstituant trois types
-d'entités finales à partir des classes ligne par ligne :
+bpt6k62915570-114_326-ocr.lines.annotated.csv). Il a deux rôles :
+
+1. fusionner les lignes en entités (règles ci-dessous) et leur donner un
+   identifiant stable (`uuid`) ;
+2. rattacher chaque TITLE et chaque ENTRY à son titre parent
+   (`parent_uuid`), pour reconstituer la hiérarchie des titres et compter
+   les entrées par titre.
+
+Trois types d'entités finales sont reconstitués à partir des classes ligne
+par ligne :
 
 - ENTRY  : une B-ENTRY, suivie de ses éventuelles I-ENTRY et SUB-ENTRY.
 - TITLE  : une B-TITLE, suivie de ses éventuelles I-TITLE.
@@ -25,10 +34,11 @@ qu'aucune nouvelle racine (B-ENTRY / B-TITLE) n'apparaît. L'ensemble des
 entités créées est conservé dans une liste ordonnée pour préserver l'ordre
 d'apparition original de chaque entité racine.
 
-Un rapport d'analyse (.txt, à côté du CSV de sortie) recense les comptages
-et les deux familles de problèmes détectés : les lignes de continuation
-sans ancre valable, et les entrées qui rompent l'ordre alphabétique (réinit-
-ialisé à chaque nouveau TITLE).
+Un rapport d'analyse (.txt, à côté du CSV de sortie) recense les comptages,
+l'arbre indenté des titres avec le nombre d'entrées directes et récursives
+de chacun, et les familles de problèmes détectés : les lignes de continuation
+sans ancre valable, les titres sans marqueur `#`, et les entrées qui rompent
+l'ordre alphabétique (réinitialisé à chaque nouveau TITLE).
 
 Identifiant d'entité (`uuid`)
 -----------------------------
@@ -40,6 +50,18 @@ seulement si la composition de l'entité change (autres lignes fusionnées),
 ce qui en fait une autre entité. Si plusieurs entités ont la même
 composition (ligne dupliquée à la curation), la deuxième reçoit le suffixe
 `#2`, la troisième `#3`, etc., dans l'ordre du fichier.
+
+Titre parent (`parent_uuid`)
+----------------------------
+Le niveau d'un TITLE est le nombre de `#` en tête de son texte ; un titre
+sans `#` est considéré comme du niveau le plus profond (comme dans
+tools/display_directory.py). En parcourant les entités dans l'ordre du
+document, le parent d'un TITLE est le dernier TITLE de niveau strictement
+inférieur, et le parent d'une ENTRY est le dernier TITLE rencontré. Les
+titres de plus haut niveau, et les entrées qui précèdent tout titre, ont
+pour parent la racine artificielle `ROOT_UUID` (UUID nul), commune à tous
+les documents : l'arbre a ainsi toujours une racine unique. Les lignes
+OUT OF SCOPE n'ont pas de parent (colonne vide).
 """
 
 import argparse
@@ -78,6 +100,12 @@ NORMALIZED_TITLE = "TITLE"
 # identifiants déjà produits.
 ENTITY_ID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "adresses_revolutionnaires/entites")
 
+# Parent des titres de plus haut niveau (et des entrées avant tout titre).
+ROOT_UUID = str(uuid.UUID(int=0))
+
+HEADING_PATTERN = re.compile(r"^\s*(#+)")
+UNMARKED_TITLE_LEVEL = 99  # titre sans `#` : niveau le plus profond
+
 
 @dataclass
 class MergeReport:
@@ -91,6 +119,11 @@ class MergeReport:
     entry_lines_merged: int = 0
     subentry_lines_merged: int = 0
     title_lines_merged: int = 0
+    unmarked_titles: list[str] = field(default_factory=list)
+    # Arbre des titres : titres dans l'ordre du document, (uuid, parent, texte),
+    # et nombre d'ENTRY directes par parent_uuid.
+    titles: list[tuple[str, str, str]] = field(default_factory=list)
+    direct_entries: Counter[str] = field(default_factory=Counter)
     orphan_subentries: list[str] = field(default_factory=list)
     orphan_entry_continuations: list[str] = field(default_factory=list)
     orphan_title_continuations: list[str] = field(default_factory=list)
@@ -98,14 +131,20 @@ class MergeReport:
     alpha_violations: list[tuple[str, str, str, str]] = field(default_factory=list)
 
 
+ALPHA_KEY_WORDS = 2
+ALPHA_KEY_LENGTH = 5
+
+
 def alpha_sort_key(text: str) -> str:
-    """Clé de tri : mots jusqu'à la première virgule ou au premier point,
-    concaténés en majuscules, sans accents, espaces ni ponctuation.
+    """Clé de tri : deux premiers mots de l'entrée avant la première virgule,
+    concaténés en majuscules sans accents et tronqués à 5 caractères
+    (« Le Roux, rue… » → LEROU, « Brunet (J. B.) » → BRUNE, « Adam, Pont-Neuf »
+    → ADAM).
     """
-    segment = re.split(r"[,.]", text, maxsplit=1)[0]
-    normalized = unicodedata.normalize("NFKD", segment)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    return "".join(char for char in ascii_text if char.isalnum()).upper()
+    normalized = unicodedata.normalize("NFKD", text.split(",", 1)[0])
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii").upper()
+    words = re.findall(r"[A-Z0-9]+", ascii_text)
+    return "".join(words[:ALPHA_KEY_WORDS])[:ALPHA_KEY_LENGTH]
 
 
 def document_name(path: Path) -> str:
@@ -122,6 +161,30 @@ def assign_entity_ids(entities: list[dict[str, str]], document: str, uid_col: st
         occurrences[key] += 1
         name = key if occurrences[key] == 1 else f"{key}#{occurrences[key]}"
         entity["uuid"] = str(uuid.uuid5(ENTITY_ID_NAMESPACE, name))
+
+
+def title_level(markdown: str) -> int | None:
+    """Niveau d'un titre : nombre de `#` en tête, None sans `#`."""
+    match = HEADING_PATTERN.match(markdown)
+    return len(match.group(1)) if match else None
+
+
+def assign_parent_ids(entities: list[dict[str, str]]) -> None:
+    """Titre parent de chaque TITLE et ENTRY (voir la docstring du module) ;
+    à appeler après assign_entity_ids."""
+    stack: list[tuple[int, str]] = []  # (niveau, uuid) des titres ouverts
+    for entity in entities:
+        kind = entity.get("entity")
+        if kind == NORMALIZED_TITLE:
+            level = title_level(entity.get("markdown", "")) or UNMARKED_TITLE_LEVEL
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+            entity["parent_uuid"] = stack[-1][1] if stack else ROOT_UUID
+            stack.append((level, entity["uuid"]))
+        elif kind == NORMALIZED_ENTRY:
+            entity["parent_uuid"] = stack[-1][1] if stack else ROOT_UUID
+        else:
+            entity["parent_uuid"] = ""
 
 
 def _new_root(row: dict[str, str], normalized_entity: str) -> dict[str, str]:
@@ -152,8 +215,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Fusionne les lignes ENTRY/TITLE en entités logiques, selon la "
-            "convention BIO d'annotate_lines_crf.py, et produit un rapport "
-            "d'analyse .txt."
+            "convention BIO d'annotate_lines_crf.py, rattache chaque TITLE et "
+            "ENTRY à son titre parent (colonne parent_uuid) et produit un "
+            "rapport d'analyse .txt."
         )
     )
     parser.add_argument(
@@ -196,8 +260,9 @@ def process_csv(
     class_col: str,
     uid_col: str,
 ) -> MergeReport:
-    """Lit le CSV, fusionne les entités ENTRY/TITLE, exporte le résultat et
-    retourne le rapport d'analyse correspondant."""
+    """Lit le CSV, fusionne les entités ENTRY/TITLE, les rattache à leur
+    titre parent, exporte le résultat et retourne le rapport d'analyse
+    correspondant."""
     report = MergeReport()
 
     with input_path.open("r", encoding="utf-8", newline="") as f_in:
@@ -221,9 +286,9 @@ def process_csv(
                 "les identifiants du rapport utiliseront le numéro de ligne lue.[/yellow]"
             )
 
-        output_fieldnames = ["uuid"]
+        output_fieldnames = ["uuid", "parent_uuid"]
         for col in input_fieldnames:
-            if col == "uuid":
+            if col in ("uuid", "parent_uuid"):
                 continue
             output_fieldnames.append(col)
             if col == "markdown":
@@ -308,6 +373,7 @@ def process_csv(
                 all_entities.append(out_row)
 
     assign_entity_ids(all_entities, document_name(input_path), uid_col)
+    assign_parent_ids(all_entities)
     with output_path.open("w", encoding="utf-8", newline="") as f_out:
         writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
         writer.writeheader()
@@ -316,17 +382,57 @@ def process_csv(
             report.rows_written += 1
             if entity_row.get("entity") == NORMALIZED_ENTRY:
                 report.final_entries += 1
+                report.direct_entries[entity_row["parent_uuid"]] += 1
             elif entity_row.get("entity") == NORMALIZED_TITLE:
                 report.final_titles += 1
+                markdown = entity_row.get("markdown", "")
+                report.titles.append((entity_row["uuid"], entity_row["parent_uuid"], markdown))
+                if title_level(markdown) is None:
+                    report.unmarked_titles.append(entity_row.get(uid_col, ""))
             else:
                 report.final_oos += 1
 
     return report
 
 
+TREE_TEXT_LENGTH = 70
+
+
+def format_title_tree(report: MergeReport) -> list[str]:
+    """Arbre indenté des titres, depuis la racine, avec pour chacun le nombre
+    d'ENTRY directes et récursives (sous-arbre compris)."""
+    children: dict[str, list[tuple[str, str]]] = {}
+    for title_id, parent_id, markdown in report.titles:
+        text = " ".join(markdown.replace("*", "").split())
+        if len(text) > TREE_TEXT_LENGTH:
+            text = text[: TREE_TEXT_LENGTH - 1] + "…"
+        children.setdefault(parent_id, []).append((title_id, text))
+
+    totals: dict[str, int] = {}
+
+    def total(node_id: str) -> int:
+        totals[node_id] = report.direct_entries[node_id] + sum(
+            total(child_id) for child_id, _ in children.get(node_id, [])
+        )
+        return totals[node_id]
+
+    total(ROOT_UUID)
+    lines: list[str] = []
+
+    def walk(node_id: str, text: str, depth: int) -> None:
+        lines.append(
+            f"{'  ' * depth}{text} — {totals[node_id]} ({report.direct_entries[node_id]})"
+        )
+        for child_id, child_text in children.get(node_id, []):
+            walk(child_id, child_text, depth + 1)
+
+    walk(ROOT_UUID, "[racine]", 0)
+    return lines
+
+
 def format_report(report: MergeReport, input_path: Path, output_path: Path) -> str:
     lines = [
-        "RAPPORT DE FUSION — merge_annotated_lines.py",
+        "RAPPORT — build_entity_tree.py",
         f"Entrée  : {input_path}",
         f"Sortie  : {output_path}",
         "",
@@ -339,6 +445,18 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
         f"Lignes I-ENTRY fusionnées            : {report.entry_lines_merged}",
         f"Lignes SUB-ENTRY fusionnées          : {report.subentry_lines_merged}",
         f"Lignes I-TITLE fusionnées            : {report.title_lines_merged}",
+        "",
+        "== Hiérarchie des titres ==",
+        "Entrées par titre : total du sous-arbre (directes).",
+        *format_title_tree(report),
+    ]
+    if report.unmarked_titles:
+        lines.append(
+            f"Titres sans marqueur `#` ({len(report.unmarked_titles)}) "
+            "— placés au niveau le plus profond :"
+        )
+        lines.extend(f"  - {uid}" for uid in report.unmarked_titles)
+    lines += [
         "",
         "== Cas problématiques ==",
     ]
@@ -422,9 +540,10 @@ def main() -> None:
         + len(report.orphan_entry_continuations)
         + len(report.orphan_title_continuations)
         + len(report.alpha_violations)
+        + len(report.unmarked_titles)
     )
     console.print(
-        "\n[bold green]✅ Fusion CSV réussie :[/bold green] "
+        "\n[bold green]✅ Entités et arbre des titres :[/bold green] "
         f"[yellow]{output_path}[/yellow] "
         f"({report.rows_read} lignes lues → {report.rows_written} lignes écrites)"
     )

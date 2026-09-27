@@ -32,7 +32,7 @@ flowchart TD
     B -->|"extract_chandra_lines.py"| C["Pages + blocs + lignes Markdown<br/><code>&lt;entrée&gt;.chandra.json</code>"]
     C -->|"annotate_lines_crf.py<br/>(annotation interactive, CRF)"| D["JSON annoté<br/><code>predictions_crf.json</code><br/>+ session <code>.crf-session.json</code>"]
     D -->|"export_lines_csv.py"| E["CSV une ligne = une ligne Markdown<br/><code>&lt;entrée&gt;.csv</code>"]
-    E -->|"merge_annotated_lines.py"| F["CSV d'entités fusionnées<br/><code>&lt;entrée&gt;.merged.csv</code><br/>+ <code>&lt;entrée&gt;.merged.report.txt</code>"]
+    E -->|"build_entity_tree.py"| F["CSV d'entités fusionnées<br/>+ titre parent de chacune<br/><code>&lt;entrée&gt;.merged.csv</code><br/>+ <code>&lt;entrée&gt;.merged.report.txt</code>"]
     F -->|"infer_gliner.py<br/>(modèle GLiNER)"| H["CSV NER<br/><code>&lt;entrée&gt;.merged.ner.csv</code><br/>(tagged_text, ner_suspect)"]
     H -.->|"relecture des entrées suspectes"| H2["<code>&lt;entrée&gt;.merged.ner.curated.csv</code>"]
 
@@ -146,13 +146,14 @@ python export_lines_csv.py predictions_crf.json
   `prediction`/`provenance`/`probability`/`timestamp` sont simplement
   vides — utile pour une inspection rapide sans annoter.
 
-## Étape 4 — Reconstitution des entités : `merge_annotated_lines.py`
+## Étape 4 — Entités et arbre des titres : `build_entity_tree.py`
 
 Recompose les entités logiques (une entrée d'annuaire, un titre de section)
-à partir des classes ligne par ligne, et produit un rapport d'analyse.
+à partir des classes ligne par ligne, rattache chaque titre et chaque
+entrée à son titre parent, et produit un rapport d'analyse.
 
 ```
-python merge_annotated_lines.py mon_annuaire.csv
+python build_entity_tree.py mon_annuaire.csv
 ```
 
 - **Entrée :** le CSV annoté de l'étape 3 (doit contenir une colonne
@@ -160,9 +161,32 @@ python merge_annotated_lines.py mon_annuaire.csv
 - **Sorties :**
   - `<entrée>.merged.csv` — une ligne par entité finale : `ENTRY`, `TITLE`
     ou `OUT OF SCOPE` (ou toute classe non reconnue, recopiée telle
-    quelle) ;
-  - `<entrée>.merged.report.txt` — comptages et cas à vérifier
-    manuellement.
+    quelle), avec son identifiant `uuid` et celui de son titre parent
+    `parent_uuid` ;
+  - `<entrée>.merged.report.txt` — comptages, arbre indenté des titres
+    avec pour chacun le nombre d'entrées de son sous-arbre et d'entrées
+    directes, et cas à vérifier manuellement.
+
+Identifiants :
+
+- `uuid` est déterministe : il dépend du nom du document et des `uid` des
+  lignes qui composent l'entité, jamais de son texte ; il survit donc aux
+  corrections de texte et ne change que si l'entité est composée d'autres
+  lignes.
+- `parent_uuid` est l'`uuid` du titre dont dépend l'entité. Le niveau d'un
+  titre est son nombre de `#` ; le parent d'un `TITLE` est le dernier titre
+  de niveau strictement inférieur qui le précède, celui d'une `ENTRY` le
+  dernier titre qui la précède. Les titres de plus haut niveau (et les
+  entrées placées avant tout titre) ont pour parent la racine artificielle
+  `00000000-0000-0000-0000-000000000000`, commune à tous les documents :
+  l'arbre a toujours une racine unique. Les lignes `OUT OF SCOPE` n'ont pas
+  de parent. Un titre sans `#` est placé au niveau le plus profond et
+  signalé dans le rapport.
+
+Le rapport donne déjà les comptes par titre ; pour les recalculer depuis
+le CSV, grouper les `ENTRY` par `parent_uuid` (entrées directes), puis
+cumuler en remontant les `parent_uuid` des titres (entrées de tout le
+sous-arbre).
 
 Règles de fusion (deux « pistes » indépendantes, ENTRY et TITLE, qui
 restent ouvertes tant qu'aucune nouvelle racine `B-ENTRY`/`B-TITLE`
@@ -340,7 +364,7 @@ uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
   recommandations, analyses détaillées), des tables CSV (expériences, classes,
   statistiques de features, poids du modèle, erreurs) et `resume.json`.
 - **Contenu du rapport :** performances par classe et par entité (règles de
-  `merge_annotated_lines.py`) selon deux validations croisées
+  `build_entity_tree.py`) selon deux validations croisées
   (intra-document, par blocs de pages contiguës ; inter-volumes) ;
   calibration des probabilités ; information mutuelle, constance et
   redondance des attributs ; ablations groupe par groupe et groupe seul,
@@ -363,8 +387,8 @@ l'évalue automatiquement sans changer le comportement de l'annotateur.
 
 | Fichier | Produit par | Contenu |
 |---|---|---|
-| `<entrée>.merged.csv` | `merge_annotated_lines.py` | Une ligne par entité : `ENTRY`, `TITLE` ou `OUT OF SCOPE`, avec texte fusionné et provenance (uid, page, etc. concaténés) |
-| `<entrée>.merged.report.txt` | `merge_annotated_lines.py` | Comptages (entités finales, lignes fusionnées) et listes de cas à vérifier (ancres manquantes, ordre alphabétique) |
+| `<entrée>.merged.csv` | `build_entity_tree.py` | Une ligne par entité : `ENTRY`, `TITLE` ou `OUT OF SCOPE`, avec `uuid`, titre parent `parent_uuid`, texte fusionné et provenance (uid, page, etc. concaténés) |
+| `<entrée>.merged.report.txt` | `build_entity_tree.py` | Comptages (entités finales, lignes fusionnées), arbre des titres avec entrées directes et récursives et listes de cas à vérifier (ancres manquantes, titres sans `#`, ordre alphabétique) |
 | `<entrée>.merged.ner.csv` | `infer_gliner.py` | Le CSV fusionné, avec pour chaque ENTRY le texte balisé `tagged_text` (SUBJ/DESC/ADDR), les comptes d'empans, `ner_confidence` et les motifs de relecture `ner_suspect` |
 | `<entrée>.merged.ner.curated.csv` | relecture manuelle | Le même, corrigé |
 

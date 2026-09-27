@@ -497,7 +497,7 @@ def performance_section(report: Report, ctx: Context) -> dict:
         "F1 des classes présentes, très sensible aux classes rares (I-TITLE, SUB-ENTRY : quelques dizaines de "
         f"lignes) ; `macro-F1 fréq.` : même moyenne restreinte aux classes d'au moins {FREQUENT_CLASS_MIN_SUPPORT} lignes "
         f"({', '.join(ctx.stats[ctx.protocols[0]].frequent_classes)}), plus stable. `F1 ENTRY` / `F1 TITLE` : F1 au "
-        "niveau des entités reconstituées selon les règles de merge_annotated_lines.py (une entité est juste si "
+        "niveau des entités reconstituées selon les règles de build_entity_tree.py (une entité est juste si "
         "elle regroupe exactement les mêmes lignes) — la métrique la plus proche du livrable.",
     )
     csv_rows = []

@@ -1,5 +1,5 @@
 """Exécute un modèle GLiNER-bi entraîné (train_gliner.py) sur les lignes
-ENTRY d'un CSV fusionné (merge_annotated_lines.py), et ajoute au CSV le
+ENTRY d'un CSV fusionné (build_entity_tree.py), et ajoute au CSV le
 rendu balisé des empans détectés (SUBJ/DESC/ADDR) ainsi que leurs comptes.
 
 Colonnes ajoutées (insérées juste après la colonne `entity`) :
@@ -139,7 +139,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "input_csv",
         type=Path,
-        help="CSV fusionné (sortie de merge_annotated_lines.py).",
+        help="CSV fusionné (sortie de build_entity_tree.py).",
     )
     parser.add_argument(
         "--model",

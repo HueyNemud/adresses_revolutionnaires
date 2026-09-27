@@ -404,7 +404,7 @@ def accuracy(confusion: np.ndarray) -> np.ndarray:
 
 
 # ----------------------------------------------------------------------
-# Métriques par entité (règles de merge_annotated_lines.py)
+# Métriques par entité (règles de build_entity_tree.py)
 # ----------------------------------------------------------------------
 ENTITY_TYPES = ("ENTRY", "TITLE")
 _ROOT = {AnnotationLabel.BENTRY.value: "ENTRY", AnnotationLabel.BTITLE.value: "TITLE"}
@@ -416,7 +416,7 @@ _CONTINUATION = {
 
 
 def group_entities(labels: Sequence[str | None]) -> list[tuple[str, tuple[int, ...]]]:
-    """Reconstitue les entités comme merge_annotated_lines.py : deux pistes
+    """Reconstitue les entités comme build_entity_tree.py : deux pistes
     indépendantes (ENTRY, TITLE) ouvertes jusqu'à la racine suivante de leur
     type ; une continuation orpheline devient une nouvelle racine ; les
     autres classes (et les lignes None) sont ignorées."""

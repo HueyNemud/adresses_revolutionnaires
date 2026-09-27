@@ -37,8 +37,8 @@ uv run export_lines_csv.py "${PREFIX}.ocr.lines.annotated.json" \
     -o "${PREFIX}.ocr.lines.annotated.csv"
 
 # 4. Fusion des blocs
-echo "--> [4/4] Fusion des lignes..."
-uv run merge_annotated_lines.py "${PREFIX}.ocr.lines.annotated.csv" \
+echo "--> [4/4] Entités et arbre des titres..."
+uv run build_entity_tree.py "${PREFIX}.ocr.lines.annotated.csv" \
     -o "${PREFIX}.ocr.lines.annotated.merged.csv"
 
 echo "=== Pipeline terminé pour ${BASE_NAME} ==="
