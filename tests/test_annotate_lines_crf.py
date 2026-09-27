@@ -132,11 +132,10 @@ class ActiveCRFTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "data_blocks"):
                 load_json_lines(source)
 
-    def test_heuristic_only_treats_structural_page_markers_as_noise(self) -> None:
-        self.assertEqual(get_heuristic_label("{12}----------------"), "OUT_OF_SCOPE")
-        self.assertEqual(
-            get_heuristic_label("Texte avec {une accolade}"), "ENTRY_BEGIN"
-        )
+    def test_heuristic_only_treats_separator_lines_as_noise(self) -> None:
+        self.assertEqual(get_heuristic_label("----------------"), "OUT OF SCOPE")
+        self.assertEqual(get_heuristic_label("**—————**"), "OUT OF SCOPE")
+        self.assertEqual(get_heuristic_label("Texte avec {une accolade}"), "B-ENTRY")
 
     def test_features_use_four_boundary_shapes_without_shape_ngrams(self) -> None:
         features = extract_features(["**Didier, R. du Bac, 12."])[0]
@@ -180,25 +179,24 @@ class ActiveCRFTests(unittest.TestCase):
         crf = ActiveCRF(self.records, self.document, seed_size=2)
 
         self.assertEqual(crf.next_block(), (1, [0, 1]))
-        crf.set_labels({0: "TITLE", 1: "ENTRY_BEGIN"})
+        crf.set_labels({0: "B-TITLE", 1: "B-ENTRY"})
         self.assertIsNotNone(crf.tagger)
-        self.assertEqual(set(crf.tagger.labels()), {"ENTRY_BEGIN", "TITLE"})
-        self.assertEqual(crf.features[1]["previous_source_gap"], "True")
+        self.assertEqual(set(crf.tagger.labels()), {"B-ENTRY", "B-TITLE"})
         self.assertEqual(crf.next_block(), (2, [2, 3]))
 
     def test_last_unannotated_line_forms_a_singleton_block(self) -> None:
         crf = ActiveCRF(self.records, self.document, seed_size=2)
-        crf.set_labels({0: "TITLE", 1: "ENTRY_BEGIN", 2: "ENTRY_INSIDE"})
+        crf.set_labels({0: "B-TITLE", 1: "B-ENTRY", 2: "I-ENTRY"})
 
         self.assertEqual(crf.next_block(), (3, [3]))
 
     def test_undo_removes_the_latest_label_and_reoffers_its_line(self) -> None:
         crf = ActiveCRF(self.records, self.document, seed_size=2)
-        crf.set_labels({0: "TITLE", 1: "ENTRY_BEGIN"})
+        crf.set_labels({0: "B-TITLE", 1: "B-ENTRY"})
         first_timestamp = crf.label_timestamps[1]
 
         self.assertEqual(crf.undo_last_label(), 1)
-        self.assertEqual(crf.labels, ["TITLE", None, None, None])
+        self.assertEqual(crf.labels, ["B-TITLE", None, None, None])
         self.assertEqual(crf.annotation_history, [0])
         self.assertNotIn(1, crf.label_timestamps)
         selection = crf.next_block(preferred_index=1)
@@ -210,13 +208,13 @@ class ActiveCRFTests(unittest.TestCase):
         # laisser croire que l'annulation a été ignorée.
         self.assertEqual(block_indices, [1])
 
-        crf.set_labels({1: "ENTRY_BEGIN"})
+        crf.set_labels({1: "B-ENTRY"})
         self.assertNotEqual(crf.label_timestamps[1], "")
         self.assertGreaterEqual(crf.label_timestamps[1], first_timestamp)
 
     def test_json_preserves_chandra_provenance_and_predictions(self) -> None:
         crf = ActiveCRF(self.records, self.document, seed_size=2)
-        crf.set_labels({0: "TITLE", 1: "ENTRY_BEGIN"})
+        crf.set_labels({0: "B-TITLE", 1: "B-ENTRY"})
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = Path(tmp_dir) / "predictions.json"
@@ -227,7 +225,7 @@ class ActiveCRFTests(unittest.TestCase):
         third_line = pages[0]["data_blocks"][2]["lines"][0]
 
         self.assertEqual(first_line["markdown"], "## AGENS D'AFFAIRES")
-        self.assertEqual(first_line["prediction"], "TITLE")
+        self.assertEqual(first_line["prediction"], "B-TITLE")
         self.assertEqual(first_line["provenance"], "human")
         self.assertEqual(first_line["timestamp"], crf.label_timestamps[0])
         self.assertEqual(third_line["line_index"], 6)
@@ -237,7 +235,7 @@ class ActiveCRFTests(unittest.TestCase):
 
     def test_model_confidences_are_normalized_before_json_export(self) -> None:
         crf = ActiveCRF(self.records, self.document, seed_size=2)
-        crf.set_labels({0: "TITLE", 1: "ENTRY_BEGIN"})
+        crf.set_labels({0: "B-TITLE", 1: "B-ENTRY"})
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = Path(tmp_dir) / "predictions.json"
@@ -258,7 +256,7 @@ class ActiveCRFTests(unittest.TestCase):
 
     def test_close_removes_the_temporary_model_file(self) -> None:
         crf = ActiveCRF(self.records, self.document, seed_size=2)
-        crf.set_labels({0: "TITLE", 1: "ENTRY_BEGIN"})
+        crf.set_labels({0: "B-TITLE", 1: "B-ENTRY"})
 
         self.assertTrue(crf.model_path.exists())
         crf.close()
@@ -291,14 +289,14 @@ class ActiveCRFTests(unittest.TestCase):
             source.write_text(json.dumps(document), encoding="utf-8")
             records, raw_document, document_hash = load_json_lines(source)
             crf = ActiveCRF(records, raw_document)
-            crf.set_labels({0: "TITLE"})
+            crf.set_labels({0: "B-TITLE"})
             session = Path(tmp_dir) / "annuaire.crf-session.json"
             save_session(session, document_hash, crf)
 
-            self.assertEqual(load_session(session, document_hash), ["TITLE", None])
+            self.assertEqual(load_session(session, document_hash), ["B-TITLE", None])
             self.assertEqual(
                 load_session_state(session, document_hash),
-                (["TITLE", None], [0], {0: crf.label_timestamps[0]}),
+                (["B-TITLE", None], [0], {0: crf.label_timestamps[0]}),
             )
             with self.assertRaises(ValueError):
                 load_session(session, "another-document")

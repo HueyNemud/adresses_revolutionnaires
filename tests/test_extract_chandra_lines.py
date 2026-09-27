@@ -79,7 +79,7 @@ class ExtractChandraLinesTests(unittest.TestCase):
         self.assertEqual(markdown_lines, expected_lines)
         self.assertTrue(any("|" in line for line in markdown_lines))
 
-    def test_no_tables_explodes_cells_in_logical_reading_order(self) -> None:
+    def test_no_tables_explodes_cells_and_their_lines_in_reading_order(self) -> None:
         pages = self.export_pages(no_tables=True)
         table_block = next(
             block for block in pages[0]["data_blocks"] if block["label"] == "Table"
@@ -87,10 +87,11 @@ class ExtractChandraLinesTests(unittest.TestCase):
 
         self.assertEqual(
             [line["markdown"] for line in table_block["lines"]],
-            ["En-tête", "**Gauche**", "Bas gauche", "Bas droite"],
+            # `Bas<br/>droite` : chaque ligne d'une cellule devient une ligne.
+            ["En-tête", "**Gauche**", "Bas gauche", "Bas", "droite"],
         )
         self.assertEqual(
-            [line["line_index"] for line in table_block["lines"]], [0, 1, 2, 3]
+            [line["line_index"] for line in table_block["lines"]], [0, 1, 2, 3, 4]
         )
         self.assertTrue(
             all("|" not in line["markdown"] for line in table_block["lines"])
@@ -107,7 +108,8 @@ class ExtractChandraLinesTests(unittest.TestCase):
                 "En-tête",
                 "**Gauche**",
                 "Bas gauche",
-                "Bas droite",
+                "Bas",
+                "droite",
                 "Après",
             ],
         )

@@ -24,7 +24,7 @@ uv run tools/sample_ner_gold.py                            # (once) stratified N
 uv run audit_ner.py [--model DIR] [--sweep]                # NER audit on the reviewed gold → rapports/audit_ner/
 ```
 
-Tests import the top-level scripts as modules, so run them from the repo root. As of this writing several tests in `test_annotate_lines_crf.py` and `test_extract_chandra_lines.py` are stale (they expect older class names such as `TITLE`/`OUT_OF_SCOPE` and older `--notables` cell ordering) and fail.
+Tests import the top-level scripts as modules, so run them from the repo root.
 
 ## Architecture
 
