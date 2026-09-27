@@ -339,15 +339,6 @@ relecture), `gliner.py` (chargement et prédiction). Outils statistiques et
 mise en forme des rapports partagés avec l'audit CRF : `lib/stats.py`,
 `lib/reporting.py`.
 
-### Pré-annotation par LLM (facultative) : `autoclassify_labelstudio.py`
-
-Pré-annote les entrées d'un CSV (colonne `markdown`) avec un modèle Ollama
-local, en sortie structurée (schéma Pydantic), et écrit des prédictions
-Label Studio (`<entrée>.ls-annotations.json`). Coûteux sur des milliers
-d'entrées : réservé à l'amorçage d'un nouveau type d'annuaire. Une entrée
-dont le modèle altère le texte est journalisée en échec, jamais placée de
-travers.
-
 ## Étape 6 — Alignement entre deux éditions : `align_directories.py`
 
 ```bash
@@ -502,6 +493,17 @@ l'évalue automatiquement sans changer le comportement de l'annotateur.
   pour les échecs attendus).
 - Vérification de l'existence des fichiers d'entrée avant tout traitement ;
   gestion d'erreurs typée plutôt que des `except Exception` génériques
-  (à l'exception assumée du traitement par lot LLM dans `autoclassify_labelstudio.py`,
-  où l'objectif est la résilience du lot face à des pannes réseau/modèle
-  imprévisibles).
+  (à l'exception assumée de l'inférence GLiNER par lots, `lib/ner/gliner.py`,
+  où l'objectif est la résilience du lot face à des erreurs imprévisibles
+  côté torch).
+
+## Scripts retirés
+
+`main.py` (script ponctuel ancien, noms de fichiers en dur) et
+`autoclassify_labelstudio.py` (pré-annotation NER par LLM via Ollama,
+remplacée par GLiNER) ont été supprimés. Le tag git `avant-menage` désigne
+le dernier commit qui les contient :
+
+```bash
+git show avant-menage:autoclassify_labelstudio.py
+```

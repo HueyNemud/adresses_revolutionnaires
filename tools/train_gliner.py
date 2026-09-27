@@ -64,6 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from rich.console import Console
 
+from lib.ner.corpus import ls_texts
 from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig
 from lib.ner.spans import (
     Span,
@@ -233,7 +234,7 @@ def convert_task(
 def gold_texts(path: Path | None) -> set[str]:
     if path is None or not path.exists():
         return set()
-    return {normalize_markdown(task["data"]["text"]).text for task in json.loads(path.read_text(encoding="utf-8"))}
+    return ls_texts(path)
 
 
 def load_examples(

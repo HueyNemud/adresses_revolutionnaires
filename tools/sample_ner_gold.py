@@ -24,7 +24,7 @@ porte son poids `weight` = effectif de la strate / taille tirée, qui rend
 les métriques de `audit_ner.py` représentatives du corpus entier.
 
 Découpage figé `dev` / `test` par page (≈ `--dev-share` des pages en dev) :
-`dev` sert aux réglages (seuil, prompt LLM, exemples few-shot), `test` à la
+`dev` sert aux réglages (seuil, choix de modèle…), `test` à la
 décision finale uniquement.
 
 Pré-annotation : sortie du modèle corrigée à la main quand elle existe,
@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 from rich.console import Console
 from rich.table import Table
 
-from lib.ner.corpus import Entry, iter_corpus
+from lib.ner.corpus import Entry, iter_corpus, ls_texts
 from lib.ner.shapes import shape_profile
 from lib.ner.spans import canonical_spans, ls_result, normalize_markdown, signature
 
@@ -65,9 +65,7 @@ def excluded_texts(paths: list[Path]) -> set[str]:
     texts: set[str] = set()
     for path in paths:
         if path.suffix == ".json":
-            for task in json.loads(path.read_text(encoding="utf-8")):
-                data = task.get("data", {})
-                texts.add(normalize_markdown(data.get("markdown") or data.get("text", "")).text)
+            texts |= ls_texts(path)
         elif path.suffix == ".csv":
             with path.open(encoding="utf-8", newline="") as handle:
                 texts.update(normalize_markdown(row.get("markdown", "")).text for row in csv.DictReader(handle))

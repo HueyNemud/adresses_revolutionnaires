@@ -132,11 +132,6 @@ def entry_from_records(left: Record | None, right: Record | None, note: str = ""
     return PatchEntry(**values)
 
 
-def without_uuids(entries: list[PatchEntry], left_uuids: set[str], right_uuids: set[str]) -> list[PatchEntry]:
-    """Retire les lignes qui touchent l'un de ces uuid (avant d'en ajouter une nouvelle)."""
-    return [entry for entry in entries if entry.left_uuid not in left_uuids and entry.right_uuid not in right_uuids]
-
-
 # ----------------------------------------------------------------------
 # Réancrage
 # ----------------------------------------------------------------------

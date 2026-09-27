@@ -18,6 +18,7 @@ avant l'identifiant déterministe portent des `uuid` aléatoires.
 """
 
 import csv
+import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -111,6 +112,17 @@ def load_document(merged_path: Path) -> list[Entry]:
                 entry.annotations[name] = spans_from_tagged(tagged[row["uid"]], raw_text, normalized)
         entries.append(entry)
     return entries
+
+
+def ls_texts(path: Path) -> set[str]:
+    """Textes normalisés des tâches d'un JSON Label Studio (gold, jeu
+    d'entraînement) : sert à exclure ces textes d'un autre jeu. La
+    comparaison se fait sur le texte, les uid n'étant pas comparables d'un
+    fichier à l'autre."""
+    tasks = json.loads(path.read_text(encoding="utf-8"))
+    texts = {normalize_markdown(task.get("data", {}).get("markdown") or task.get("data", {}).get("text", "")).text for task in tasks}
+    texts.discard("")
+    return texts
 
 
 def iter_corpus(root: Path) -> Iterator[Entry]:

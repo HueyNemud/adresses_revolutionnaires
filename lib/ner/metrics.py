@@ -30,7 +30,6 @@ import numpy as np
 from lib.stats import bootstrap_weights, interval, resample
 from lib.ner.spans import LABELS, Span, canonical_spans, signature, tokenize_with_offsets
 
-TOKEN_CLASSES = ("O", *LABELS)
 ALNUM = re.compile(r"\w")
 
 # Colonnes du vecteur par entrée : exact, (tp, fp, fn) × classe, tokens corrects, tokens.

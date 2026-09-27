@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from rich.console import Console
 
-from lib.ner.corpus import iter_corpus
+from lib.ner.corpus import iter_corpus, ls_texts
 from lib.ner.spans import Span, ls_result, signature
 
 console = Console()
@@ -60,7 +60,7 @@ def gold_texts(path: Path) -> set[str]:
     if not path.exists():
         console.print(f"[yellow]⚠ gold '{path}' introuvable : aucune exclusion.[/yellow]")
         return set()
-    return {task["data"]["text"] for task in json.loads(path.read_text(encoding="utf-8"))}
+    return ls_texts(path)
 
 
 def corpus_candidates(root: Path) -> list[Candidate]:

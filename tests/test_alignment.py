@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lib.alignment import clean_title, curated_csv, dedupe_records, load_volume, range_dirs, subject_text, volume_of
+from lib.alignment import clean_title, curated_csv, dedupe_records, load_volume, range_dirs, subject_text
 from lib.ner.corpus import CURATED_NER_SUFFIX
 
 FIELDS = ["uuid", "parent_uuid", "entity", "markdown", "tagged_text", "page_index"]
@@ -82,7 +82,6 @@ class LoadVolumeTests(unittest.TestCase):
         self.assertEqual(records[1].text, "Dupont, rue A.")
         self.assertEqual(records[1].subj, "Dupont")
         self.assertEqual(records[1].page, "3")
-        self.assertEqual(volume_of(records[2].document), "1807_TEST")
 
     def test_dedupe_records(self):
         data = dedupe_records(load_volume(self.volume))

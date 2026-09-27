@@ -9,7 +9,7 @@ Systèmes évalués (au moins un) :
 - `--model DOSSIER` : un modèle GLiNER, exécuté sur place (CPU : quelques
   secondes pour quelques centaines d'entrées) ; `--sweep` balaie le seuil ;
 - `--predictions NOM=FICHIER` : des prédictions déjà calculées, JSON Label
-  Studio (ex. sortie de `autoclassify_labelstudio.py`) ou CSV à colonne
+  Studio (prédictions ou annotations) ou CSV à colonne
   `tagged_text` (sortie de `infer_gliner.py`), appariées au gold par texte
   normalisé.
 

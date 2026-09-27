@@ -26,9 +26,9 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
-from build_entity_tree import title_level
 from lib.ner.corpus import CURATED_NER_SUFFIX
 from lib.ner.spans import normalize_markdown, parse_tagged_text, project_spans
+from lib.titles import title_level, title_text
 
 RANGE_PATTERN = re.compile(r"^(\d+)-(\d+)$")
 SECTION_LEVELS = (2, 1)  # niveau de titre préféré pour la rubrique, puis repli
@@ -63,11 +63,6 @@ def curated_csv(range_dir: Path) -> Path:
     return path
 
 
-def volume_of(document: str) -> str:
-    """Nom du dossier du volume d'après le nom d'un fichier de plage."""
-    return document.split(".", 1)[0]
-
-
 def clean_text(text: str) -> str:
     return " ".join(text.split())
 
@@ -94,11 +89,6 @@ def subject_text(tagged_text: str) -> str:
     normalized = normalize_markdown(text)
     subjects = [span for span in project_spans(spans, normalized) if span.label == "SUBJ"]
     return clean_text(" ".join(normalized.text[span.start : span.end] for span in subjects))
-
-
-def readable_title(markdown: str) -> str:
-    """Titre sans `#` ni emphase, blancs réduits : « ##\xa0**BAIGNEURS.** » → « BAIGNEURS. »."""
-    return clean_text(normalize_markdown(markdown.lstrip().lstrip("#")).text)
 
 
 def section_of(parent_uuid: str, titles: dict[str, tuple[str, str]]) -> str:
@@ -137,7 +127,7 @@ def load_document(path: Path, start: int = 0) -> list[Record]:
                 order=start + len(records),
                 page=row.get("page_index", "").split(",")[0],
                 section=clean_title(section),
-                section_title=readable_title(section),
+                section_title=title_text(section),
                 subj=subject_text(row.get("tagged_text", "")),
                 text=text,
                 markdown=row.get("markdown", ""),

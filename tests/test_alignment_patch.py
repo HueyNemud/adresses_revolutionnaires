@@ -2,7 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lib.alignment import SOURCE_DEDUPE, SOURCE_MANUAL, Link, Record, clean_text, clean_title, readable_title
+from lib.alignment import SOURCE_DEDUPE, SOURCE_MANUAL, Link, Record, clean_text, clean_title
+from lib.titles import title_text
 from lib.alignment_patch import (
     PatchEntry,
     anchor_key,
@@ -12,7 +13,6 @@ from lib.alignment_patch import (
     resolve,
     updated_patch,
     validate,
-    without_uuids,
     write_patch,
 )
 
@@ -24,7 +24,7 @@ def record(uuid: str, markdown: str, title: str = "## AGENS DE CHANGE.", documen
         order=order,
         page="1",
         section=clean_title(title),
-        section_title=readable_title(title),
+        section_title=title_text(title),
         subj="",
         text=clean_text(markdown),
         markdown=markdown,
@@ -124,10 +124,6 @@ class EditingTests(unittest.TestCase):
             write_patch(path, entries)
             self.assertEqual(read_patch(path), entries)
             self.assertEqual(read_patch(Path(tmp) / "absent.csv"), [])
-
-    def test_without_uuids(self):
-        entries = [PatchEntry(left_uuid="a", right_uuid="x"), PatchEntry(right_uuid="y"), PatchEntry(left_uuid="b")]
-        self.assertEqual(without_uuids(entries, {"a"}, {"y"}), [PatchEntry(left_uuid="b")])
 
 
 if __name__ == "__main__":

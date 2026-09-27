@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 from lib.ner.html import DEFAULT_COLORS, LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.ner.spans import parse_tagged_text, signature
 from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, suspicion_reasons
+from lib.titles import title_level as lib_title_level, title_text
 
 ANNUAIRES_DIR = Path("annuaires")
 NER_SUFFIXES = (".merged.ner.csv", ".merged.ner.curated.csv")
@@ -48,7 +49,6 @@ ENTITY_COLORS = {
     "TITLE": ("#fce7f3", "#9d174d"),
     "OUT OF SCOPE": ("#f1f5f9", "#64748b"),
 }
-HEADING_PATTERN = re.compile(r"^\s*(#+)[\s ]*")
 
 TABLE_CSS = """
   .legend span { margin-right: 10px; }
@@ -70,10 +70,7 @@ CSS = f"<style>{TABLE_CSS}{SPAN_CSS}</style>"
 # ----------------------------------------------------------------------
 def title_level(markdown: str) -> tuple[int, str]:
     """Niveau d'un titre (nombre de `#`, 9 sans `#`) et son texte nettoyé."""
-    match = HEADING_PATTERN.match(markdown)
-    level = len(match.group(1)) if match else 9
-    text = markdown[match.end() :] if match else markdown
-    return level, " ".join(text.replace("*", "").split())
+    return lib_title_level(markdown) or 9, title_text(markdown)
 
 
 def section_paths(entities: pd.Series, markdown: pd.Series) -> list[str]:

@@ -75,6 +75,8 @@ from pathlib import Path
 
 from rich.console import Console
 
+from lib.titles import title_level
+
 console = Console()
 
 LABEL_BEGIN_ENTRY = "B-ENTRY"
@@ -103,7 +105,6 @@ ENTITY_ID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "adresses_revolutionnaires/
 # Parent des titres de plus haut niveau (et des entrées avant tout titre).
 ROOT_UUID = str(uuid.UUID(int=0))
 
-HEADING_PATTERN = re.compile(r"^\s*(#+)")
 UNMARKED_TITLE_LEVEL = 99  # titre sans `#` : niveau le plus profond
 
 
@@ -161,12 +162,6 @@ def assign_entity_ids(entities: list[dict[str, str]], document: str, uid_col: st
         occurrences[key] += 1
         name = key if occurrences[key] == 1 else f"{key}#{occurrences[key]}"
         entity["uuid"] = str(uuid.uuid5(ENTITY_ID_NAMESPACE, name))
-
-
-def title_level(markdown: str) -> int | None:
-    """Niveau d'un titre : nombre de `#` en tête, None sans `#`."""
-    match = HEADING_PATTERN.match(markdown)
-    return len(match.group(1)) if match else None
 
 
 def assign_parent_ids(entities: list[dict[str, str]]) -> None:
