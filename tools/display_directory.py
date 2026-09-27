@@ -32,6 +32,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ depuis tools/
 
+from lib.ner.html import DEFAULT_COLORS, LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.ner.spans import parse_tagged_text, signature
 from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, suspicion_reasons
 
@@ -42,21 +43,14 @@ FILE_ORDER = "ordre du fichier"
 SORT_OPTIONS = [FILE_ORDER, "confiance croissante", "page", "signature"]
 NO_SECTION = "(avant le premier titre)"
 
-LABEL_COLORS = {  # fond, texte/bordure
-    "SUBJ": ("#dbeafe", "#1d4ed8"),
-    "DESC": ("#fef3c7", "#a16207"),
-    "ADDR": ("#dcfce7", "#15803d"),
-}
 ENTITY_COLORS = {
     "ENTRY": ("#e0e7ff", "#3730a3"),
     "TITLE": ("#fce7f3", "#9d174d"),
     "OUT OF SCOPE": ("#f1f5f9", "#64748b"),
 }
-DEFAULT_COLORS = ("#f1f5f9", "#475569")
 HEADING_PATTERN = re.compile(r"^\s*(#+)[\s ]*")
 
-CSS = """
-<style>
+TABLE_CSS = """
   .legend span { margin-right: 10px; }
   .table-scroll { max-height: 72vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; }
   .ner-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
@@ -66,47 +60,9 @@ CSS = """
   .ner-table tr:hover td { background: #f8fafc; }
   .ner-table tr.section td { background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.85em; }
   .mono { font-family: monospace; font-size: 0.85em; color: #64748b; }
-  .badge { padding: 1px 7px; border-radius: 4px; font-size: 0.78em; font-weight: 600; white-space: nowrap;
-           display: inline-block; margin: 1px 2px 1px 0; border: 1px solid; }
-  mark.span { padding: 0 3px; border-radius: 3px; border-bottom: 2px solid; }
-  mark.span sub { font-size: 0.62em; margin-left: 2px; }
   .low { color: #b91c1c; font-weight: 600; }
-</style>
 """
-
-
-# ----------------------------------------------------------------------
-# Rendu (fonctions pures, sans Streamlit)
-# ----------------------------------------------------------------------
-def badge(label: str, colors: tuple[str, str] = DEFAULT_COLORS) -> str:
-    background, foreground = colors
-    return (
-        f'<span class="badge" style="background:{background};color:{foreground};border-color:{foreground}">'
-        f"{html.escape(label)}</span>"
-    )
-
-
-def render_tagged_html(tagged_text: str) -> str:
-    """Texte balisé (`<SUBJ>…</SUBJ>`, avec `&lt;`/`&gt;` pour les chevrons
-    du texte) → HTML surligné par classe. Un balisage invalide est affiché
-    tel quel, précédé d'un avertissement."""
-    if not tagged_text:
-        return ""
-    try:
-        text, spans = parse_tagged_text(tagged_text)
-    except ValueError:
-        return badge("balisage invalide", ("#fee2e2", "#b91c1c")) + html.escape(tagged_text)
-    pieces, cursor = [], 0
-    for span in sorted(spans, key=lambda s: s.start):
-        background, foreground = LABEL_COLORS.get(span.label, DEFAULT_COLORS)
-        pieces.append(html.escape(text[cursor : span.start]))
-        pieces.append(
-            f'<mark class="span" style="background:{background};border-color:{foreground}" title="{span.label}">'
-            f'{html.escape(text[span.start : span.end])}<sub style="color:{foreground}">{span.label}</sub></mark>'
-        )
-        cursor = span.end
-    pieces.append(html.escape(text[cursor:]))
-    return "".join(pieces)
+CSS = f"<style>{TABLE_CSS}{SPAN_CSS}</style>"
 
 
 # ----------------------------------------------------------------------

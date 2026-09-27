@@ -17,6 +17,8 @@ uv run python -m unittest tests.test_export_lines_csv      # one test module
 uv run python -m unittest tests.test_export_lines_csv.<Class>.<test_name>   # one test
 ./run_pipeline.sh annuaires/<dossier>                      # all steps on the first *.ocr.json in a folder
 uv run streamlit run tools/display_directory.py            # viewer for a volume's final NER CSV (*.merged.ner[.curated].csv)
+uv run align_directories.py annuaires/<A> annuaires/<B> [--label]   # Dedupe alignment of two editions
+uv run streamlit run tools/display_alignment.py            # viewer for an alignment CSV (pairs + unmatched)
 uv run audit_crf_features.py                               # CRF/feature audit on curated CSVs → rapports/audit_crf/
 uv run tools/sample_ner_gold.py                            # (once) stratified NER gold sample → data/ner/gold.ls.json
 uv run audit_ner.py [--model DIR] [--sweep]                # NER audit on the reviewed gold → rapports/audit_ner/
@@ -41,10 +43,13 @@ Each step is a standalone CLI script at the repo root (argparse, `rich` console 
    - `tools/train_gliner.py` — trains a GLiNER-bi model (run on the remote GPU machine) on one or more Label Studio JSON files (converts char spans → whitespace-token spans, auto-computes `max_width`); always on Markdown-normalized text; excludes gold texts, validates on a per-page split; writes `<model>/ner_config.json` (labels).
    - `autoclassify_labelstudio.py` — optional LLM pre-annotation (local Ollama, structured output) of a CSV into Label Studio predictions; offsets found by searching the text, altered entries logged as failures. Too costly for routine use.
 
+6. `align_directories.py` — aligns the ENTRY rows of two **complete** directories with Dedupe `RecordLink` (one-to-one). `lib/alignment.py` loads a volume folder: its page-range subfolders sorted by first page, each read from its own `<volume>.<range>` + `CURATED_NER_SUFFIX` file (missing → error). Fields: `section` (ancestor title of level 2, else 1, via `parent_uuid`, so no inheritance across ranges; accent/punctuation-insensitive key), `subj` (SUBJ spans, Markdown-normalized), `text` (full normalized text); lowercased for Dedupe. Labels come from `dedupe.console_label` on first run or `--label`, saved to `data/alignement/<left>__<right>.training.json` (versioned) and reused. Output `annuaires/alignements/<left>__<right>.csv` (`left_file, left_uuid, right_uuid, right_file, score`, then snapshot columns for hand review: `left_section, right_section` = readable titles `Record.section_title`, `left_tagged_text, right_tagged_text`); unmatched entries are those absent from it. A hand-validated copy `<left>__<right>.curated.csv` is meant as input for later steps: only the id columns are authoritative, `score` may be empty for hand-added pairs (the viewer reads only id columns + score). `tools/display_alignment.py` reloads both volumes from the file names (prefix before the first `.` = volume folder). Dedupe 3.0.3 needs `btrees<6` (BTrees 6 dropped `byValue`); `prepare_training` takes a few minutes on ~17 k × 16 k entries.
+
 **Shared code lives in `lib/`** (scripts at the repo root import it as `lib.…`, so run them from the root):
 - `lib/chandra_document.py` — the pages → `data_blocks` → `lines` JSON shape, validated and iterated in one place (`iter_line_locations`), used by `annotate_lines_crf.py`, `export_lines_csv.py` and the CRF core. Change the schema there.
 - `lib/stats.py` (page bootstrap, intervals, calibration, ROC AUC, review capture) and `lib/reporting.py` (Markdown helpers) are shared by both audits.
-- `lib/ner/` — NER: spans and their representations (`spans.py`), typographic shapes (`shapes.py`), NER CSV reader (`corpus.py`), gold metrics (`metrics.py`), review-priority reasons (`suspicion.py`), model loading/prediction (`gliner.py`).
+- `lib/alignment.py` — volume loading and Dedupe fields for step 6.
+- `lib/ner/` — NER: spans and their representations (`spans.py`), HTML rendering of spans shared by both viewers (`html.py`), typographic shapes (`shapes.py`), NER CSV reader (`corpus.py`), gold metrics (`metrics.py`), review-priority reasons (`suspicion.py`), model loading/prediction (`gliner.py`).
 - `lib/crf/` — CRF core. `features.py` defines named feature groups (`PRODUCTION_GROUPS` = exactly what the annotator uses, computed on Markdown-normalized text via `normalize_line` — emphasis markers, leading `#` and trailing spaces stripped, italic kept as the `italic` bucket feature; `LEGACY_GROUPS` reproduces the pre-v2 production set bit-for-bit for comparison (`production_v1` in the audit); `CANDIDATE_GROUPS` and `PLACEBO_GROUPS` are only evaluated by the audit). `model.py` wraps python-crfsuite training/marginals, `active_learning.py` holds `SourceLine`/`load_json_lines`/`ActiveCRF`; `annotate_lines_crf.py` keeps only the Rich UI, sessions and CLI.
 - Changing production features changes annotator behaviour; to try a feature, add a candidate group and run the audit instead.
 
@@ -54,7 +59,7 @@ Each step is a standalone CLI script at the repo root (argparse, `rich` console 
 
 The line-level BIO classes (steps 2–4) and the span classes `SUBJ/DESC/ADDR` (step 5) are separate label spaces. If you rename a line class, update `build_entity_tree.py` too — unknown classes are treated as out-of-scope and only flagged in the report.
 
-`tools/` holds the NER training and gold tools (`train_gliner.py`, `build_ner_training.py`, `sample_ner_gold.py`) and the result viewer (`display_directory.py`). `main.py` is a legacy one-off script with hardcoded filenames.
+`tools/` holds the NER training and gold tools (`train_gliner.py`, `build_ner_training.py`, `sample_ner_gold.py`) and the result viewers (`display_directory.py`, `display_alignment.py`). `main.py` is a legacy one-off script with hardcoded filenames.
 
 ## Data
 

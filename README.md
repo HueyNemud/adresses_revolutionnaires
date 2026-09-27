@@ -22,7 +22,9 @@ Cette chaîne de traitement transforme un PDF d'annuaire ancien numérisé en un
 
 1. un **CSV d'entrées à l'intérieur d'une hiérarchie de titres**, produit par une annotation CRF ligne par ligne assistée par apprentissage actif ;
 2. le même CSV **segmenté en empans NER** (SUBJ / DESC / ADDR) par un modèle
-   GLiNER, avec les entrées à relire en priorité signalées.
+   GLiNER, avec les entrées à relire en priorité signalées ;
+3. un **CSV de correspondances** entre les entrées de deux éditions d'un
+   annuaire, établi par Dedupe.
 
 ### Vue d'ensemble
 
@@ -35,14 +37,16 @@ flowchart TD
     E -->|"build_entity_tree.py"| F["CSV d'entités fusionnées<br/>+ titre parent de chacune<br/><code>&lt;entrée&gt;.merged.csv</code><br/>+ <code>&lt;entrée&gt;.merged.report.txt</code>"]
     F -->|"infer_gliner.py<br/>(modèle GLiNER)"| H["CSV NER<br/><code>&lt;entrée&gt;.merged.ner.csv</code><br/>(tagged_text, ner_suspect)"]
     H -.->|"relecture des entrées suspectes"| H2["<code>&lt;entrée&gt;.merged.ner.curated.csv</code>"]
+    H2 -->|"align_directories.py<br/>(Dedupe, deux annuaires complets)"| I["CSV de correspondances<br/><code>annuaires/alignements/&lt;gauche&gt;__&lt;droite&gt;.csv</code>"]
 
     C -.->|"export_lines_csv.py<br/>(CSV brut, sans prédiction)"| E2["CSV pré-annotation<br/>(inspection seulement)"]
 
     style F fill:#dfe,stroke:#393
     style H fill:#dfe,stroke:#393
+    style I fill:#dfe,stroke:#393
 ```
 
-Les deux boîtes vertes (`F` et `H`) sont les deux livrables finaux. Tout ce
+Les boîtes vertes (`F`, `H` et `I`) sont les livrables finaux. Tout ce
 qui précède sert à les construire ; `E2` est un chemin secondaire (le même
 `export_lines_csv.py` peut aussi convertir le JSON brut de
 `extract_chandra_lines.py`, avant toute annotation, pour une inspection
@@ -344,6 +348,50 @@ d'entrées : réservé à l'amorçage d'un nouveau type d'annuaire. Une entrée
 dont le modèle altère le texte est journalisée en échec, jamais placée de
 travers.
 
+## Étape 6 — Alignement entre deux éditions : `align_directories.py`
+
+```bash
+uv run align_directories.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292
+uv run align_directories.py <gauche> <droite> --label        # compléter l'étiquetage
+uv run streamlit run tools/display_alignment.py                # explorer le résultat
+```
+
+Détermine quelles entrées se correspondent entre deux éditions d'un annuaire,
+avec [Dedupe](https://github.com/dedupeio/dedupe) (`RecordLink`).
+
+- **Annuaires complets** : chaque dossier de volume est lu en entier
+  (`lib/alignment.py`) : ses sous-dossiers de plages (`7-177`, `179-186`…)
+  dans l'ordre des pages, chacun par son propre
+  `<volume>.<plage>….merged.ner.curated.csv`.
+- **Champs comparés**, sur les ENTRY seulement : la **rubrique** (titre
+  ancêtre `##`, à défaut `#`, selon `parent_uuid` ; sans accents ni
+  ponctuation, en minuscules), le **SUBJ** (texte des empans SUBJ sans
+  Markdown) et le **texte complet** sans Markdown. DESC et ADDR, plus
+  variables d'une édition à l'autre, ne sont présents que dans le texte
+  complet.
+- **Entraînement** : à la première exécution (ou avec `--label`), Dedupe
+  propose des paires à étiqueter en console (`y` / `n` / `u` incertain / `f`
+  terminer). Les paires sont écrites dans
+  `data/alignement/<gauche>__<droite>.training.json` (à versionner) ; les
+  exécutions suivantes le réutilisent sans interaction.
+- **Sortie** : `annuaires/alignements/<gauche>__<droite>.csv`, une ligne par
+  correspondance **un-à-un** : `left_file, left_uuid, right_uuid,
+  right_file, score` (score = probabilité estimée par Dedupe ; seuil
+  `--threshold`, 0,5 par défaut), puis, pour la relecture, `left_section,
+  right_section` (titre de la rubrique) et `left_tagged_text,
+  right_tagged_text`. Une entrée absente du CSV n'a pas de correspondance.
+  La console résume les taux d'appariement et la distribution des scores.
+- **Validation manuelle** : copier le CSV en `<gauche>__<droite>.curated.csv`
+  et y supprimer, corriger ou ajouter des lignes ; seules les colonnes
+  d'identification font foi (les textes sont un instantané), et `score` peut
+  rester vide pour une paire ajoutée à la main. C'est ce fichier relu que
+  les étapes suivantes devront consommer.
+
+`tools/display_alignment.py` relit le CSV (brut ou `.curated.csv`) et les deux annuaires : paires
+côte à côte (rubrique en rouge quand elle diffère, score bas signalé),
+entrées non appariées de chaque côté, bilan par rubrique ; filtres par
+rubrique, texte, plage de scores.
+
 ## Audit du CRF : `audit_crf_features.py`
 
 Mesure la performance du CRF de l'étape 2 et la pertinence de chacune de ses
@@ -391,6 +439,8 @@ l'évalue automatiquement sans changer le comportement de l'annotateur.
 | `<entrée>.merged.report.txt` | `build_entity_tree.py` | Comptages (entités finales, lignes fusionnées), arbre des titres avec entrées directes et récursives et listes de cas à vérifier (ancres manquantes, titres sans `#`, ordre alphabétique) |
 | `<entrée>.merged.ner.csv` | `infer_gliner.py` | Le CSV fusionné, avec pour chaque ENTRY le texte balisé `tagged_text` (SUBJ/DESC/ADDR), les comptes d'empans, `ner_confidence` et les motifs de relecture `ner_suspect` |
 | `<entrée>.merged.ner.curated.csv` | relecture manuelle | Le même, corrigé |
+| `annuaires/alignements/<gauche>__<droite>.csv` | `align_directories.py` | Correspondances un-à-un entre les ENTRY de deux annuaires : `left_file`, `left_uuid`, `right_uuid`, `right_file`, `score`, et pour la relecture rubriques et textes balisés des deux entrées |
+| `annuaires/alignements/<gauche>__<droite>.curated.csv` | relecture manuelle | Le même, validé (lignes supprimées, corrigées ou ajoutées) |
 
 ## Conventions communes à tous les scripts
 
