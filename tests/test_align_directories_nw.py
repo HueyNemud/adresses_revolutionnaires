@@ -4,6 +4,7 @@ import numpy as np
 
 from align_directories_nw import Params, align, needleman_wunsch, residual_pairs, windows
 from lib.alignment import SOURCE_NW, SOURCE_NW_RESIDUAL, Record
+from lib.section_alignment import SectionPatchEntry, align_sections
 
 
 def records(side: str, entries: list[tuple[str, str]]) -> list[Record]:
@@ -20,6 +21,7 @@ def records(side: str, entries: list[tuple[str, str]]) -> list[Record]:
             text=text,
             markdown=text,
             tagged_text="",
+            section_uuid=f"{side}:{section}",
         )
         for order, (section, text) in enumerate(entries)
     ]
@@ -79,7 +81,7 @@ class AlignTests(unittest.TestCase):
         )
         result = align(left, right)
         self.assertEqual(pairs(result), {("g0", "d0"), ("g1", "d1"), ("g2", "d3"), ("g3", "d4")})
-        self.assertEqual([block.section for block in result.unaligned_right], ["cordiers"])
+        self.assertEqual([section.key for section in result.sections.unmatched_right], ["cordiers"])
         self.assertTrue(all(link.source == SOURCE_NW for link in result.links))
 
     def test_local_inversion_is_residual(self):
@@ -96,7 +98,24 @@ class AlignTests(unittest.TestCase):
         right = records("d", [("architectes", "Brongniart, rue Monsieur, 1."), ("marchands d arbres", "Vilmorin, quai de la Mégisserie, 30."), ("vins", "Bardet, en gros, 5.")])
         result = align(left, right)
         self.assertEqual(pairs(result), {("g0", "d0"), ("g1", "d1"), ("g2", "d2")})
-        self.assertEqual(len(result.section_pairs), 2)
+        self.assertEqual(len(result.sections.groups), 2)
+
+    def test_manual_section_group_out_of_order(self):
+        """Rubrique renommée et déplacée dans l'ordre alphabétique, liée par
+        le patch : ses entrées sont alignées."""
+        left = records(
+            "g",
+            [("architectes", "Brongniart, rue Monsieur, 1."), ("jardiniers fleuristes", "Vilmorin, quai de la Megisserie, 30."), ("vins", "Bardet, en gros, 5.")],
+        )
+        right = records(
+            "d",
+            [("architectes", "Brongniart, rue Monsieur, 1."), ("vins", "Bardet, en gros, 5."), ("zz marchands d arbres", "Vilmorin, quai de la Mégisserie, 30.")],
+        )
+        self.assertNotIn(("g1", "d2"), pairs(align(left, right)))
+        patch = [SectionPatchEntry(left_uuid="g:jardiniers fleuristes", right_uuid="d:zz marchands d arbres")]
+        sections = align_sections(left, right, patch)
+        result = align(left, right, sections=sections)
+        self.assertEqual(pairs(result), {("g0", "d0"), ("g1", "d2"), ("g2", "d1")})
 
     def test_no_context_is_plain_needleman_wunsch(self):
         left = records("g", [("vins", "Dupont, rue A, 1."), ("vins", "Pagès, rue de l'Echiquier, 33."), ("vins", "Péan, place des Vosges, 6.")])

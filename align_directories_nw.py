@@ -8,13 +8,18 @@ rubrique, celui des entrées l'est presque (ajouts, suppressions, quelques
 inversions locales du tri alphabétique). L'alignement se fait donc en trois
 temps :
 
-1. **rubriques** : les deux suites de rubriques (blocs d'ENTRY de même
-   `section`, `lib/alignment.py`) sont alignées par Needleman-Wunsch sur la
+1. **rubriques** : `lib/section_alignment.py` (partagé avec Dedupe et le
+   viewer) aligne les deux suites de rubriques par Needleman-Wunsch sur la
    similarité Jaro-Winkler de leur clé (« liste » / « listes de
-   non-commerçans », « sellieres » / « selliers ») ;
-2. **entrées** : dans chaque paire de rubriques alignées — et dans chaque
-   « trou » entre deux paires, qui regroupe les rubriques restées seules de
-   part et d'autre (rubrique renommée au-delà du seuil, scindée…) — les deux
+   non-commerçans », « sellieres » / « selliers »), après application du
+   patch des rubriques (`data/alignement/<gauche>__<droite>.sections.csv`) :
+   groupes imposés à la main, éventuellement 1-N ou N-1, et rubriques
+   déclarées sans correspondance ;
+2. **entrées** : dans chaque groupe de rubriques — entrées des N rubriques
+   d'un groupe manuel concaténées dans l'ordre de chaque annuaire — et dans
+   chaque « trou » entre deux paires automatiques, qui regroupe les
+   rubriques restées seules de part et d'autre (rubrique renommée au-delà du
+   seuil, scindée…, mais pas celles déclarées seules au patch) — les deux
    suites d'entrées sont alignées par Needleman-Wunsch, dont les paires très
    sûres servent d'**ancres** ; entre deux ancres, un **pair-HMM**
    (`lib/pair_hmm.py`) décide des autres paires selon leur probabilité a
@@ -41,15 +46,16 @@ Sortie : `annuaires/alignements/<gauche>__<droite>.nw.csv`, au format de
 `align_directories.py` (`lib/alignment.py`). `source` et sens de `score` :
 `nw` (ancre, ou toute paire Needleman-Wunsch avec `--no-context`) :
 similarité ; `nw-contexte` (décidée par le pair-HMM) : probabilité a
-posteriori ; `nw-residuel` : similarité. Le patch de corrections manuelles n'est pas appliqué :
-il sert de référence pour comparer les deux méthodes.
+posteriori ; `nw-residuel` : similarité. Le patch de corrections manuelles
+des entrées n'est pas appliqué : il sert de référence pour comparer les deux
+méthodes.
 """
 
 import argparse
 import csv
 import sys
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -61,10 +67,21 @@ from scipy.optimize import linear_sum_assignment
 
 from lib import pair_hmm
 from lib.alignment import SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_NW_RESIDUAL, Link, Record, dedupe_records, load_volume, read_links, write_links
+from lib.section_alignment import (
+    DEFAULT_THRESHOLD,
+    SECTION_PATCH_SUFFIX,
+    SOURCE_AUTO,
+    Section,
+    SectionAlignment,
+    align_sections,
+    load_section_alignment,
+)
+from lib.sequence import needleman_wunsch
 
 console = Console()
 
 DEFAULT_OUTPUT_DIR = Path("annuaires/alignements")
+DEFAULT_PATCH_DIR = Path("data/alignement")
 NW_SUFFIX = ".nw.csv"
 SCORE_BINS = (0.75, 0.8, 0.85, 0.9, 0.95, 0.99)
 
@@ -73,27 +90,16 @@ SCORE_BINS = (0.75, 0.8, 0.85, 0.9, 0.95, 0.99)
 class Params:
     threshold: float = 0.75  # similarité minimale d'une paire (Needleman-Wunsch)
     residual_threshold: float = 0.85  # idem, passe résiduelle
-    section_threshold: float = 0.8  # similarité minimale de deux clés de rubrique
+    section_threshold: float = DEFAULT_THRESHOLD  # similarité minimale de deux clés de rubrique
     subj_weight: float = 0.5  # poids du SUBJ dans la similarité
     anchor_threshold: float = 0.9  # similarité minimale d'une ancre (pair-HMM entre les ancres)
     context: bool = True  # False : Needleman-Wunsch seul
 
 
 @dataclass
-class Block:
-    """Suite contiguë d'ENTRY de même rubrique."""
-
-    section: str
-    section_title: str
-    records: list[Record]
-
-
-@dataclass
 class Result:
     links: list[Link]
-    section_pairs: list[tuple[Block, Block]]
-    unaligned_left: list[Block] = field(default_factory=list)
-    unaligned_right: list[Block] = field(default_factory=list)
+    sections: SectionAlignment
     fit: pair_hmm.Fit | None = None  # None avec --no-context
 
 
@@ -122,6 +128,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help=f"CSV des correspondances (défaut : {DEFAULT_OUTPUT_DIR}/<gauche>__<droite>{NW_SUFFIX}).",
+    )
+    parser.add_argument(
+        "--section-patch",
+        type=Path,
+        default=None,
+        help=f"Patch des rubriques (défaut : {DEFAULT_PATCH_DIR}/<gauche>__<droite>{SECTION_PATCH_SUFFIX}).",
     )
     parser.add_argument(
         "--threshold",
@@ -164,31 +176,6 @@ def parse_args() -> argparse.Namespace:
 # ----------------------------------------------------------------------
 # Alignement
 # ----------------------------------------------------------------------
-def needleman_wunsch(similarity: np.ndarray, threshold: float) -> list[tuple[int, int]]:
-    """Appariement croissant (i, j) qui maximise Σ (similarité − seuil), sans
-    pénalité de trou. Sans pénalité, la récurrence
-    H[i, j] = max(H[i-1, j], H[i, j-1], H[i-1, j-1] + s − seuil)
-    se calcule ligne par ligne : maximum avec la diagonale, puis maximum
-    cumulé le long de la ligne."""
-    n, m = similarity.shape
-    scores = np.zeros((n + 1, m + 1))
-    for i in range(1, n + 1):
-        row = scores[i - 1].copy()
-        np.maximum(row[1:], scores[i - 1, :-1] + (similarity[i - 1] - threshold), out=row[1:])
-        scores[i] = np.maximum.accumulate(row)
-    pairs = []
-    i, j = n, m
-    while i > 0 and j > 0:
-        if scores[i, j] == scores[i - 1, j]:
-            i -= 1
-        elif scores[i, j] == scores[i, j - 1]:
-            j -= 1
-        else:
-            pairs.append((i - 1, j - 1))
-            i, j = i - 1, j - 1
-    return pairs[::-1]
-
-
 def residual_pairs(similarity: np.ndarray, pairs: list[tuple[int, int]], threshold: float) -> list[tuple[int, int]]:
     """Affectation optimale, sans contrainte d'ordre, des lignes et colonnes
     absentes de `pairs` ; seules les paires de similarité ≥ seuil sont
@@ -224,34 +211,16 @@ def similarity_matrix(left: list[Record], right: list[Record], subj_weight: floa
     return np.where(both, subj_weight * subj + (1 - subj_weight) * text, text)
 
 
-def blocks(records: list[Record]) -> list[Block]:
-    result: list[Block] = []
-    for record in sorted(records, key=lambda record: record.order):
-        if not result or result[-1].section != record.section:
-            result.append(Block(record.section, record.section_title, []))
-        result[-1].records.append(record)
-    return result
-
-
-def align_sections(left: list[Block], right: list[Block], threshold: float) -> list[tuple[int, int]]:
-    if not left or not right:
-        return []
-    similarity = cdist(
-        [block.section for block in left],
-        [block.section for block in right],
-        scorer=JaroWinkler.normalized_similarity,
-        workers=-1,
-    )
-    return needleman_wunsch(similarity, threshold)
-
-
-def segments(left: list[Block], right: list[Block], section_pairs: list[tuple[int, int]]) -> list[tuple[list[Block], list[Block]]]:
-    """Segments à aligner : chaque paire de rubriques, et entre deux paires
-    (ou avant la première, après la dernière) le « trou » des rubriques
-    restées seules des deux côtés, s'il en a des deux côtés."""
-    result = []
+def segments(alignment: SectionAlignment) -> list[tuple[list[Section], list[Section]]]:
+    """Segments à aligner : chaque groupe manuel de rubriques (entrées de ses
+    N rubriques concaténées) ; chaque paire automatique et, entre deux paires
+    (ou avant la première, après la dernière), le « trou » des rubriques
+    restées seules des deux côtés, s'il en a des deux côtés (hors rubriques
+    déclarées seules au patch)."""
+    result = [(group.left, group.right) for group in alignment.groups if group.source != SOURCE_AUTO]
+    left, right = alignment.auto_left, alignment.auto_right
     previous_i, previous_j = -1, -1
-    for i, j in [*section_pairs, (len(left), len(right))]:
+    for i, j in [*alignment.auto_pairs, (len(left), len(right))]:
         gap_left, gap_right = left[previous_i + 1 : i], right[previous_j + 1 : j]
         if gap_left and gap_right:
             result.append((gap_left, gap_right))
@@ -341,13 +310,17 @@ def contextual_pairs(segments: list[Segment], anchor_threshold: float) -> tuple[
     return result, fitted
 
 
-def align(left_records: list[Record], right_records: list[Record], params: Params = Params()) -> Result:
-    left_blocks, right_blocks = blocks(left_records), blocks(right_records)
-    section_pairs = align_sections(left_blocks, right_blocks, params.section_threshold)
+def align(
+    left_records: list[Record], right_records: list[Record], params: Params = Params(), sections: SectionAlignment | None = None
+) -> Result:
+    """`sections` : alignement des rubriques déjà calculé (avec le patch) ;
+    à défaut, alignement automatique sans patch."""
+    if sections is None:
+        sections = align_sections(left_records, right_records, threshold=params.section_threshold)
     segment_list = []
-    for segment_left, segment_right in segments(left_blocks, right_blocks, section_pairs):
-        left = [record for block in segment_left for record in block.records]
-        right = [record for block in segment_right for record in block.records]
+    for segment_left, segment_right in segments(sections):
+        left = [record for section in segment_left for record in section.records]
+        right = [record for section in segment_right for record in section.records]
         similarity = similarity_matrix(left, right, params.subj_weight)
         ordered = needleman_wunsch(similarity, params.threshold)
         residual = residual_pairs(similarity, ordered, params.residual_threshold)
@@ -363,15 +336,7 @@ def align(left_records: list[Record], right_records: list[Record], params: Param
     for segment, pairs in zip(segment_list, chosen):
         pairs = pairs + [(i, j, float(segment.similarity[i, j]), SOURCE_NW_RESIDUAL) for i, j in segment.residual]
         links += [Link(segment.left[i].uuid, segment.right[j].uuid, score, source) for i, j, score, source in sorted(pairs)]
-    aligned_left = {i for i, _ in section_pairs}
-    aligned_right = {j for _, j in section_pairs}
-    return Result(
-        links=links,
-        section_pairs=[(left_blocks[i], right_blocks[j]) for i, j in section_pairs],
-        unaligned_left=[block for i, block in enumerate(left_blocks) if i not in aligned_left],
-        unaligned_right=[block for j, block in enumerate(right_blocks) if j not in aligned_right],
-        fit=fitted,
-    )
+    return Result(links=links, sections=sections, fit=fitted)
 
 
 # ----------------------------------------------------------------------
@@ -407,14 +372,30 @@ def print_summary(left_name: str, right_name: str, n_left: int, n_right: int, re
     if result.fit:
         print_model(result.fit)
 
-    renamed = sum(left.section != right.section for left, right in result.section_pairs)
+    print_sections(result.sections)
+
+
+def print_sections(alignment: SectionAlignment) -> None:
+    auto = [group for group in alignment.groups if group.source == SOURCE_AUTO]
+    manual = [group for group in alignment.groups if group.source != SOURCE_AUTO]
+    renamed = sum(group.left[0].key != group.right[0].key for group in auto)
     console.print(
-        f"Rubriques : {len(result.section_pairs)} paire(s) alignée(s) (dont {renamed} de clé différente), "
-        f"{len(result.unaligned_left)} seule(s) à gauche, {len(result.unaligned_right)} seule(s) à droite."
+        f"Rubriques : {len(auto)} paire(s) alignée(s) automatiquement (dont {renamed} de clé différente), "
+        f"{len(manual)} groupe(s) du patch, {len(alignment.unmatched_left)} seule(s) à gauche, "
+        f"{len(alignment.unmatched_right)} seule(s) à droite."
     )
-    for side, unaligned in (("gauche", result.unaligned_left), ("droite", result.unaligned_right)):
-        for block in unaligned:
-            console.print(f"  {side} · {block.section_title} ({len(block.records)} entrées)", markup=False)
+    for group in manual:
+        left, right = (" + ".join(section.title for section in getattr(group, side)) for side in ("left", "right"))
+        console.print(f"  patch · {left} ↔ {right}", markup=False)
+    for side, label, unmatched in (("left", "gauche", alignment.unmatched_left), ("right", "droite", alignment.unmatched_right)):
+        for section in unmatched:
+            origin = "déclarée au patch" if (side, section.uuid) in alignment.declared else "non alignée"
+            console.print(f"  {label} · {section.title} ({len(section.records)} entrées, {origin})", markup=False)
+    resolution = alignment.resolution
+    if resolution.reanchored:
+        console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) du patch des rubriques réancrée(s) (patch mis à jour).[/yellow]")
+    for entry in resolution.orphans:
+        console.print(f"⚠ Ligne orpheline du patch des rubriques, non appliquée : {entry.left_title} ↔ {entry.right_title}", markup=False)
 
 
 def print_model(fit: pair_hmm.Fit) -> None:
@@ -457,6 +438,7 @@ def main() -> None:
 
     pair_name = f"{args.left.name}__{args.right.name}"
     output_path = args.output or DEFAULT_OUTPUT_DIR / f"{pair_name}{NW_SUFFIX}"
+    section_patch = args.section_patch or DEFAULT_PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
     params = Params(
         args.threshold, args.residual_threshold, args.section_threshold, args.subj_weight, args.anchor_threshold, not args.no_context
     )
@@ -468,8 +450,13 @@ def main() -> None:
         sys.exit(1)
     console.print(f"{args.left.name} : {len(left_list)} entrées ; {args.right.name} : {len(right_list)} entrées")
 
+    try:
+        sections = load_section_alignment(left_list, right_list, section_patch, params.section_threshold)
+    except (OSError, csv.Error, ValueError) as error:
+        console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
+        sys.exit(1)
     console.print("Alignement…")
-    result = align(left_list, right_list, params)
+    result = align(left_list, right_list, params, sections)
     left_records = {record.uuid: record for record in left_list}
     right_records = {record.uuid: record for record in right_list}
     write_links(output_path, result.links, left_records, right_records)

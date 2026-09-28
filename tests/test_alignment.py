@@ -79,6 +79,7 @@ class LoadVolumeTests(unittest.TestCase):
         self.assertEqual([record.order for record in records], [0, 1, 2])
         self.assertEqual([record.section for record in records], ["", "agens de change", "medecins"])
         self.assertEqual([record.section_title for record in records], ["", "AGENS DE CHANGE.", "MÉDECINS."])
+        self.assertEqual([record.section_uuid for record in records], ["", "t1b", "t1"])
         self.assertEqual(records[1].text, "Dupont, rue A.")
         self.assertEqual(records[1].subj, "Dupont")
         self.assertEqual(records[1].page, "3")

@@ -11,12 +11,20 @@ On choisit une paire d'annuaires par une sortie brute : celle de Dedupe
 `data/alignement/<gauche>__<droite>.patch.csv` est appliqué en mémoire
 (`lib/alignment_patch.py`) : ce qui est affiché est le résultat final.
 
+La correspondance des rubriques (`lib/section_alignment.py`, avec son patch
+`data/alignement/<gauche>__<droite>.sections.csv`, non réécrit ici) sert à
+signaler les correspondances entre rubriques **non correspondantes** —
+et non entre rubriques de noms différents : « Liste » / « Listes de
+non-commerçans » se correspondent. Elle est détaillée dans un encart, et
+chaque bandeau de rubrique a un bouton **uuid** pour alimenter ce patch.
+
 Une seule table, dans l'**ordre naturel** des listes : les correspondances et
 les entrées de gauche sans correspondance dans l'ordre de l'annuaire de
 gauche, chaque entrée de droite sans correspondance insérée après la paire
 qui contient l'entrée de droite appariée qui la précède. Filtres : types de
 lignes (correspondances, sans correspondance à gauche / à droite), rubrique,
-recherche, plage de scores, rubriques différentes, corrections manuelles.
+recherche, plage de scores, rubriques non correspondantes, corrections
+manuelles.
 
 Le patch s'édite à la main. Pour l'alimenter, chaque entrée a un bouton
 **uuid** (copie son uuid) et chaque ligne un bouton **copier** (copie une
@@ -39,6 +47,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 from lib.alignment import SOURCE_MANUAL, Record, load_volume, read_links
 from lib.alignment_patch import PATCH_FIELDS, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
 from lib.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
+from lib.section_alignment import (
+    SECTION_PATCH_FIELDS,
+    SECTION_PATCH_SUFFIX,
+    SOURCE_AUTO,
+    SectionAlignment,
+    corresponding,
+    load_section_alignment,
+    read_section_patch,
+)
 
 ANNUAIRES_DIR = Path("annuaires")
 ALIGNMENTS_DIR = ANNUAIRES_DIR / "alignements"
@@ -53,7 +70,7 @@ PAIR, LEFT_ONLY, RIGHT_ONLY = "pair", "left", "right"
 KIND_LABELS = {PAIR: "Correspondances", LEFT_ONLY: "Sans correspondance à gauche", RIGHT_ONLY: "Sans correspondance à droite"}
 MANUAL_COLORS = ("#ede9fe", "#6d28d9")
 CONFIRMED = "confirmée sans correspondance"
-ENTRY_COLUMNS = ["uuid", "document", "order", "page", "section", "section_title", "markdown", "tagged_text", "text"]
+ENTRY_COLUMNS = ["uuid", "document", "order", "page", "section", "section_title", "section_uuid", "markdown", "tagged_text", "text"]
 
 CSS = f"""<style>
   .legend span {{ margin-right: 10px; }}
@@ -123,23 +140,46 @@ class Alignment:
     reanchored: int
     orphans: list[PatchEntry]
     confirmed: set[str]  # uuid déclarés sans correspondance par le patch
+    sections: SectionAlignment  # correspondance des rubriques (avec leur patch)
+    n_section_patch: int
 
 
 @st.cache_resource(show_spinner="Application du patch…", max_entries=4)
-def load_alignment(left_dir: str, right_dir: str, dedupe_path: str, dedupe_mtime: float, patch_path: str, patch_mtime: float) -> Alignment:
-    """Résultat final (Dedupe + patch), recalculé seulement si l'un des deux
+def load_alignment(
+    left_dir: str,
+    right_dir: str,
+    dedupe_path: str,
+    dedupe_mtime: float,
+    patch_path: str,
+    patch_mtime: float,
+    section_patch_path: str,
+    section_patch_mtime: float,
+) -> Alignment:
+    """Résultat final (alignement + patch), recalculé seulement si l'un des
     fichiers change (`*_mtime` font partie de la clé de cache). Lève
-    ValueError si le patch est incohérent."""
+    ValueError si un patch est incohérent. Le patch des rubriques n'est pas
+    réécrit ici (visualiseur en lecture seule)."""
     records = {"left": load_records(left_dir), "right": load_records(right_dir)}
     entries = read_patch(Path(patch_path))
     validate(entries)
     resolution = resolve(entries, records["left"], records["right"])
     links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
     rows, n_missing = build_rows(links, records_frame(left_dir), records_frame(right_dir))
+    sections = load_section_alignment(
+        list(records["left"].values()), list(records["right"].values()), Path(section_patch_path), rewrite=False
+    )
+    matching = corresponding(sections)
+    unmatched = pd.Series(
+        [(left, right) not in matching for left, right in zip(rows["left_section_uuid"], rows["right_section_uuid"])], index=rows.index
+    )
+    rows["different_section"] = (rows["kind"] == PAIR) & unmatched
     confirmed = {e.left_uuid for e in resolution.entries if e.left_uuid and not e.right_uuid} | {
         e.right_uuid for e in resolution.entries if e.right_uuid and not e.left_uuid
     }
-    return Alignment(rows, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed)
+    return Alignment(
+        rows, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed, sections,
+        len(read_section_patch(Path(section_patch_path))),
+    )
 
 
 def mtime(path: Path) -> float:
@@ -178,7 +218,7 @@ def build_rows(links, left: pd.DataFrame, right: pd.DataFrame) -> tuple[pd.DataF
     rows["_right_order"] = rows["right_order"].where(rows["kind"] == RIGHT_ONLY, 0)
     rows = rows.sort_values(["_anchor", "_after", "_right_order"], kind="stable").drop(columns=["_anchor", "_after", "_right_order"])
     for side in ("left", "right"):
-        for column in ("section", "section_title", "markdown", "tagged_text", "text", "uuid", "page"):
+        for column in ("section", "section_title", "section_uuid", "markdown", "tagged_text", "text", "uuid", "page"):
             rows[f"{side}_{column}"] = rows[f"{side}_{column}"].fillna("").astype(str)
     return rows.reset_index(drop=True), len(links) - len(frame)
 
@@ -241,17 +281,18 @@ def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, 
     right_only = bool((view["kind"] == RIGHT_ONLY).all())
     for number, row in enumerate(view.itertuples(), start=first):
         if row.kind != RIGHT_ONLY:
-            section, title = row.left_section, row.left_section_title
+            section, title, uuid = row.left_section, row.left_section_title, row.left_section_uuid
         elif current is None or right_only:
-            section, title = row.right_section, row.right_section_title
+            section, title, uuid = row.right_section, row.right_section_title, row.right_section_uuid
         else:
-            section, title = current, None
+            section, title, uuid = current, None, ""
         if banners and section != current:
             current = section
-            rows.append(f"<tr class='section'><td colspan='4'>{html.escape(title or NO_SECTION)}</td></tr>")
+            button = copy_button("uuid", uuid, f"Copier l’uuid de la rubrique {uuid}") if uuid else ""
+            rows.append(f"<tr class='section'><td colspan='4'>{html.escape(title or NO_SECTION)}{button}</td></tr>")
         left_record = records["left"].get(row.left_uuid)
         right_record = records["right"].get(row.right_uuid)
-        different = row.kind == PAIR and row.left_section != row.right_section
+        different = row.different_section
         line = copy_button("copier", patch_line(left_record, right_record), "Copier une ligne de patch pour cette ligne")
         empty_left = " class='empty'" if row.kind == RIGHT_ONLY else ""
         empty_right = " class='empty'" if row.kind == LEFT_ONLY else ""
@@ -309,12 +350,33 @@ def section_summary(rows: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
+def section_table(alignment: SectionAlignment) -> pd.DataFrame:
+    """Correspondance des rubriques : un groupe par ligne (titres et uuid
+    joints par « + » s'il en compte plusieurs), puis les rubriques seules."""
+
+    def joined(sections, attribute: str) -> str:
+        return " + ".join(getattr(section, attribute) or NO_SECTION for section in sections)
+
+    lines = [
+        (joined(group.left, "title"), joined(group.right, "title"), group.source, joined(group.left, "uuid"), joined(group.right, "uuid"))
+        for group in alignment.groups
+    ]
+    for side, unmatched in (("left", alignment.unmatched_left), ("right", alignment.unmatched_right)):
+        for section in unmatched:
+            source = "seule (patch)" if (side, section.uuid) in alignment.declared else "seule"
+            title, uuid = section.title or NO_SECTION, section.uuid
+            lines.append((title, "", source, uuid, "") if side == "left" else ("", title, source, "", uuid))
+    return pd.DataFrame(lines, columns=["gauche", "droite", "source", "uuid gauche", "uuid droite"])
+
+
 # ----------------------------------------------------------------------
 # Interface
 # ----------------------------------------------------------------------
 def pair_of(path: Path) -> str:
-    """`<gauche>__<droite>` d'une sortie brute."""
-    return next(path.name.removesuffix(suffix) for suffix in ALIGNMENT_SUFFIXES if path.name.endswith(suffix))
+    """`<gauche>__<droite>` d'une sortie brute, variante éventuelle ôtée
+    (`<paire>.rubriques-brutes.dedupe.csv`) : les noms de volumes n'ont pas
+    de point."""
+    return path.name.split(".")[0]
 
 
 def choose_alignment() -> Path | None:
@@ -336,7 +398,11 @@ def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> N
     columns[0].metric("Correspondances", f"{matched:,}".replace(",", " "))
     columns[1].metric(f"Appariées à gauche ({left_name})", f"{matched / n_left:.1%}", f"{n_left - matched} sans correspondance", delta_color="off")
     columns[2].metric(f"Appariées à droite ({right_name})", f"{matched / n_right:.1%}", f"{n_right - matched} sans correspondance", delta_color="off")
-    columns[3].metric("Rubrique différente", f"{int((pairs['left_section'] != pairs['right_section']).sum())}")
+    columns[3].metric(
+        "Rubriques non correspondantes",
+        f"{int(pairs['different_section'].sum())}",
+        help="Correspondances entre deux rubriques qui ne se correspondent pas (alignement des rubriques et son patch).",
+    )
     columns[4].metric("Lignes du patch", str(n_patch))
 
 
@@ -351,9 +417,19 @@ def main() -> None:
     pair_name = pair_of(alignment_path)
     left_name, _, right_name = pair_name.partition("__")
     patch_path = PATCH_DIR / f"{pair_name}.patch.csv"
+    section_patch_path = PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
     left_dir, right_dir = str(ANNUAIRES_DIR / left_name), str(ANNUAIRES_DIR / right_name)
     try:
-        alignment = load_alignment(left_dir, right_dir, str(alignment_path), mtime(alignment_path), str(patch_path), mtime(patch_path))
+        alignment = load_alignment(
+            left_dir,
+            right_dir,
+            str(alignment_path),
+            mtime(alignment_path),
+            str(patch_path),
+            mtime(patch_path),
+            str(section_patch_path),
+            mtime(section_patch_path),
+        )
     except (ValueError, OSError) as error:
         st.error(f"Lecture impossible : {error}")
         return
@@ -364,9 +440,21 @@ def main() -> None:
     st.html(
         f"{CSS}{COPY_SCRIPT}<span class='meta'>Alignement : {html.escape(str(alignment_path))} · patch : "
         f"{html.escape(str(patch_path))} ({alignment.n_patch} ligne(s))</span>"
-        f"{copy_button('en-tête du patch', ','.join(PATCH_FIELDS), 'Copier la ligne d’en-tête du CSV de patch')}",
+        f"{copy_button('en-tête du patch', ','.join(PATCH_FIELDS), 'Copier la ligne d’en-tête du CSV de patch')}"
+        f"<br><span class='meta'>patch des rubriques : {html.escape(str(section_patch_path))} "
+        f"({alignment.n_section_patch} ligne(s))</span>"
+        f"{copy_button('en-tête', ','.join(SECTION_PATCH_FIELDS), 'Copier la ligne d’en-tête du CSV de patch des rubriques')}",
         unsafe_allow_javascript=True,
     )
+    section_resolution = alignment.sections.resolution
+    if section_resolution.reanchored:
+        st.info(
+            f"↻ {len(section_resolution.reanchored)} ligne(s) du patch des rubriques réancrée(s) par le titre ; "
+            "le prochain alignement réécrira le patch."
+        )
+    if section_resolution.orphans:
+        with st.expander(f"⚠ {len(section_resolution.orphans)} ligne(s) orpheline(s) du patch des rubriques, non appliquée(s)"):
+            st.dataframe(pd.DataFrame([asdict(entry) for entry in section_resolution.orphans]), width="stretch")
     if alignment.n_missing:
         st.warning(
             f"{alignment.n_missing} correspondance(s) Dedupe désignent des entrées disparues (étapes amont modifiées) : "
@@ -383,6 +471,15 @@ def main() -> None:
     with st.expander("Bilan par rubrique"):
         st.caption("Rubriques telles que comparées (titre `##`, sinon `#`, nettoyé) : une rubrique renommée apparaît deux fois.")
         st.dataframe(section_summary(rows), width="stretch")
+    with st.expander("Correspondance des rubriques"):
+        groups = alignment.sections.groups
+        manual = sum(group.source != SOURCE_AUTO for group in groups)
+        st.caption(
+            f"{len(groups)} groupe(s), dont {manual} du patch des rubriques ; une rubrique seule n'a pas de correspondance. "
+            "Pour corriger : une ligne `left_uuid,right_uuid` par paire (un même uuid sur plusieurs lignes forme un "
+            "groupe 1-N), ou un seul uuid pour une rubrique sans correspondance."
+        )
+        st.dataframe(section_table(alignment.sections), width="stretch", hide_index=True)
 
     # Filtres
     st.sidebar.header("Filtres")
@@ -393,7 +490,7 @@ def main() -> None:
     query = st.sidebar.text_input("Recherche (texte des entrées)")
     low, high = st.sidebar.slider("Score des correspondances", 0.0, 1.0, (0.0, 1.0), step=0.01)
     low_score = st.sidebar.slider("Score signalé en rouge sous", 0.0, 1.0, 0.8, step=0.01)
-    only_diff = st.sidebar.checkbox("Seulement les correspondances de rubriques différentes")
+    only_diff = st.sidebar.checkbox("Seulement les correspondances entre rubriques non correspondantes")
     only_manual = st.sidebar.checkbox("Seulement les corrections manuelles")
     st.sidebar.header("Affichage")
     order = st.sidebar.selectbox("Tri", ORDER_OPTIONS)
@@ -406,7 +503,7 @@ def main() -> None:
     if query:
         view = view[text_mask(view, query, ["left_markdown", "right_markdown"])]
     if only_diff:
-        view = view[(view["kind"] == PAIR) & (view["left_section"] != view["right_section"])]
+        view = view[view["different_section"]]
     if only_manual:
         view = view[(view["source"] == SOURCE_MANUAL) | view["left_uuid"].isin(confirmed) | view["right_uuid"].isin(confirmed)]
     if order != NATURAL_ORDER:

@@ -129,7 +129,22 @@ Pagès est apparié (probabilité 0,73). Les 171 paires gagnées sont surtout de
 Limites :
 
 - **Cas ambigus.** Des remplacements plausibles sont encore appariés (Potrel → Prot, 0,57), et le modèle refuse des homonymes fréquents qui ont déménagé (Lambert, Gervais).
-- **Appariement des rubriques.** Une rubrique qui change de place dans l'ordre alphabétique (« Jardiniers-fleuristes, marchands d'arbres » → « Marchands d'arbres ») n'est pas alignée.
+- **Appariement des rubriques.** Une rubrique qui change de place dans l'ordre alphabétique (« Jardiniers-fleuristes, marchands d'arbres » → « Marchands d'arbres ») n'est pas alignée automatiquement. Ses entrées le sont quand même si les deux rubriques tombent dans le même « trou » entre deux paires de rubriques, ce qui est le cas ici ; sinon, il faut une ligne dans le patch des rubriques (section 8).
 - **Hypothèses.** La probabilité est conditionnée aux ancres, et les émissions reposent sur des échantillons choisis par heuristique.
 
 Seuls les alignements curés à la main permettront de mesurer précision et rappel, de comparer honnêtement les trois méthodes, et de vérifier la calibration des probabilités.
+
+## 8. Correspondance des rubriques et son patch
+
+L'alignement des rubriques (étape 1 du pipeline) est commun à Needleman-Wunsch, à Dedupe et au visualiseur (`lib/section_alignment.py`). Une rubrique est désignée par l'uuid de son titre, et ce qui échappe à l'ordre ou au seuil se corrige dans un patch versionné, `data/alignement/<gauche>__<droite>.sections.csv` :
+
+| ligne | effet |
+|---|---|
+| `left_uuid` + `right_uuid` | les deux rubriques se correspondent ; un même uuid sur plusieurs lignes forme un **groupe** 1-N, N-1 ou N-M |
+| un seul uuid | la rubrique n'a pas de correspondance |
+
+Les rubriques du patch sont retirées de l'alignement automatique.
+
+- **Needleman-Wunsch** aligne les entrées d'un groupe manuel en concaténant celles de ses rubriques, dans l'ordre de chaque annuaire. C'est la fusion des « N » en entrée.
+- **Dedupe** compare la rubrique par une **clé canonique** : toutes les rubriques d'un groupe reçoivent la même clé (celle de sa première rubrique de gauche). « Liste » et « Listes de non-commerçans » deviennent donc la même chaîne. La réécriture s'applique aussi aux paires du fichier d'entraînement, à la lecture : aucun réétiquetage n'est nécessaire.
+- **Le visualiseur** ne compte plus comme « rubriques non correspondantes » que les paires dont les rubriques ne se correspondent pas. Sur 1807/1808 (NW), on passe de 3 146 paires de clés différentes à 12.

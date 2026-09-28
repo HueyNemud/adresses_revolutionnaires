@@ -47,6 +47,7 @@ class Record:
     text: str
     markdown: str
     tagged_text: str
+    section_uuid: str = ""  # uuid du TITLE de la rubrique, vide sans rubrique
 
 
 def range_dirs(volume_dir: Path) -> list[Path]:
@@ -91,21 +92,21 @@ def subject_text(tagged_text: str) -> str:
     return clean_text(" ".join(normalized.text[span.start : span.end] for span in subjects))
 
 
-def section_of(parent_uuid: str, titles: dict[str, tuple[str, str]]) -> str:
-    """Rubrique d'une ligne : le Markdown de son ancêtre de niveau préféré
-    (`SECTION_LEVELS`), vide sans tel ancêtre. `titles` : uuid →
+def section_of(parent_uuid: str, titles: dict[str, tuple[str, str]]) -> tuple[str, str]:
+    """Rubrique d'une ligne : (uuid, Markdown) de son ancêtre de niveau
+    préféré (`SECTION_LEVELS`), ("", "") sans tel ancêtre. `titles` : uuid →
     (parent_uuid, markdown) des TITLE du fichier."""
-    by_level: dict[int, str] = {}
+    by_level: dict[int, tuple[str, str]] = {}
     current, seen = parent_uuid, set()
     while current in titles and current not in seen:
         seen.add(current)
         parent, markdown = titles[current]
-        by_level.setdefault(title_level(markdown), markdown)
+        by_level.setdefault(title_level(markdown), (current, markdown))
         current = parent
     for level in SECTION_LEVELS:
         if level in by_level:
             return by_level[level]
-    return ""
+    return "", ""
 
 
 def load_document(path: Path, start: int = 0) -> list[Record]:
@@ -119,7 +120,7 @@ def load_document(path: Path, start: int = 0) -> list[Record]:
         text = clean_text(normalize_markdown(row.get("markdown", "")).text)
         if not text:
             continue
-        section = section_of(row.get("parent_uuid", ""), titles)
+        section_uuid, section = section_of(row.get("parent_uuid", ""), titles)
         records.append(
             Record(
                 document=path.name,
@@ -132,6 +133,7 @@ def load_document(path: Path, start: int = 0) -> list[Record]:
                 text=text,
                 markdown=row.get("markdown", ""),
                 tagged_text=row.get("tagged_text", ""),
+                section_uuid=section_uuid,
             )
         )
     return records
@@ -151,13 +153,15 @@ def load_volume(volume_dir: Path) -> list[Record]:
     return records
 
 
-def dedupe_records(records: list[Record]) -> dict[str, dict[str, str | None]]:
+def dedupe_records(records: list[Record], section_keys: dict[str, str] | None = None) -> dict[str, dict[str, str | None]]:
     """Données au format Dedupe (uuid → champs), en minuscules (la casse des
     noms varie d'une édition à l'autre : « ARCHÉDÉACON » / « Archédéacon »),
-    `None` pour un champ vide."""
+    `None` pour un champ vide. `section_keys` : clé de rubrique → clé
+    canonique commune aux deux annuaires (`lib/section_alignment.py`)."""
+    section_keys = section_keys or {}
     return {
         record.uuid: {
-            "section": record.section or None,
+            "section": section_keys.get(record.section, record.section) or None,
             "subj": record.subj.lower() or None,
             "text": record.text.lower(),
         }
