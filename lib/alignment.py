@@ -170,6 +170,9 @@ def dedupe_records(records: list[Record]) -> dict[str, dict[str, str | None]]:
 # ----------------------------------------------------------------------
 SOURCE_DEDUPE = "dedupe"
 SOURCE_MANUAL = "manuel"
+SOURCE_NW = "nw"  # `align_directories_nw.py` : alignement ordonné
+SOURCE_NW_CONTEXT = "nw-contexte"  # idem, décidée par le pair-HMM entre deux ancres
+SOURCE_NW_RESIDUAL = "nw-residuel"  # idem, passe résiduelle (inversions locales)
 LINK_FIELDS = [
     "left_file",
     "left_uuid",

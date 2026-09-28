@@ -3,8 +3,9 @@ d'`align_directories.py`).
 
     uv run streamlit run tools/display_alignment.py
 
-On choisit une paire d'annuaires par sa sortie Dedupe brute
-`annuaires/alignements/<gauche>__<droite>.dedupe.csv`. Les deux annuaires
+On choisit une paire d'annuaires par une sortie brute : celle de Dedupe
+`annuaires/alignements/<gauche>__<droite>.dedupe.csv` ou celle de
+`align_directories_nw.py`, `<gauche>__<droite>.nw.csv`. Les deux annuaires
 (`annuaires/<gauche>/`, `annuaires/<droite>/`) sont relus en entier par
 `lib/alignment.py`, et le patch de corrections manuelles
 `data/alignement/<gauche>__<droite>.patch.csv` est appliqué en mémoire
@@ -42,7 +43,7 @@ from lib.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 ANNUAIRES_DIR = Path("annuaires")
 ALIGNMENTS_DIR = ANNUAIRES_DIR / "alignements"
 PATCH_DIR = Path("data/alignement")
-DEDUPE_SUFFIX = ".dedupe.csv"
+ALIGNMENT_SUFFIXES = (".dedupe.csv", ".nw.csv")  # align_directories.py, align_directories_nw.py
 PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
 NATURAL_ORDER = "ordre naturel"
 ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant"]
@@ -311,13 +312,20 @@ def section_summary(rows: pd.DataFrame) -> pd.DataFrame:
 # ----------------------------------------------------------------------
 # Interface
 # ----------------------------------------------------------------------
-def choose_alignment() -> str | None:
-    paths = sorted(ALIGNMENTS_DIR.glob(f"*{DEDUPE_SUFFIX}"))
+def pair_of(path: Path) -> str:
+    """`<gauche>__<droite>` d'une sortie brute."""
+    return next(path.name.removesuffix(suffix) for suffix in ALIGNMENT_SUFFIXES if path.name.endswith(suffix))
+
+
+def choose_alignment() -> Path | None:
+    paths = sorted(path for suffix in ALIGNMENT_SUFFIXES for path in ALIGNMENTS_DIR.glob(f"*{suffix}"))
     if not paths:
-        st.sidebar.warning(f"Aucun `*{DEDUPE_SUFFIX}` sous `{ALIGNMENTS_DIR}/` : lancer `align_directories.py`.")
+        st.sidebar.warning(
+            f"Aucun `*{'` / `*'.join(ALIGNMENT_SUFFIXES)}` sous `{ALIGNMENTS_DIR}/` : lancer `align_directories.py` "
+            "ou `align_directories_nw.py`."
+        )
         return None
-    path = st.sidebar.selectbox("Alignement", paths, format_func=lambda p: p.name.removesuffix(DEDUPE_SUFFIX))
-    return path.name.removesuffix(DEDUPE_SUFFIX)
+    return st.sidebar.selectbox("Alignement", paths, format_func=lambda p: p.name.removesuffix(".csv"))
 
 
 def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> None:
@@ -335,17 +343,17 @@ def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> N
 def main() -> None:
     st.set_page_config(page_title="Annuaires — alignement", layout="wide")
 
-    pair_name = choose_alignment()
-    if pair_name is None:
+    alignment_path = choose_alignment()
+    if alignment_path is None:
         st.title("Annuaires — alignement")
         st.info("Aucun alignement à afficher.")
         return
+    pair_name = pair_of(alignment_path)
     left_name, _, right_name = pair_name.partition("__")
-    dedupe_path = ALIGNMENTS_DIR / f"{pair_name}{DEDUPE_SUFFIX}"
     patch_path = PATCH_DIR / f"{pair_name}.patch.csv"
     left_dir, right_dir = str(ANNUAIRES_DIR / left_name), str(ANNUAIRES_DIR / right_name)
     try:
-        alignment = load_alignment(left_dir, right_dir, str(dedupe_path), mtime(dedupe_path), str(patch_path), mtime(patch_path))
+        alignment = load_alignment(left_dir, right_dir, str(alignment_path), mtime(alignment_path), str(patch_path), mtime(patch_path))
     except (ValueError, OSError) as error:
         st.error(f"Lecture impossible : {error}")
         return
@@ -354,7 +362,7 @@ def main() -> None:
 
     st.title(f"{left_name} ⟷ {right_name}")
     st.html(
-        f"{CSS}{COPY_SCRIPT}<span class='meta'>Dedupe : {html.escape(str(dedupe_path))} · patch : "
+        f"{CSS}{COPY_SCRIPT}<span class='meta'>Alignement : {html.escape(str(alignment_path))} · patch : "
         f"{html.escape(str(patch_path))} ({alignment.n_patch} ligne(s))</span>"
         f"{copy_button('en-tête du patch', ','.join(PATCH_FIELDS), 'Copier la ligne d’en-tête du CSV de patch')}",
         unsafe_allow_javascript=True,
@@ -405,7 +413,7 @@ def main() -> None:
         view = view.sort_values("score", ascending=order == "score croissant", kind="stable", na_position="last")
 
     # Retour à la première page quand la sélection change.
-    selection = (pair_name, tuple(kinds), section, query, low, high, only_diff, only_manual, order, page_size)
+    selection = (alignment_path.name, tuple(kinds), section, query, low, high, only_diff, only_manual, order, page_size)
     if st.session_state.get("_selection") != selection:
         st.session_state["_selection"] = selection
         st.session_state.page = 0
