@@ -15,7 +15,6 @@ uv sync                                                    # install deps into .
 uv run python -m unittest discover -s tests                # all tests (unittest, not pytest)
 uv run python -m unittest tests.test_export_lines_csv      # one test module
 uv run python -m unittest tests.test_export_lines_csv.<Class>.<test_name>   # one test
-./run_pipeline.sh annuaires/<dossier>                      # all steps on the first *.ocr.json in a folder
 uv run streamlit run tools/display_directory.py            # viewer for a volume's final NER CSV (*.merged.ner[.curated].csv)
 uv run align_directories.py annuaires/<A> annuaires/<B> [--label]   # Dedupe alignment of two editions
 uv run align_directories.py annuaires/<A> annuaires/<B> --apply-only   # reapply the manual patch, no Dedupe
@@ -30,6 +29,8 @@ uv run audit_ner.py [--model DIR] [--sweep]                # NER audit on the re
 Tests import the top-level scripts as modules, so run them from the repo root.
 
 ## Architecture
+
+Detailed per-step documentation (French, for other devs): `docs/pipeline.md`; `README.md` is a short overview linking to it.
 
 OCR is **out of scope** for this repo: it is run locally with Chandra in a separate project. A volume's starting state is its OCR output, `<nom>.ocr.json` (per-page `markdown` + `html` with `data-block-id` blocks) and `<nom>.ocr.md`, e.g. in `annuaires/1808_AD75-PER292/`.
 
