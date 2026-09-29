@@ -25,6 +25,7 @@ uv run tools/export_alignment.py annuaires/alignements/<A>__<B>.nw.csv [--excel]
 uv run audit_crf_features.py                               # CRF/feature audit on curated CSVs → rapports/audit_crf/
 uv run tools/sample_ner_gold.py                            # (once) stratified NER gold sample → data/ner/gold.ls.json
 uv run audit_ner.py [--model DIR] [--sweep]                # NER audit on the reviewed gold → rapports/audit_ner/
+uv run --group explorations jupyter nbconvert --to notebook --execute --inplace explorations/<nb>.ipynb   # exploratory notebooks
 ```
 
 Tests import the top-level scripts as modules, so run them from the repo root.
@@ -68,6 +69,8 @@ Each step is a standalone CLI script at the repo root (argparse, `rich` console 
 The line-level BIO classes (steps 2–4) and the span classes `SUBJ/DESC/ADDR` (step 5) are separate label spaces. If you rename a line class, update `build_entity_tree.py` too — unknown classes are treated as out-of-scope and only flagged in the report.
 
 `tools/` holds the NER training and gold tools (`train_gliner.py`, `build_ner_training.py`, `sample_ner_gold.py`), the result viewers (`display_directory.py`, `display_alignment.py`) and the alignment export (`export_alignment.py`). Scripts that were no longer used (`main.py`, the LLM pre-annotator `autoclassify_labelstudio.py`) were deleted; the git tag `avant-menage` points to the last commit that has them (`git show avant-menage:<file>`).
+
+`explorations/` holds exploratory notebooks (deps in the `explorations` dependency group: Jupyter, matplotlib; see `explorations/README.md`); they run from `explorations/` or the repo root and are committed with their outputs. `consolidation_adresses_1807_1808.ipynb` classifies the ADDR fields of aligned 1807/1808 pairs (équivalence / changement de numéro / déménagement / adresse complexe, plus sans numéro / adresse absente; street names normalized, fuzzy threshold ε) and exports `<jointure>.consolidee.csv`.
 
 ## Data
 
