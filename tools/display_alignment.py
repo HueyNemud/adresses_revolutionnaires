@@ -30,13 +30,17 @@ Le patch s'édite à la main. Pour l'alimenter, chaque entrée a un bouton
 **uuid** (copie son uuid) et chaque ligne un bouton **copier** (copie une
 ligne de patch prête à coller : la paire pour une correspondance, l'entrée
 seule pour une entrée sans correspondance).
+
+Le bouton **Exporter en CSV** télécharge les lignes affichées (filtres et tri
+appliqués) sous la forme de la jointure lisible de `lib/alignment_export.py`,
+comme `tools/export_alignment.py`.
 """
 
 import csv
 import html
 import io
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
 import pandas as pd
@@ -45,6 +49,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ depuis tools/
 
 from lib.alignment import SOURCE_MANUAL, Record, load_volume, read_links
+from lib.alignment_export import LEFT_ONLY, PAIR, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import PATCH_FIELDS, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
 from lib.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.section_alignment import (
@@ -66,11 +71,10 @@ NATURAL_ORDER = "ordre naturel"
 ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant"]
 ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
-PAIR, LEFT_ONLY, RIGHT_ONLY = "pair", "left", "right"
 KIND_LABELS = {PAIR: "Correspondances", LEFT_ONLY: "Sans correspondance à gauche", RIGHT_ONLY: "Sans correspondance à droite"}
 MANUAL_COLORS = ("#ede9fe", "#6d28d9")
 CONFIRMED = "confirmée sans correspondance"
-ENTRY_COLUMNS = ["uuid", "document", "order", "page", "section", "section_title", "section_uuid", "markdown", "tagged_text", "text"]
+ENTRY_COLUMNS = [field.name for field in fields(Record)]
 
 CSS = f"""<style>
   .legend span {{ margin-right: 10px; }}
@@ -126,15 +130,10 @@ def load_records(volume_dir: str) -> dict[str, Record]:
     return {record.uuid: record for record in load_volume(Path(volume_dir))}
 
 
-@st.cache_data(show_spinner=False)
-def records_frame(volume_dir: str) -> pd.DataFrame:
-    frame = pd.DataFrame([asdict(record) for record in load_records(volume_dir).values()])
-    return frame[ENTRY_COLUMNS].set_index("uuid", drop=False)
-
-
 @dataclass
 class Alignment:
     rows: pd.DataFrame  # sortie de `build_rows`
+    joined: list[JoinedRow]  # mêmes lignes, même ordre (index de `rows`) : pour l'export
     n_patch: int
     n_missing: int  # liens Dedupe vers des entrées disparues, ignorés
     reanchored: int
@@ -164,7 +163,8 @@ def load_alignment(
     validate(entries)
     resolution = resolve(entries, records["left"], records["right"])
     links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
-    rows, n_missing = build_rows(links, records_frame(left_dir), records_frame(right_dir))
+    joined, n_missing = natural_rows(links, records["left"], records["right"])
+    rows = build_rows(joined)
     sections = load_section_alignment(
         list(records["left"].values()), list(records["right"].values()), Path(section_patch_path), rewrite=False
     )
@@ -177,7 +177,7 @@ def load_alignment(
         e.right_uuid for e in resolution.entries if e.right_uuid and not e.left_uuid
     }
     return Alignment(
-        rows, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed, sections,
+        rows, joined, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed, sections,
         len(read_section_patch(Path(section_patch_path))),
     )
 
@@ -186,41 +186,27 @@ def mtime(path: Path) -> float:
     return path.stat().st_mtime if path.exists() else 0.0
 
 
-def build_rows(links, left: pd.DataFrame, right: pd.DataFrame) -> tuple[pd.DataFrame, int]:
-    """Une ligne par correspondance ou entrée sans correspondance, colonnes
-    `left_*` / `right_*` (vides du côté absent), triées dans l'ordre naturel ;
-    et le nombre de liens ignorés faute d'entrée."""
-    frame = pd.DataFrame(
-        [(link.left_uuid, link.right_uuid, link.score, link.source) for link in links],
-        columns=["left_uuid", "right_uuid", "score", "source"],
-    )
-    frame = frame[frame["left_uuid"].isin(left.index) & frame["right_uuid"].isin(right.index)]
-    pairs = pd.concat(
-        [left.loc[frame["left_uuid"]].add_prefix("left_").reset_index(drop=True),
-         right.loc[frame["right_uuid"]].add_prefix("right_").reset_index(drop=True),
-         frame[["score", "source"]].reset_index(drop=True)],
-        axis=1,
-    ).assign(kind=PAIR)
-    left_only = left[~left.index.isin(frame["left_uuid"])].add_prefix("left_").assign(kind=LEFT_ONLY)
-    right_only = right[~right.index.isin(frame["right_uuid"])].add_prefix("right_").assign(kind=RIGHT_ONLY)
-    rows = pd.concat([pairs, left_only.reset_index(drop=True), right_only.reset_index(drop=True)], ignore_index=True)
-    rows["score"] = pd.to_numeric(rows["score"])
+def build_rows(joined: list[JoinedRow]) -> pd.DataFrame:
+    """Une ligne par ligne de la jointure (ordre naturel), colonnes
+    `left_*` / `right_*` (vides du côté absent)."""
 
-    # Ordre naturel : rang à gauche ; une entrée de droite seule se range après
-    # la paire de l'entrée de droite appariée qui la précède (avant la première
-    # paire s'il n'y en a pas).
-    paired_right = dict(zip(frame["right_uuid"], left.loc[frame["left_uuid"], "order"]))
-    anchors = right.sort_values("order")["uuid"].map(paired_right)
-    first = anchors.dropna().iloc[0] if anchors.notna().any() else 0
-    anchors = anchors.ffill().fillna(first - 0.5)
-    rows["_anchor"] = rows["left_order"].where(rows["kind"] != RIGHT_ONLY, rows["right_uuid"].map(anchors))
-    rows["_after"] = (rows["kind"] == RIGHT_ONLY).astype(int)
-    rows["_right_order"] = rows["right_order"].where(rows["kind"] == RIGHT_ONLY, 0)
-    rows = rows.sort_values(["_anchor", "_after", "_right_order"], kind="stable").drop(columns=["_anchor", "_after", "_right_order"])
-    for side in ("left", "right"):
-        for column in ("section", "section_title", "section_uuid", "markdown", "tagged_text", "text", "uuid", "page"):
-            rows[f"{side}_{column}"] = rows[f"{side}_{column}"].fillna("").astype(str)
-    return rows.reset_index(drop=True), len(links) - len(frame)
+    def side(prefix: str, record: Record | None) -> dict:
+        return {f"{prefix}_{column}": getattr(record, column) if record else "" for column in ENTRY_COLUMNS}
+
+    rows = pd.DataFrame(
+        [
+            {
+                **side("left", row.left),
+                **side("right", row.right),
+                "score": row.link.score if row.link else None,
+                "source": row.link.source if row.link else "",
+                "kind": row.kind,
+            }
+            for row in joined
+        ]
+    )
+    rows["score"] = pd.to_numeric(rows["score"])
+    return rows
 
 
 def text_mask(df: pd.DataFrame, query: str, columns: list[str]) -> pd.Series:
@@ -495,6 +481,10 @@ def main() -> None:
     st.sidebar.header("Affichage")
     order = st.sidebar.selectbox("Tri", ORDER_OPTIONS)
     page_size = st.sidebar.selectbox("Lignes par page", PAGE_SIZE_OPTIONS, index=1)
+    st.sidebar.header("Export")
+    excel = st.sidebar.checkbox(
+        "Pour un tableur en français", value=True, help="Séparateur `;` et UTF-8 avec BOM, qu'Excel ouvre directement."
+    )
 
     view = rows[rows["kind"].isin(kinds)]
     view = view[(view["kind"] != PAIR) | view["score"].between(low, high) | view["score"].isna()]
@@ -514,6 +504,18 @@ def main() -> None:
     if st.session_state.get("_selection") != selection:
         st.session_state["_selection"] = selection
         st.session_state.page = 0
+
+    matching = corresponding(alignment.sections)
+    st.sidebar.download_button(
+        f"Exporter en CSV ({len(view):,} lignes)".replace(",", " "),
+        # Généré au clic seulement : lignes affichées, dans l'ordre affiché.
+        lambda: export_csv([alignment.joined[index] for index in view.index], matching, excel).encode(export_encoding(excel)),
+        file_name=f"{pair_name}.jointure.csv",
+        mime="text/csv",
+        icon=":material/download:",
+        help="Jointure lisible des deux annuaires (texte sans Markdown, empans NER en colonnes), filtres et tri appliqués.",
+        width="stretch",
+    )
 
     paginated_table(
         view,

@@ -401,6 +401,10 @@ flowchart TD
     DC --> V["tools/display_alignment.py<br/>(patch appliqué en mémoire)"]
     NC --> V
     EP --> V
+    DC --> X["tools/export_alignment.py<br/>(jointure lisible)"]
+    NC --> X
+    F --> X
+    X --> XC["<code>….jointure.csv</code>"]
 
     style F fill:#dfe,stroke:#393
     style NC fill:#dfe,stroke:#393
@@ -577,6 +581,11 @@ final.
   de rubrique copie son uuid ; le bouton `copier` d'une ligne copie une
   ligne de patch prête à coller (la paire, ou l'entrée seule) ; `en-tête du
   patch` copie l'en-tête pour créer le fichier.
+- **Export CSV :** le bouton *Exporter en CSV* de la barre latérale
+  télécharge les lignes affichées (filtres et tri appliqués) au format de
+  `tools/export_alignment.py` (ci-dessous) ; la case *Pour un tableur en
+  français* (cochée par défaut) choisit le séparateur `;` et l'UTF-8 avec
+  BOM.
 
 Les patchs s'éditent à la main (tableur ou éditeur de texte) : coller une
 ligne copiée valide une paire ou confirme une absence de correspondance ;
@@ -586,6 +595,32 @@ ensuite le CSV final en quelques secondes.
 
 Pour tester le viewer, utiliser un wrapper qui redéfinit `ALIGNMENTS_DIR`
 et `PATCH_DIR`, jamais les dossiers réels.
+
+### Exporter la jointure : `tools/export_alignment.py`
+
+```bash
+uv run tools/export_alignment.py annuaires/alignements/<g>__<d>.nw.csv [--excel] [-o sortie.csv]
+```
+
+Produit, pour les utilisateurs des données (historiens), la jointure des
+deux `*.ner.curated.csv` alignés : **une ligne par correspondance ou par
+entrée sans correspondance**, dans l'ordre naturel du viewer
+(`lib/alignment_export.py`, partagé avec lui). L'entrée est une sortie
+d'alignement (`*.dedupe.csv`, `*.nw.csv` ou le CSV final) ; comme dans le
+viewer, les volumes sont relus en entier et le patch des entrées est
+appliqué en mémoire, sans être réécrit (`--sans-patch` l'ignore). Sortie
+par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
+
+| Colonne | Contenu |
+|---|---|
+| `statut` | `apparié`, `gauche seulement` ou `droite seulement` |
+| `score`, `methode` | Score et source du lien (`dedupe`, `nw`, `nw-contexte`, `nw-residuel`, `manuel`) ; vides sans correspondance |
+| `rubriques_correspondantes` | Pour une paire : `oui` si les rubriques des deux entrées se correspondent (correspondance des rubriques et son patch), sinon `non` — à vérifier en priorité |
+| `gauche_…`, `droite_…` | Pour chaque côté : `volume`, `page`, `rubrique` (titre lisible), `texte` (sans Markdown), `sujet` / `description` / `adresse` (texte des empans SUBJ / DESC / ADDR, plusieurs empans d'une classe séparés par « \| »), `texte_balise` (`tagged_text` d'origine), `uuid` |
+
+`--excel` écrit avec le séparateur `;` et en UTF-8 avec BOM, qu'un tableur
+réglé en français ouvre directement ; sans l'option, CSV standard (`,`,
+UTF-8).
 
 ## Audit du CRF : `audit_crf_features.py`
 
@@ -639,6 +674,7 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 | `annuaires/alignements/<g>__<d>.dedupe.csv` | `align_directories.py` | Correspondances brutes de Dedupe |
 | `annuaires/alignements/<g>__<d>.csv` | `align_directories.py` | Correspondances finales (Dedupe + patch) |
 | `annuaires/alignements/<g>__<d>.nw.csv` | `align_directories_nw.py` | Correspondances de la méthode ordonnée |
+| `annuaires/alignements/<g>__<d>.….jointure.csv` | `tools/export_alignment.py`, viewer | Jointure lisible des deux volumes alignés (pour les utilisateurs des données) |
 | `data/alignement/<g>__<d>.training.json` | `align_directories.py --label` | Paires étiquetées pour Dedupe (versionné) |
 | `data/alignement/<g>__<d>.sections.csv` | édition manuelle | Patch des rubriques (versionné) |
 | `data/alignement/<g>__<d>.patch.csv` | édition manuelle | Patch des entrées (versionné) |
@@ -658,6 +694,7 @@ racine du dépôt ; ceux de `tools/` ajoutent la racine à `sys.path`.
 | `lib/ner/` | `spans.py` (empans, `tagged_text`, Label Studio, normalisation Markdown), `html.py` (rendu des empans pour les viewers), `shapes.py` (formes typographiques), `corpus.py` (lecture des CSV NER), `metrics.py`, `suspicion.py` (motifs de relecture), `gliner.py` (chargement et prédiction) |
 | `lib/alignment.py` | Chargement des volumes, champs comparés, lecture et écriture des correspondances |
 | `lib/alignment_patch.py` | Patch des entrées |
+| `lib/alignment_export.py` | Jointure dans l'ordre naturel (viewer) et export CSV lisible |
 | `lib/section_alignment.py` | Correspondance des rubriques et son patch |
 | `lib/sequence.py` | Needleman-Wunsch |
 | `lib/pair_hmm.py` | Pair-HMM de la méthode ordonnée |

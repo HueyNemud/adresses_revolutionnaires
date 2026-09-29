@@ -78,6 +78,7 @@ uv run streamlit run tools/display_directory.py
 uv run align_directories.py annuaires/<A> annuaires/<B>      # Dedupe
 uv run align_directories_nw.py annuaires/<A> annuaires/<B>   # ordre des entrées
 uv run streamlit run tools/display_alignment.py
+uv run tools/export_alignment.py annuaires/alignements/<A>__<B>.nw.csv --excel   # jointure CSV lisible
 
 # Audits
 uv run audit_crf_features.py      # CRF de l'étape 2 → rapports/audit_crf/
@@ -93,7 +94,7 @@ uv run python -m unittest discover -s tests
 |---|---|
 | `*.py` (racine) | Scripts des étapes et des audits |
 | `lib/` | Code partagé (schéma des documents, CRF, NER, alignement, statistiques) |
-| `tools/` | Viewers Streamlit, outils d'entraînement et de tirage du gold NER |
+| `tools/` | Viewers Streamlit, export de la jointure alignée, outils d'entraînement et de tirage du gold NER |
 | `data/ner/` | Gold d'évaluation et jeu d'entraînement NER (Label Studio) |
 | `data/alignement/` | Paires étiquetées pour Dedupe et patchs manuels d'alignement |
 | `docs/` | Documentation |
