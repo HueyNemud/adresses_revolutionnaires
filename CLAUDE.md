@@ -22,6 +22,7 @@ uv run align_directories.py annuaires/<A> annuaires/<B> --raw-sections   # Dedup
 uv run align_directories_nw.py annuaires/<A> annuaires/<B>  # order-based alternative (Needleman-Wunsch), no training
 uv run streamlit run tools/display_alignment.py            # alignment viewer (read-only; copy buttons for the hand-edited patch; CSV export)
 uv run tools/export_alignment.py annuaires/alignements/<A>__<B>.nw.csv [--excel]   # readable joined CSV for data users
+uv run tools/sample_alignment_gold.py annuaires/<A> annuaires/<B>   # (once) stratified sample of candidate inversions to label → data/alignement/<A>__<B>.gold-inversions.csv
 uv run audit_crf_features.py                               # CRF/feature audit on curated CSVs → rapports/audit_crf/
 uv run tools/sample_ner_gold.py                            # (once) stratified NER gold sample → data/ner/gold.ls.json
 uv run audit_ner.py [--model DIR] [--sweep]                # NER audit on the reviewed gold → rapports/audit_ner/
@@ -68,7 +69,7 @@ Each step is a standalone CLI script at the repo root (argparse, `rich` console 
 
 The line-level BIO classes (steps 2–4) and the span classes `SUBJ/DESC/ADDR` (step 5) are separate label spaces. If you rename a line class, update `build_entity_tree.py` too — unknown classes are treated as out-of-scope and only flagged in the report.
 
-`tools/` holds the NER training and gold tools (`train_gliner.py`, `build_ner_training.py`, `sample_ner_gold.py`), the result viewers (`display_directory.py`, `display_alignment.py`) and the alignment export (`export_alignment.py`). Scripts that were no longer used (`main.py`, the LLM pre-annotator `autoclassify_labelstudio.py`) were deleted; the git tag `avant-menage` points to the last commit that has them (`git show avant-menage:<file>`).
+`tools/` holds the NER training and gold tools (`train_gliner.py`, `build_ner_training.py`, `sample_ner_gold.py`), the result viewers (`display_directory.py`, `display_alignment.py`) the alignment export (`export_alignment.py`) and the inversion gold sampler (`sample_alignment_gold.py`: NW-unmatched pairs crossing ≥ 1 ordered pair, best crossed partner per left entry, strata displacement × similarity, weight = stratum size / drawn; hand-labelled column `meme_entree`; never overwritten without `--force`). It exists because unsupervised estimates of a displacement-aware residual pass failed on 1807/1808: the identical-SUBJ sample misses moved entries (they mostly moved because their name changed spelling), and letting EM learn p(sim | different) diverges. Scripts that were no longer used (`main.py`, the LLM pre-annotator `autoclassify_labelstudio.py`) were deleted; the git tag `avant-menage` points to the last commit that has them (`git show avant-menage:<file>`).
 
 `explorations/` holds exploratory notebooks (deps in the `explorations` dependency group: Jupyter, matplotlib; see `explorations/README.md`); they run from `explorations/` or the repo root and are committed with their outputs. `consolidation_adresses_1807_1808.ipynb` classifies the ADDR fields of aligned 1807/1808 pairs (équivalence / changement de numéro / déménagement / adresse complexe, plus sans numéro / adresse absente; street names normalized, fuzzy threshold ε) and exports `<jointure>.consolidee.csv`.
 
