@@ -23,7 +23,10 @@ les entrées de gauche sans correspondance dans l'ordre de l'annuaire de
 gauche, chaque entrée de droite sans correspondance insérée après la paire
 qui contient l'entrée de droite appariée qui la précède. La dernière
 colonne donne le **statut** de chaque ligne en clair (appariée, candidate
-non appariée, sans correspondance), avec une légende au-dessus de la table.
+non appariée, sans correspondance) ; le bouton **Légende**, à côté de la
+pagination, l'explique. Un encart **Rubriques** donne, par groupe de
+rubriques appariées puis par rubrique seule, la correspondance (auto,
+patch, seule) et la part d'entrées appariées de chaque côté.
 
 Barre latérale, du plus courant au plus fin : choix de l'alignement ;
 filtres (statut des lignes, incertitude, rubrique, recherche, score,
@@ -67,7 +70,7 @@ from align_directories_nw import Params
 from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, load_volume, read_links
 from lib.alignment_export import LEFT_ONLY, PAIR, CANDIDATE, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import PATCH_FIELDS, UNCERTAIN, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
-from lib.alignment_review import DEFAULT_MARGIN, LEVEL_LABELS, SEPARATOR, Review, review
+from lib.alignment_review import DEFAULT_MARGIN, LEVEL_LABELS, REASON_CANDIDATE, SEPARATOR, Review, review
 from lib.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.section_alignment import (
     SECTION_PATCH_FIELDS,
@@ -327,22 +330,23 @@ def status_html(row, threshold: float) -> str:
         css = " class='low'" if row.score < threshold else ""
         parts.append(f"<span class='meta'>score</span> <span{css}>{row.score:.3f}</span>")
     if row.level:
-        parts.append(f"{level_badge(row.level)}<br><span class='reasons'>{html.escape(row.reasons)}</span>")
+        # Le motif « candidate non appariée » répète le statut : on ne l'affiche pas.
+        reasons = SEPARATOR.join(reason for reason in row.reasons.split(SEPARATOR) if reason != REASON_CANDIDATE)
+        parts.append(level_badge(row.level) + (f"<br><span class='reasons'>{html.escape(reasons)}</span>" if reasons else ""))
     return "<br>".join(parts)
 
 
 def legend_html() -> str:
-    """Légende des statuts et de l'incertitude, au-dessus de la table."""
-    return (
-        "<div class='legend-table'>"
-        f"{status_badge(PAIR)} lien retenu (bordure verte) · "
-        f"{status_badge(PAIR, SOURCE_MANUAL)} lien du patch · "
-        f"{status_badge(PAIR, SOURCE_MANUAL_UNCERTAIN)} lien du patch marqué incertain<br>"
-        f"{status_badge(CANDIDATE)} deux entrées <b>non appariées</b>, soumises au relecteur (fond ambre) · "
-        f"{status_badge(LEFT_ONLY)} entrée seule (bordure grise)<br>"
-        f"{level_badge(1)}{level_badge(2)} à vérifier, motif en dessous (incertitude faible : rien n'est affiché)"
-        "</div>"
-    )
+    """Légende des statuts et de l'incertitude (bouton « Légende » au-dessus de la table)."""
+    items = [
+        (status_badge(PAIR), "lien retenu automatiquement (bordure verte)"),
+        (status_badge(PAIR, SOURCE_MANUAL), "lien du patch"),
+        (status_badge(PAIR, SOURCE_MANUAL_UNCERTAIN), "lien du patch marqué incertain"),
+        (status_badge(CANDIDATE), "deux entrées <b>non appariées</b>, soumises au relecteur (fond ambre)"),
+        (status_badge(LEFT_ONLY), "entrée seule (bordure grise)"),
+        (level_badge(1) + " " + level_badge(2), "à vérifier, motif en dessous ; incertitude faible : rien n'est affiché"),
+    ]
+    return "<div class='legend-table'>" + "<br>".join(f"{badges} {text}" for badges, text in items) + "</div>"
 
 
 def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, records: dict, confirmed: set[str]) -> list[str]:
@@ -389,7 +393,9 @@ def paginated_table(view: pd.DataFrame, headers: list[str], render, page_size: i
         return
     n_pages = max(1, -(-len(view) // page_size))
     page = min(st.session_state.get("page", 0), n_pages - 1)
-    previous, label, following = st.columns([1, 3, 1])
+    previous, label, legend, following = st.columns([1, 3, 0.8, 1])
+    with legend.popover("ℹ️ Légende", width="stretch"):
+        st.html(f"{CSS}{legend_html()}")
     if previous.button("◀ Précédente", disabled=page == 0, width="stretch"):
         page -= 1
     if following.button("Suivante ▶", disabled=page >= n_pages - 1, width="stretch"):
@@ -403,7 +409,7 @@ def paginated_table(view: pd.DataFrame, headers: list[str], render, page_size: i
     start = page * page_size
     head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
     st.html(
-        f"{CSS}{COPY_SCRIPT}{legend_html()}<div class='table-scroll'><table class='ner-table'>"
+        f"{CSS}{COPY_SCRIPT}<div class='table-scroll'><table class='ner-table'>"
         "<colgroup><col class='number'><col><col><col class='score'></colgroup>"
         f"<thead><tr>{head}</tr></thead><tbody>{''.join(render(view.iloc[start : start + page_size], start + 1))}</tbody>"
         "</table></div>",
@@ -411,38 +417,46 @@ def paginated_table(view: pd.DataFrame, headers: list[str], render, page_size: i
     )
 
 
-def section_summary(rows: pd.DataFrame) -> pd.DataFrame:
-    """Par rubrique (nom nettoyé, tel que comparé par Dedupe) : entrées et taux d'appariement de chaque côté."""
-    parts = []
-    for side, name in (("left", "gauche"), ("right", "droite")):
-        present = rows[rows[f"{side}_uuid"] != ""]
-        grouped = present.assign(matched=present["kind"] == PAIR).groupby(f"{side}_section", sort=False)["matched"]
-        part = pd.DataFrame({f"{name} : entrées": grouped.size(), f"{name} : appariées": grouped.sum()})
-        part[f"{name} : taux"] = (part[f"{name} : appariées"] / part[f"{name} : entrées"]).round(3)
-        parts.append(part)
-    summary = parts[0].join(parts[1], how="outer")
-    summary.index = summary.index.map(lambda section: section or NO_SECTION)
-    summary.index.name = "rubrique"
-    return summary
-
-
-def section_table(alignment: SectionAlignment) -> pd.DataFrame:
-    """Correspondance des rubriques : un groupe par ligne (titres et uuid
-    joints par « + » s'il en compte plusieurs), puis les rubriques seules."""
+def section_table(alignment: SectionAlignment, rows: pd.DataFrame) -> pd.DataFrame:
+    """Rubriques : un groupe de rubriques appariées par ligne (titres et uuid
+    joints par « + » s'il en compte plusieurs), puis les rubriques seules,
+    avec, de chaque côté, les entrées et la part appariée."""
+    pairs = rows[rows["kind"] == PAIR]
+    matched = {"left": pairs["left_section_uuid"].value_counts(), "right": pairs["right_section_uuid"].value_counts()}
 
     def joined(sections, attribute: str) -> str:
         return " + ".join(getattr(section, attribute) or NO_SECTION for section in sections)
 
+    def counts(side: str, sections) -> list:
+        total = sum(len(section.records) for section in sections)
+        paired = sum(int(matched[side].get(section.uuid, 0)) for section in sections)
+        return [total, paired, round(paired / total, 3) if total else None]
+
     lines = [
-        (joined(group.left, "title"), joined(group.right, "title"), group.source, joined(group.left, "uuid"), joined(group.right, "uuid"))
+        [joined(group.left, "title"), joined(group.right, "title"), "patch" if group.source != SOURCE_AUTO else "auto",
+         *counts("left", group.left), *counts("right", group.right), joined(group.left, "uuid"), joined(group.right, "uuid")]
         for group in alignment.groups
     ]
     for side, unmatched in (("left", alignment.unmatched_left), ("right", alignment.unmatched_right)):
         for section in unmatched:
             source = "seule (patch)" if (side, section.uuid) in alignment.declared else "seule"
-            title, uuid = section.title or NO_SECTION, section.uuid
-            lines.append((title, "", source, uuid, "") if side == "left" else ("", title, source, "", uuid))
-    return pd.DataFrame(lines, columns=["gauche", "droite", "source", "uuid gauche", "uuid droite"])
+            empty = [None, None, None]
+            if side == "left":
+                lines.append([section.title or NO_SECTION, "", source, *counts("left", [section]), *empty, section.uuid, ""])
+            else:
+                lines.append(["", section.title or NO_SECTION, source, *empty, *counts("right", [section]), "", section.uuid])
+    table = pd.DataFrame(
+        lines,
+        columns=[
+            "gauche", "droite", "correspondance",
+            "gauche : entrées", "gauche : appariées", "gauche : taux",
+            "droite : entrées", "droite : appariées", "droite : taux",
+            "uuid gauche", "uuid droite",
+        ],
+    )
+    for column in ("gauche : entrées", "gauche : appariées", "droite : entrées", "droite : appariées"):
+        table[column] = table[column].astype("Int64")
+    return table
 
 
 # ----------------------------------------------------------------------
@@ -591,18 +605,17 @@ def main() -> None:
     legend = "".join(badge(label, colors) for label, colors in LABEL_COLORS.items())
     st.markdown(f"<div class='legend'>{legend}</div>", unsafe_allow_html=True)
     kpis(left_name, right_name, rows, alignment.n_patch, len(alignment.dropped))
-    with st.expander("Bilan par rubrique"):
-        st.caption("Rubriques telles que comparées (titre `##`, sinon `#`, nettoyé) : une rubrique renommée apparaît deux fois.")
-        st.dataframe(section_summary(rows), width="stretch")
-    with st.expander("Correspondance des rubriques"):
+    with st.expander("Rubriques : correspondance et appariement"):
         groups = alignment.sections.groups
         manual = sum(group.source != SOURCE_AUTO for group in groups)
+        alone = len(alignment.sections.unmatched_left) + len(alignment.sections.unmatched_right)
         st.caption(
-            f"{len(groups)} groupe(s), dont {manual} du patch des rubriques ; une rubrique seule n'a pas de correspondance. "
-            "Pour corriger : une ligne `left_uuid,right_uuid` par paire (un même uuid sur plusieurs lignes forme un "
-            "groupe 1-N), ou un seul uuid pour une rubrique sans correspondance."
+            f"{len(groups)} groupe(s) de rubriques appariées, dont {manual} du patch des rubriques ; {alone} rubrique(s) seule(s), "
+            "dont les entrées ne sont jamais appariées. Pour corriger : une ligne `left_uuid,right_uuid` par paire dans le patch "
+            "des rubriques (un même uuid sur plusieurs lignes forme un groupe 1-N), ou un seul uuid pour une rubrique sans "
+            "correspondance."
         )
-        st.dataframe(section_table(alignment.sections), width="stretch", hide_index=True)
+        st.dataframe(section_table(alignment.sections, rows), width="stretch", hide_index=True)
 
     # Filtres
     with filters_box:

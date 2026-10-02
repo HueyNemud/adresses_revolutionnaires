@@ -588,13 +588,13 @@ final.
   droite sans correspondance vient après la paire qui contient l'entrée de
   droite appariée qui la précède. Un bandeau marque chaque changement de
   rubrique.
-- **Statut de chaque ligne, en clair** (dernière colonne, légende
-  au-dessus de la table) : `✓ appariée` (bordure verte ; `relue` ou
-  `relue, incertaine` pour un lien du patch), `? non appariée · candidate
-  à décider` (fond ambre : deux entrées **non** appariées, soumises au
-  relecteur), `✗ sans correspondance` (bordure grise). Viennent ensuite le
-  score, et pour une ligne à vérifier un badge d'incertitude (moyenne en
-  orange, forte en rouge) avec son motif.
+- **Statut de chaque ligne, en clair** (dernière colonne) : `✓ appariée`
+  (bordure verte ; `relue` ou `relue, incertaine` pour un lien du patch),
+  `? non appariée · candidate à décider` (fond ambre : deux entrées **non**
+  appariées, soumises au relecteur), `✗ sans correspondance` (bordure
+  grise). Viennent ensuite le score, et pour une ligne à vérifier un badge
+  d'incertitude (moyenne en orange, forte en rouge) avec son motif. Le
+  bouton **Légende**, à côté de la pagination, rappelle ces conventions.
 - **Barre latérale, du plus courant au plus fin :** alignement ; *Filtres*
   (statut des lignes, incertitude, rubrique, recherche, plage de scores,
   corrections manuelles) ; *Affichage* (tri, dont *incertitude
@@ -604,8 +604,10 @@ final.
 - **Seulement entre rubriques appariées :** un lien entre rubriques non
   appariées est écarté ; l'indicateur *Liens écartés* les compte, et un
   encart liste les paires du patch concernées.
-- **Encarts :** lignes orphelines des deux patchs, bilan par rubrique,
-  correspondance des rubriques.
+- **Encarts :** lignes orphelines des deux patchs ; **Rubriques** : une
+  table par groupe de rubriques appariées (auto ou patch), puis par
+  rubrique seule, avec les entrées et la part appariée de chaque côté et
+  les uuid pour le patch des rubriques.
 - **Copie pour les patchs :** le bouton `uuid` d'une entrée ou d'un bandeau
   de rubrique copie son uuid ; le bouton `copier` d'une ligne copie une
   ligne de patch prête à coller (la paire, ou l'entrée seule) ; le bouton
@@ -702,7 +704,7 @@ uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.
   perte due aux rubriques sans correspondance n'y sont pas évalués.
 - **Pour une nouvelle paire d'annuaires**, commencer par les rubriques sans
   correspondance (console d'`align_directories_nw.py`, encart
-  *Correspondance des rubriques* du viewer, section 3 du rapport d'audit) :
+  *Rubriques* du viewer, section 3 du rapport d'audit) :
   leurs entrées ne sont jamais appariées et le gold ne voit pas cette perte.
   Lier dans le patch des rubriques celles qui ont un équivalent. Ensuite,
   les seuils ne sont pas à reprendre de 1807/1808 les yeux fermés : tirer un petit gold
