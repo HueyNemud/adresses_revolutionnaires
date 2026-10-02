@@ -203,7 +203,7 @@ def similarity_matrix(left: list[Record], right: list[Record], subj_weight: floa
 SOURCE_DEDUPE = "dedupe"
 SOURCE_MANUAL = "manuel"
 SOURCE_MANUAL_UNCERTAIN = "manuel-incertain"  # paire du patch marquée `certitude=incertaine`
-SOURCE_PROPOSAL = "proposition"  # paire non retenue proposée à la relecture (`lib/alignment_review.py`), jamais un lien
+SOURCE_CANDIDATE = "candidate"  # paire non retenue proposée à la relecture (`lib/alignment_review.py`), jamais un lien
 SOURCE_NW = "nw"  # `align_directories_nw.py` : alignement ordonné
 SOURCE_NW_CONTEXT = "nw-contexte"  # idem, décidée par le pair-HMM entre deux ancres
 SOURCE_NW_RESIDUAL = "nw-residuel"  # idem, passe résiduelle (inversions locales)

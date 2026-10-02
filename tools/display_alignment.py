@@ -31,12 +31,13 @@ Le patch s'édite à la main. Pour l'alimenter, chaque entrée a un bouton
 ligne de patch prête à coller : la paire pour une correspondance, l'entrée
 seule pour une entrée sans correspondance).
 
-**Relecture** (`lib/alignment_review.py`) : chaque correspondance porte un
-niveau d'incertitude (0 sûre, 1 à relire, 2 très incertaine) et ses motifs
-(`contexte incertain`, `homonyme proche`) ; des **propositions** (deux
+**Relecture** (`lib/alignment_review.py`) : chaque correspondance porte une
+incertitude (faible, moyenne ou forte) et ses motifs (`déduite des voisines
+(p < 0,9)`, `homonyme proche`) ; des **candidates non appariées** (deux
 entrées sans correspondance, chacune la plus proche de l'autre, dans la zone
 grise de similarité) occupent une ligne à part, sur fond jaune. Le filtre
-« Niveau d'incertitude minimal » ne garde que ces lignes. Une décision
+« Incertitude » ne garde que les lignes d'incertitude moyenne ou forte, ou
+forte seulement. Une décision
 incertaine se copie avec le bouton **incertaine** (ligne de patch
 `certitude=incertaine`).
 
@@ -59,9 +60,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from align_directories_nw import Params
 from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Record, load_volume, read_links
-from lib.alignment_export import LEFT_ONLY, PAIR, PROPOSAL, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
+from lib.alignment_export import LEFT_ONLY, PAIR, CANDIDATE, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import PATCH_FIELDS, UNCERTAIN, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
-from lib.alignment_review import DEFAULT_MARGIN, REASONS, SEPARATOR, Review, review
+from lib.alignment_review import DEFAULT_MARGIN, LEVEL_LABELS, SEPARATOR, Review, review
 from lib.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.section_alignment import (
     SECTION_PATCH_FIELDS,
@@ -79,14 +80,14 @@ PATCH_DIR = Path("data/alignement")
 ALIGNMENT_SUFFIXES = (".dedupe.csv", ".nw.csv")  # align_directories.py, align_directories_nw.py
 PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
 NATURAL_ORDER = "ordre naturel"
-LEVEL_ORDER = "niveau d'incertitude décroissant"
+LEVEL_ORDER = "incertitude décroissante"
 ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant", LEVEL_ORDER]
-LEVEL_OPTIONS = {0: "0 — tout afficher", 1: "1 — à relire", 2: "2 — très incertaines"}
+LEVEL_OPTIONS = {0: "toutes les lignes", 1: "moyenne ou forte", 2: "forte seulement"}  # filtre : incertitude minimale
 ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
 KIND_LABELS = {
     PAIR: "Correspondances",
-    PROPOSAL: "Propositions à relire",
+    CANDIDATE: "Candidates non appariées",
     LEFT_ONLY: "Sans correspondance à gauche",
     RIGHT_ONLY: "Sans correspondance à droite",
 }
@@ -106,7 +107,7 @@ CSS = f"""<style>
   .ner-table tr:hover td {{ background: #f8fafc; }}
   .ner-table tr.section td {{ background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.85em; }}
   .ner-table tr.left td.empty, .ner-table tr.right td.empty {{ background: #fef2f2; }}
-  .ner-table tr.proposal td {{ background: #fffbeb; }}
+  .ner-table tr.candidate td {{ background: #fffbeb; }}
   .ner-table col.number {{ width: 3.5em; }}
   .ner-table col.score {{ width: 8em; }}
   .meta {{ font-family: monospace; font-size: 0.78em; color: #64748b; }}
@@ -175,7 +176,7 @@ def load_alignment(
     patch_mtime: float,
     section_patch_path: str,
     section_patch_mtime: float,
-    proposal_low: float,
+    candidate_low: float,
     margin: float,
 ) -> Alignment:
     """Résultat final (alignement + patch), recalculé seulement si l'un des
@@ -194,9 +195,9 @@ def load_alignment(
     params = Params()
     found = review(
         links, list(records["left"].values()), list(records["right"].values()), sections,
-        proposal_low, params.residual_threshold, params.subj_weight, margin, declared,
+        candidate_low, params.residual_threshold, params.subj_weight, margin, declared,
     )
-    joined, n_missing = natural_rows(links + found.proposals, records["left"], records["right"])
+    joined, n_missing = natural_rows(links + found.candidates, records["left"], records["right"])
     rows = build_rows(joined, found.reviews)
     matching = corresponding(sections)
     unmatched = pd.Series(
@@ -285,13 +286,13 @@ def entry_html(row, side: str, different_section: bool, confirmed: set[str]) -> 
 
 
 def score_html(row, threshold: float) -> str:
-    if row.kind not in (PAIR, PROPOSAL):
+    if row.kind not in (PAIR, CANDIDATE):
         return ""
     if row.source == SOURCE_MANUAL_UNCERTAIN:
         manual = badge(UNCERTAIN, UNCERTAIN_COLORS)
     else:
         manual = badge(SOURCE_MANUAL, MANUAL_COLORS) if row.source == SOURCE_MANUAL else ""
-    reasons = f"<br><span class='meta'>niveau {row.level} · {html.escape(row.reasons)}</span>" if row.reasons else ""
+    reasons = f"<br><span class='meta'>incertitude {LEVEL_LABELS[row.level]} · {html.escape(row.reasons)}</span>" if row.reasons else ""
     if pd.isna(row.score):
         return (manual or "<span class='meta'>—</span>") + reasons
     css = " class='low'" if row.score < threshold else ""
@@ -320,7 +321,7 @@ def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, 
         right_record = records["right"].get(row.right_uuid)
         different = row.different_section
         line = copy_button("copier", patch_line(left_record, right_record), "Copier une ligne de patch pour cette ligne")
-        if row.kind in (PAIR, PROPOSAL):
+        if row.kind in (PAIR, CANDIDATE):
             line += copy_button(
                 "incertaine", patch_line(left_record, right_record, UNCERTAIN), "Copier une ligne de patch : paire retenue mais incertaine"
             )
@@ -422,8 +423,8 @@ def choose_alignment() -> Path | None:
 
 def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> None:
     counts = rows["kind"].value_counts()
-    matched, proposed = counts.get(PAIR, 0), counts.get(PROPOSAL, 0)
-    n_left, n_right = matched + proposed + counts.get(LEFT_ONLY, 0), matched + proposed + counts.get(RIGHT_ONLY, 0)
+    matched, candidates_kept = counts.get(PAIR, 0), counts.get(CANDIDATE, 0)
+    n_left, n_right = matched + candidates_kept + counts.get(LEFT_ONLY, 0), matched + candidates_kept + counts.get(RIGHT_ONLY, 0)
     pairs = rows[rows["kind"] == PAIR]
     columns = st.columns(6)
     columns[0].metric("Correspondances", f"{matched:,}".replace(",", " "))
@@ -435,13 +436,13 @@ def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> N
         help="Correspondances entre deux rubriques qui ne se correspondent pas (alignement des rubriques et son patch).",
     )
     columns[4].metric("Lignes du patch", str(n_patch))
-    levels = rows.loc[rows["kind"].isin([PAIR, PROPOSAL]), "level"].value_counts()
+    levels = rows.loc[rows["kind"].isin([PAIR, CANDIDATE]), "level"].value_counts()
     columns[5].metric(
-        "À relire",
+        "À vérifier",
         f"{levels.get(1, 0) + levels.get(2, 0)}",
-        f"dont {levels.get(2, 0)} très incertaines",
+        f"dont {levels.get(2, 0)} d'incertitude forte",
         delta_color="off",
-        help="Correspondances et propositions de niveau d'incertitude ≥ 1 (lib/alignment_review.py).",
+        help="Correspondances et candidates non appariées d'incertitude moyenne ou forte (lib/alignment_review.py).",
     )
 
 
@@ -460,10 +461,9 @@ def main() -> None:
     left_dir, right_dir = str(ANNUAIRES_DIR / left_name), str(ANNUAIRES_DIR / right_name)
     params = Params()
     st.sidebar.header("Relecture")
-    min_level = st.sidebar.selectbox("Niveau d'incertitude minimal", list(LEVEL_OPTIONS), format_func=LEVEL_OPTIONS.get)
-    reasons = st.sidebar.multiselect("Motifs", REASONS, default=list(REASONS), disabled=min_level == 0)
-    proposal_low = st.sidebar.slider(
-        "Similarité minimale d'une proposition",
+    min_level = st.sidebar.selectbox("Incertitude", list(LEVEL_OPTIONS), format_func=LEVEL_OPTIONS.get)
+    candidate_low = st.sidebar.slider(
+        "Similarité minimale d'une candidate non appariée",
         0.5,
         params.residual_threshold,
         params.threshold,
@@ -484,7 +484,7 @@ def main() -> None:
             mtime(patch_path),
             str(section_patch_path),
             mtime(section_patch_path),
-            proposal_low,
+            candidate_low,
             margin,
         )
     except (ValueError, OSError) as error:
@@ -568,8 +568,7 @@ def main() -> None:
     if only_manual:
         view = view[view["source"].isin(MANUAL_SOURCES) | view["left_uuid"].isin(confirmed) | view["right_uuid"].isin(confirmed)]
     if min_level:
-        wanted = view["reasons"].apply(lambda value: any(reason in value.split(SEPARATOR) for reason in reasons))
-        view = view[(view["level"] >= min_level) & wanted]
+        view = view[view["level"] >= min_level]
     if order == LEVEL_ORDER:
         view = view.sort_values("level", ascending=False, kind="stable")
     elif order != NATURAL_ORDER:
@@ -578,7 +577,7 @@ def main() -> None:
     # Retour à la première page quand la sélection change.
     selection = (
         alignment_path.name, tuple(kinds), section, query, low, high, only_diff, only_manual, order, page_size,
-        min_level, tuple(reasons), proposal_low, margin,
+        min_level, candidate_low, margin,
     )
     if st.session_state.get("_selection") != selection:
         st.session_state["_selection"] = selection

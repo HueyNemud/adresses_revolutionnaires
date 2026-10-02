@@ -2,8 +2,8 @@ import csv
 import io
 import unittest
 
-from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_PROPOSAL, Link, Record
-from lib.alignment_export import EXPORT_FIELDS, PROPOSAL, export_csv, export_row, natural_rows, span_texts
+from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_CANDIDATE, Link, Record
+from lib.alignment_export import EXPORT_FIELDS, CANDIDATE, export_csv, export_row, natural_rows, span_texts
 from lib.alignment_review import Review
 
 
@@ -84,22 +84,22 @@ class ExportTests(unittest.TestCase):
             Link("l0", "r0", 0.95, "nw"),
             Link("l1", "r1", 0.6, "nw-contexte"),
             Link("l2", "r2", None, SOURCE_MANUAL_UNCERTAIN),
-            Link("l3", "r3", 0.8, SOURCE_PROPOSAL),
+            Link("l3", "r3", 0.8, SOURCE_CANDIDATE),
         ]
-        reviews = {("l1", "r1"): Review(("contexte incertain",), 2), ("l3", "r3"): Review(("proposition",), 2)}
+        reviews = {("l1", "r1"): Review(("déduite des voisines (p < 0,9)",), 2), ("l3", "r3"): Review(("candidate non appariée",), 2)}
         rows, _ = natural_rows(links, left, right)
         values = [export_row(row, None, reviews) for row in rows]
         columns = [(v["statut"], v["certitude"], v["niveau_incertitude"], v["motifs_relecture"]) for v in values]
         self.assertEqual(
             columns,
             [
-                ("apparié", "automatique", "0", ""),
-                ("apparié", "automatique", "2", "contexte incertain"),
+                ("apparié", "automatique", "faible", ""),
+                ("apparié", "automatique", "forte", "déduite des voisines (p < 0,9)"),
                 ("apparié", "incertaine", "", ""),
-                ("proposition", "", "2", "proposition"),
+                ("candidate", "", "forte", "candidate non appariée"),
             ],
         )
-        self.assertEqual(rows[3].kind, PROPOSAL)
+        self.assertEqual(rows[3].kind, CANDIDATE)
         manual, _ = natural_rows([Link("l0", "r0", None, SOURCE_MANUAL)], left, right)
         self.assertEqual(export_row(manual[0], None)["certitude"], "relue")
         self.assertEqual(export_row(rows[0], None)["niveau_incertitude"], "")

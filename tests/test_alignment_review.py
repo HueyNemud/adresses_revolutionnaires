@@ -1,7 +1,7 @@
 import unittest
 
-from lib.alignment import SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_PROPOSAL, Link, Record
-from lib.alignment_review import REASON_CONTEXT, REASON_HOMONYM, REASON_PROPOSAL, review
+from lib.alignment import SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_CANDIDATE, Link, Record
+from lib.alignment_review import REASON_CONTEXT, REASON_HOMONYM, REASON_CANDIDATE, review
 from lib.section_alignment import align_sections
 
 
@@ -56,18 +56,18 @@ class ReviewTests(unittest.TestCase):
         left = records("g", ["Pagès, rue de l'Echiquier, 33.", "Bernard, quai Voltaire, 30."])
         right = records("d", ["Pagès, boulevard Montmartre, 14.", "Bernard, quai Voltaire, 30."])
         result = run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW)])
-        self.assertEqual([(link.left_uuid, link.right_uuid, link.source) for link in result.proposals], [("g0", "d0", SOURCE_PROPOSAL)])
-        self.assertEqual(result.reviews["g0", "d0"].reasons, (REASON_PROPOSAL,))
+        self.assertEqual([(link.left_uuid, link.right_uuid, link.source) for link in result.candidates], [("g0", "d0", SOURCE_CANDIDATE)])
+        self.assertEqual(result.reviews["g0", "d0"].reasons, (REASON_CANDIDATE,))
         self.assertEqual(result.reviews["g0", "d0"].level, 2)
-        # Sous le seuil bas, déclarée sans correspondance, ou déjà appariée : pas de proposition.
-        self.assertEqual(run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW)], low=0.84).proposals, [])
-        self.assertEqual(run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW)], declared={"g0"}).proposals, [])
-        self.assertEqual(run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW), Link("g0", "d0", None, "manuel")]).proposals, [])
+        # Sous le seuil bas, déclarée sans correspondance, ou déjà appariée : pas de candidate.
+        self.assertEqual(run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW)], low=0.84).candidates, [])
+        self.assertEqual(run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW)], declared={"g0"}).candidates, [])
+        self.assertEqual(run(left, right, [Link("g1", "d1", 1.0, SOURCE_NW), Link("g0", "d0", None, "manuel")]).candidates, [])
 
     def test_no_proposal_above_the_residual_threshold(self):
         left = records("g", ["Bernard, quai Voltaire, 30."])
         right = records("d", ["Bernard, quai Voltaire, 30."])
-        self.assertEqual(run(left, right, []).proposals, [])
+        self.assertEqual(run(left, right, []).candidates, [])
 
 
 if __name__ == "__main__":

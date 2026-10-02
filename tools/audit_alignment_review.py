@@ -18,13 +18,14 @@ Rapport `rapports/audit_alignement/<gauche>__<droite>.md` :
 1. règle actuelle (`regle_actuelle` du gold) : précision et gain plafond,
    pondérés ;
 2. chaque paire du gold selon ce que la relecture en ferait : retenue sans
-   motif (niveau 0), retenue avec motif, proposée, ou ni retenue ni
-   proposée ; on attend des OUI au niveau 0 et des NON / INCERTAIN ailleurs,
-   et une part de OUI qui baisse avec le niveau ;
+   motif (incertitude faible), retenue avec motif, candidate non appariée,
+   ou ni l'une ni l'autre ; on attend des OUI en incertitude faible et des
+   NON / INCERTAIN ailleurs, et une part de OUI qui baisse de l'incertitude
+   faible à forte ;
 3. charge de relecture sur toute la sortie, par motif et par niveau.
 
 Le gold ne contient que des candidates hors de l'ordre (inversions) : les
-paires décidées par le pair-HMM (`contexte incertain`) n'y figurent pas, et
+paires décidées par le pair-HMM (motif `déduite des voisines`) n'y figurent pas, et
 ce motif n'est donc pas évalué ici.
 """
 
@@ -40,7 +41,7 @@ from rich.console import Console
 
 from align_directories_nw import Params
 from lib.alignment import load_volume, read_links
-from lib.alignment_review import DEFAULT_MARGIN, review
+from lib.alignment_review import DEFAULT_MARGIN, LEVEL_LABELS, review
 from lib.reporting import md_table
 from lib.section_alignment import SECTION_PATCH_SUFFIX, load_section_alignment
 
@@ -99,7 +100,7 @@ def main() -> None:
     params = Params()
     found = review(links, left, right, sections, params.threshold, params.residual_threshold, params.subj_weight, args.ecart)
     retained = {(link.left_uuid, link.right_uuid) for link in links}
-    proposed = {(link.left_uuid, link.right_uuid) for link in found.proposals}
+    candidate_pairs = {(link.left_uuid, link.right_uuid) for link in found.candidates}
 
     # 1. Règle actuelle
     rule = defaultdict(list)
@@ -114,12 +115,12 @@ def main() -> None:
         reviewed = found.reviews.get(key)
         if key in retained:
             group = f"retenue, motif : {' + '.join(reviewed.reasons)}" if reviewed else "retenue, sans motif"
-            levels[str(reviewed.level if reviewed else 0)].append(row)
-        elif key in proposed:
-            group = "proposée"
-            levels[str(reviewed.level)].append(row)
+            levels[reviewed.level if reviewed else 0].append(row)
+        elif key in candidate_pairs:
+            group = "candidate non appariée"
+            levels[reviewed.level].append(row)
         else:
-            group = "ni retenue ni proposée"
+            group = "ni retenue ni candidate"
         fate[group].append(row)
 
     # 3. Charge de relecture sur toute la sortie
@@ -130,7 +131,7 @@ def main() -> None:
         f"# Audit de la relecture — {left_name} ⟷ {right_name}",
         "",
         f"Gold : `{args.gold}` ({len(gold)} paires étiquetées). Alignement : `{alignment_path}` ({len(links)} liens, sans patch). "
-        f"Seuils : propositions dans [{params.threshold} ; {params.residual_threshold}[, écart « homonyme proche » {args.ecart}.",
+        f"Seuils : candidates non appariées dans [{params.threshold} ; {params.residual_threshold}[, écart « homonyme proche » {args.ecart}.",
         "",
         "## 1. Règle actuelle de la passe résiduelle (sim ≥ 0,85, affectation optimale)",
         "",
@@ -142,17 +143,17 @@ def main() -> None:
         "",
         counts_table(fate, sorted(fate)),
         "",
-        "Par niveau d'incertitude (paires retenues ou proposées) — la part de OUI doit baisser de 0 à 2 :",
+        "Par niveau d'incertitude (paires retenues ou candidates) — la part de OUI doit baisser de faible à forte :",
         "",
-        counts_table(levels, sorted(levels)),
+        counts_table({LEVEL_LABELS[level]: rows for level, rows in levels.items()}, [LEVEL_LABELS[level] for level in sorted(levels)]),
         "",
         "## 3. Charge de relecture sur toute la sortie",
         "",
         md_table(["motifs", "paires"], [[reasons, count] for reasons, count in load.most_common()]),
         "",
-        md_table(["niveau", "paires"], [[level, load_levels[level]] for level in sorted(load_levels)]),
+        md_table(["incertitude", "paires"], [[LEVEL_LABELS[level], load_levels[level]] for level in sorted(load_levels)]),
         "",
-        "Le gold ne contient que des inversions : le motif `contexte incertain` (pair-HMM) n'y est pas évalué.",
+        "Le gold ne contient que des inversions : le motif `déduite des voisines` (pair-HMM) n'y est pas évalué.",
         "",
     ]
     output = args.output or REPORT_DIR / f"{pair_name}.md"

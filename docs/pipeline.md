@@ -586,19 +586,20 @@ final.
   la correspondance des rubriques), corrections manuelles ; tri par score
   pour relire les cas limites.
 - **Relecture** (`lib/alignment_review.py`, voir ci-dessous) : chaque
-  correspondance porte un niveau d'incertitude et ses motifs ; les
-  **propositions** (deux entrées sans correspondance, chacune la plus proche
-  de l'autre, dans la zone grise de similarité) occupent une ligne sur fond
-  jaune. Le filtre *Niveau d'incertitude minimal* ne garde que les lignes à
-  relire, le tri *niveau d'incertitude décroissant* les place en tête ; le
-  seuil bas des propositions et l'écart « homonyme proche » se règlent dans
-  la barre latérale.
+  correspondance porte une incertitude (faible, moyenne, forte) et ses
+  motifs ; les **candidates non appariées** (deux entrées sans
+  correspondance, chacune la plus proche de l'autre, dans la zone grise de
+  similarité) occupent une ligne sur fond jaune. Le filtre *Incertitude*
+  ne garde que les lignes d'incertitude moyenne ou forte (ou forte
+  seulement), le tri *incertitude décroissante* les place en tête ; le seuil
+  bas des candidates et l'écart « homonyme proche » se règlent dans la
+  barre latérale.
 - **Encarts :** lignes orphelines des deux patchs, bilan par rubrique,
   correspondance des rubriques.
 - **Copie pour les patchs :** le bouton `uuid` d'une entrée ou d'un bandeau
   de rubrique copie son uuid ; le bouton `copier` d'une ligne copie une
   ligne de patch prête à coller (la paire, ou l'entrée seule) ; le bouton
-  `incertaine` d'une paire ou d'une proposition copie la même ligne avec
+  `incertaine` d'une paire ou d'une candidate copie la même ligne avec
   `certitude=incertaine` ; `en-tête du patch` copie l'en-tête pour créer le
   fichier.
 - **Export CSV :** le bouton *Exporter en CSV* de la barre latérale
@@ -633,20 +634,20 @@ par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
 
 | Colonne | Contenu |
 |---|---|
-| `statut` | `apparié`, `gauche seulement`, `droite seulement` ou `proposition` (seulement avec `--propositions` ou depuis le viewer) |
-| `score`, `methode` | Score et source du lien (`dedupe`, `nw`, `nw-contexte`, `nw-residuel`, `manuel`, `manuel-incertain`, `proposition`) ; vides sans correspondance |
+| `statut` | `apparié`, `gauche seulement`, `droite seulement` ou `candidate` (candidate non appariée, seulement avec `--candidates` ou depuis le viewer) |
+| `score`, `methode` | Score et source du lien (`dedupe`, `nw`, `nw-contexte`, `nw-residuel`, `manuel`, `manuel-incertain`, `candidate`) ; vides sans correspondance |
 | `certitude` | Pour une paire : `relue` (patch), `incertaine` (patch, `certitude=incertaine`) ou `automatique` |
-| `niveau_incertitude` | Pour une paire automatique ou une proposition : 0 sûre, 1 à relire, 2 très incertaine (vide pour une paire relue) |
-| `motifs_relecture` | Motifs de ce niveau (`contexte incertain`, `homonyme proche`, `proposition`), séparés par « \| » |
+| `niveau_incertitude` | Pour une paire automatique ou une candidate : `faible`, `moyenne` ou `forte` (vide pour une paire relue) |
+| `motifs_relecture` | Motifs de cette incertitude (`déduite des voisines (p < 0,9)`, `homonyme proche`, `candidate non appariée`), séparés par « \| » |
 | `rubriques_correspondantes` | Pour une paire : `oui` si les rubriques des deux entrées se correspondent (correspondance des rubriques et son patch), sinon `non` — à vérifier en priorité |
 | `gauche_…`, `droite_…` | Pour chaque côté : `volume`, `page`, `rubrique` (titre lisible), `texte` (sans Markdown), `sujet` / `description` / `adresse` (texte des empans SUBJ / DESC / ADDR, plusieurs empans d'une classe séparés par « \| »), `texte_balise` (`tagged_text` d'origine), `uuid` |
 
 `--excel` écrit avec le séparateur `;` et en UTF-8 avec BOM, qu'un tableur
 réglé en français ouvre directement ; sans l'option, CSV standard (`,`,
-UTF-8). `--propositions` ajoute les propositions à relire ; `--ecart`
+UTF-8). `--candidates` ajoute les candidates non appariées ; `--ecart`
 règle l'écart « homonyme proche ».
 
-### Relecture ciblée : motifs et niveau d'incertitude
+### Relecture ciblée : motifs et incertitude
 
 L'alignement automatique n'est pas modifié : `lib/alignment_review.py`
 signale seulement, après coup, les décisions qu'une relecture humaine peut
@@ -655,15 +656,16 @@ NER). Calcul par segment, avec la similarité de la méthode ordonnée :
 
 | Motif | Concerne | Règle |
 |---|---|---|
-| `contexte incertain` | paire `nw-contexte` | probabilité a posteriori < 0,9 |
+| `déduite des voisines (p < 0,9)` | paire `nw-contexte` | retenue par le pair-HMM parce que ses voisines sont appariées, mais de probabilité a posteriori < 0,9 |
 | `homonyme proche` | paire `nw`, `nw-residuel` ou `dedupe` | une autre entrée du segment, d'un côté ou de l'autre, est à moins de 0,05 de similarité (`--ecart`) |
-| `proposition` | deux entrées sans correspondance | chacune est la plus proche de l'autre dans le segment, similarité dans [τ ; θr[ (seuils de Needleman-Wunsch et de la passe résiduelle) ; jamais une entrée déclarée seule au patch |
+| `candidate non appariée` | deux entrées sans correspondance | chacune est la plus proche de l'autre dans le segment, similarité dans [τ ; θr[ (seuils de Needleman-Wunsch et de la passe résiduelle) ; jamais une entrée déclarée seule au patch |
 
-Le **niveau d'incertitude** est ordinal (pour trier, ce n'est pas une
-probabilité) : 0 sans motif ; 1 un motif ; 2 une proposition, plusieurs
-motifs ou une probabilité de contexte < 0,7. Aucun paramètre n'est appris
-sur un volume. Sur 1807/1808 : 445 lignes à relire (258 de niveau 1, 187 de
-niveau 2) pour 14 491 paires. Les décisions vont au patch des entrées ; les
+L'**incertitude** est ordinale (pour trier, ce n'est pas une probabilité) :
+`faible` sans motif ; `moyenne` avec un motif ; `forte` pour une candidate
+non appariée, plusieurs motifs ou une paire déduite des voisines de
+probabilité < 0,7. Aucun paramètre n'est appris sur un volume. Sur
+1807/1808 : 445 lignes à vérifier (258 d'incertitude moyenne, 187 forte)
+pour 14 491 paires. Les décisions vont au patch des entrées ; les
 conventions de relecture sont dans
 [`guide_relecture_alignement.md`](guide_relecture_alignement.md).
 
@@ -684,14 +686,14 @@ uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.
 - `tools/audit_alignment_review.py` en tire `rapports/audit_alignement/<g>__<d>.md` :
   précision et gain plafond de la règle de la passe résiduelle, devenir de
   chaque paire du gold selon la relecture (retenue avec ou sans motif,
-  proposée, ni l'une ni l'autre), part de OUI par niveau, charge de
-  relecture. Le gold ne contenant que des inversions, le motif `contexte
-  incertain` n'y est pas évalué.
+  candidate non appariée, ni l'une ni l'autre), part de OUI par
+  incertitude, charge de relecture. Le gold ne contenant que des
+  inversions, le motif `déduite des voisines` n'y est pas évalué.
 - **Pour une nouvelle paire d'annuaires**, les seuils ne sont pas à
   reprendre de 1807/1808 les yeux fermés : tirer un petit gold
   (`--per-stratum 4`, ≈ 100 paires), l'étiqueter, lancer l'audit, et
   n'ajuster τ, θr ou `--ecart` que si le rapport l'exige (part de OUI qui ne
-  baisse plus avec le niveau, règle imprécise, motifs qui n'attrapent pas
+  baisse plus de l'incertitude faible à forte, règle imprécise, motifs qui n'attrapent pas
   les erreurs).
 
 ## Audit du CRF : `audit_crf_features.py`
@@ -768,7 +770,7 @@ racine du dépôt ; ceux de `tools/` ajoutent la racine à `sys.path`.
 | `lib/alignment.py` | Chargement des volumes, champs comparés, lecture et écriture des correspondances |
 | `lib/alignment_patch.py` | Patch des entrées |
 | `lib/alignment_export.py` | Jointure dans l'ordre naturel (viewer) et export CSV lisible |
-| `lib/alignment_review.py` | Motifs de relecture, niveau d'incertitude et propositions |
+| `lib/alignment_review.py` | Motifs de relecture, incertitude et candidates non appariées |
 | `lib/section_alignment.py` | Correspondance des rubriques et son patch |
 | `lib/sequence.py` | Needleman-Wunsch |
 | `lib/pair_hmm.py` | Pair-HMM de la méthode ordonnée |

@@ -15,7 +15,7 @@ Une ligne par correspondance ou entrée sans correspondance, dans l'ordre
 naturel des listes (`lib/alignment_export.py`) : `statut` (apparié / gauche
 seulement / droite seulement), `score`, `methode` (source du lien),
 `certitude` (relue / incertaine à la relecture / automatique),
-`niveau_incertitude` (0 sûre, 1 à relire, 2 très incertaine) et
+`niveau_incertitude` (faible, moyenne, forte) et
 `motifs_relecture` (`lib/alignment_review.py`),
 `rubriques_correspondantes` (oui / non : les rubriques des deux entrées se
 correspondent-elles, d'après `lib/section_alignment.py`), puis pour chaque
@@ -23,8 +23,8 @@ côté (`gauche_…`, `droite_…`) : volume, page, rubrique, texte sans Markdow
 empans `sujet` / `description` / `adresse` (plusieurs empans de même classe
 séparés par « | »), texte balisé et uuid.
 
-`--propositions` ajoute les propositions à relire (deux entrées sans
-correspondance, statut `proposition`) ; par défaut, l'export ne contient
+`--candidates` ajoute les candidates non appariées à vérifier (deux entrées
+sans correspondance, statut `candidate`) ; par défaut, l'export ne contient
 que les liens retenus.
 
 Sortie par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
@@ -68,7 +68,7 @@ def main() -> None:
     parser.add_argument("-o", "--output", type=Path, help="CSV de sortie (défaut : <entrée>.jointure.csv).")
     parser.add_argument("--excel", action="store_true", help="Séparateur `;` et UTF-8 avec BOM (tableur en français).")
     parser.add_argument("--sans-patch", action="store_true", help="Ne pas appliquer le patch des corrections manuelles.")
-    parser.add_argument("--propositions", action="store_true", help="Ajouter les propositions à relire (statut `proposition`).")
+    parser.add_argument("--candidates", action="store_true", help="Ajouter les candidates non appariées à vérifier (statut `candidate`).")
     parser.add_argument(
         "--ecart",
         type=float,
@@ -107,7 +107,7 @@ def main() -> None:
         links, list(left.values()), list(right.values()), sections, params.threshold, params.residual_threshold, params.subj_weight,
         args.ecart, declared,
     )
-    rows, n_missing = natural_rows(links + (found.proposals if args.propositions else []), left, right)
+    rows, n_missing = natural_rows(links + (found.candidates if args.candidates else []), left, right)
     if n_missing:
         console.print(f"[bold red]⚠ {n_missing} lien(s) vers des entrées disparues, ignoré(s) : relancer l'alignement.[/bold red]")
 
@@ -119,8 +119,8 @@ def main() -> None:
     console.print(f"[bold green]💾 {len(rows)} ligne(s)[/bold green] ({summary}) → [yellow]{output}[/yellow]")
     levels = Counter(found.reviews[row.link.left_uuid, row.link.right_uuid].level for row in rows if row.link and (row.link.left_uuid, row.link.right_uuid) in found.reviews)
     console.print(
-        f"À relire : {levels[1]} paire(s) de niveau 1, {levels[2]} de niveau 2"
-        + ("" if args.propositions else f" ; {len(found.proposals)} proposition(s) non exportée(s) (--propositions)")
+        f"À vérifier : {levels[1]} paire(s) d'incertitude moyenne, {levels[2]} d'incertitude forte"
+        + ("" if args.candidates else f" ; {len(found.candidates)} candidate(s) non appariée(s) non exportée(s) (--candidates)")
         + "."
     )
 

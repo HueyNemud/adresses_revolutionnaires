@@ -10,7 +10,9 @@ début du XIXᵉ siècle en données structurées :
    `ADDR` (où ?) par un modèle GLiNER, avec les entrées à relire en priorité
    signalées ;
 3. les **correspondances** entre les entrées de deux éditions d'un annuaire,
-   par Dedupe ou par un alignement fondé sur l'ordre des entrées.
+   par Dedupe ou par un alignement fondé sur l'ordre des entrées, avec pour
+   chaque paire une incertitude (faible, moyenne, forte) et ses motifs, qui
+   orientent la relecture humaine.
 
 ## Prérequis
 
@@ -55,7 +57,11 @@ s'accumulent à côté de leur entrée dans `annuaires/<volume>/<plage>/`.
 - [`docs/guide_annotation_ner.md`](docs/guide_annotation_ner.md) —
   conventions d'annotation des empans `SUBJ` / `DESC` / `ADDR` ;
 - [`docs/alignement_ordonne.md`](docs/alignement_ordonne.md) — méthode de
-  l'alignement ordonné (Needleman-Wunsch + pair-HMM).
+  l'alignement ordonné (Needleman-Wunsch + pair-HMM) et son évaluation sur
+  un gold d'inversions ;
+- [`docs/guide_relecture_alignement.md`](docs/guide_relecture_alignement.md) —
+  conventions de relecture des correspondances (motifs, réponses OUI / NON /
+  INCERTAIN, patch).
 
 ## Commandes principales
 
@@ -79,6 +85,8 @@ uv run align_directories.py annuaires/<A> annuaires/<B>      # Dedupe
 uv run align_directories_nw.py annuaires/<A> annuaires/<B>   # ordre des entrées
 uv run streamlit run tools/display_alignment.py
 uv run tools/export_alignment.py annuaires/alignements/<A>__<B>.nw.csv --excel   # jointure CSV lisible
+uv run tools/sample_alignment_gold.py annuaires/<A> annuaires/<B>   # gold d'inversions à étiqueter (une fois)
+uv run tools/audit_alignment_review.py data/alignement/<A>__<B>.gold-inversions.csv   # → rapports/audit_alignement/
 
 # Audits
 uv run audit_crf_features.py      # CRF de l'étape 2 → rapports/audit_crf/
@@ -94,9 +102,9 @@ uv run python -m unittest discover -s tests
 |---|---|
 | `*.py` (racine) | Scripts des étapes et des audits |
 | `lib/` | Code partagé (schéma des documents, CRF, NER, alignement, statistiques) |
-| `tools/` | Viewers Streamlit, export de la jointure alignée, outils d'entraînement et de tirage du gold NER |
+| `tools/` | Viewers Streamlit, export de la jointure alignée, outils d'entraînement et de tirage du gold NER, gold et audit de la relecture de l'alignement |
 | `data/ner/` | Gold d'évaluation et jeu d'entraînement NER (Label Studio) |
-| `data/alignement/` | Paires étiquetées pour Dedupe et patchs manuels d'alignement |
+| `data/alignement/` | Paires étiquetées pour Dedupe, patchs manuels d'alignement et gold des inversions |
 | `docs/` | Documentation |
 | `tests/` | Tests unitaires |
 | `annuaires/` | Dossiers de travail par volume (hors git) |

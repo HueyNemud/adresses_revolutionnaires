@@ -1,4 +1,4 @@
-"""Paires à relire après l'alignement automatique : motifs et niveau
+"""Paires à vérifier après l'alignement automatique : motifs et niveau
 d'incertitude (`tools/display_alignment.py`, `tools/export_alignment.py`,
 `tools/audit_alignment_review.py`).
 
@@ -10,21 +10,24 @@ mieux vaut les montrer que les trancher automatiquement. Motifs, calculés
 dans chaque segment (`lib.section_alignment.segments`, même similarité que
 `align_directories_nw.py`) :
 
-- `contexte incertain` : paire décidée par le pair-HMM (`nw-contexte`) de
+- `déduite des voisines (p < 0,9)` : paire retenue par le pair-HMM
+  (`nw-contexte`) parce que ses voisines sont appariées, mais de
   probabilité a posteriori < `CONTEXT_REVIEW` ;
 - `homonyme proche` : paire décidée sur sa seule similarité (`nw`,
   `nw-residuel`, `dedupe`) alors qu'une autre entrée du segment, de l'un ou
   l'autre côté, est presque aussi proche (écart < `margin`) ;
-- `proposition` : deux entrées restées sans correspondance, chacune la plus
-  proche de l'autre dans le segment, de similarité dans la zone grise
-  [`low` ; `high`[ — par défaut entre le seuil de Needleman-Wunsch et celui
-  de la passe résiduelle d'`align_directories_nw.py`. Ce n'est pas un
-  lien : seulement une suggestion pour le relecteur.
+- `candidate non appariée` : deux entrées restées sans correspondance,
+  chacune la plus proche de l'autre dans le segment, de similarité dans la
+  zone grise [`low` ; `high`[ — par défaut entre le seuil de
+  Needleman-Wunsch et celui de la passe résiduelle
+  d'`align_directories_nw.py`. Ce n'est pas un lien : seulement une paire
+  soumise au relecteur.
 
 Les paires du patch (relues) n'ont pas de motif. Niveau d'incertitude
-(ordinal, pour trier la relecture ; ce n'est pas une probabilité) : 0 sans
-motif ; 1 un motif ; 2 une proposition, plusieurs motifs ou un contexte de
-probabilité < `CONTEXT_DOUBT`. Aucun paramètre n'est appris sur un volume :
+(ordinal, pour trier la relecture ; ce n'est pas une probabilité) :
+`faible` (0) sans motif ; `moyenne` (1) un motif ; `forte` (2) une
+candidate non appariée, plusieurs motifs ou une paire déduite des voisines
+de probabilité < `CONTEXT_DOUBT`. Aucun paramètre n'est appris sur un volume :
 `tools/audit_alignment_review.py` vérifie, sur le gold d'une nouvelle paire
 d'annuaires, que les motifs attrapent les erreurs et que le niveau reste
 ordonné.
@@ -39,20 +42,21 @@ from lib.alignment import (
     SOURCE_NW,
     SOURCE_NW_CONTEXT,
     SOURCE_NW_RESIDUAL,
-    SOURCE_PROPOSAL,
+    SOURCE_CANDIDATE,
     Link,
     Record,
     similarity_matrix,
 )
 from lib.section_alignment import SectionAlignment, segments
 
-REASON_CONTEXT = "contexte incertain"
+REASON_CONTEXT = "déduite des voisines (p < 0,9)"
 REASON_HOMONYM = "homonyme proche"
-REASON_PROPOSAL = "proposition"
-REASONS = (REASON_CONTEXT, REASON_HOMONYM, REASON_PROPOSAL)
+REASON_CANDIDATE = "candidate non appariée"
+REASONS = (REASON_CONTEXT, REASON_HOMONYM, REASON_CANDIDATE)
 SEPARATOR = " | "
-CONTEXT_REVIEW = 0.9  # probabilité a posteriori sous laquelle une paire du pair-HMM est à relire
-CONTEXT_DOUBT = 0.7  # … et sous laquelle elle est très incertaine (niveau 2)
+CONTEXT_REVIEW = 0.9  # probabilité a posteriori sous laquelle une paire du pair-HMM est à vérifier (REASON_CONTEXT)
+CONTEXT_DOUBT = 0.7  # … et sous laquelle son incertitude est forte (niveau 2)
+LEVEL_LABELS = {0: "faible", 1: "moyenne", 2: "forte"}  # niveau d'incertitude
 DEFAULT_MARGIN = 0.05  # écart de similarité avec la concurrente (observé sur 1807/1808)
 SIMILARITY_SOURCES = {SOURCE_NW, SOURCE_NW_RESIDUAL, SOURCE_DEDUPE}  # paires décidées sur leur similarité
 
@@ -60,20 +64,20 @@ SIMILARITY_SOURCES = {SOURCE_NW, SOURCE_NW_RESIDUAL, SOURCE_DEDUPE}  # paires d�
 @dataclass(frozen=True)
 class Review:
     reasons: tuple[str, ...]
-    level: int  # 0 sûre, 1 à relire, 2 très incertaine
+    level: int  # clé de LEVEL_LABELS : 0 faible, 1 moyenne, 2 forte
 
 
 @dataclass
 class ReviewResult:
     reviews: dict[tuple[str, str], Review]  # (uuid gauche, uuid droit) → motifs, pour les paires qui en ont
-    proposals: list[Link]  # source SOURCE_PROPOSAL, score = similarité
+    candidates: list[Link]  # source SOURCE_CANDIDATE, score = similarité
 
 
 def level(reasons: tuple[str, ...], link: Link) -> int:
     if not reasons:
         return 0
     doubtful_context = REASON_CONTEXT in reasons and link.score is not None and link.score < CONTEXT_DOUBT
-    return 2 if REASON_PROPOSAL in reasons or len(reasons) > 1 or doubtful_context else 1
+    return 2 if REASON_CANDIDATE in reasons or len(reasons) > 1 or doubtful_context else 1
 
 
 def review(
@@ -87,7 +91,7 @@ def review(
     margin: float = DEFAULT_MARGIN,
     declared: set[str] = frozenset(),
 ) -> ReviewResult:
-    """Motifs des liens `links` (après patch) et propositions. `low`, `high`,
+    """Motifs des liens `links` (après patch) et candidates non appariées. `low`, `high`,
     `subj_weight` : ceux d'`align_directories_nw.Params` (seuils de
     Needleman-Wunsch et de la passe résiduelle, poids du SUBJ). `declared` :
     uuid déclarés sans correspondance par le patch, jamais proposés."""
@@ -95,7 +99,7 @@ def review(
     busy_left = {link.left_uuid for link in links} | set(declared)
     busy_right = {link.right_uuid for link in links} | set(declared)
     reasons: dict[tuple[str, str], list[str]] = {}
-    proposals = []
+    candidates = []
     for segment_left, segment_right in segments(sections):
         left_records = [record for section in segment_left for record in section.records]
         right_records = [record for section in segment_right for record in section.records]
@@ -120,15 +124,15 @@ def review(
             if found:
                 reasons[link.left_uuid, link.right_uuid] = found
 
-        # Propositions : meilleures partenaires mutuelles, toutes deux libres
+        # Candidates non appariées : meilleures partenaires mutuelles, toutes deux libres
         best_right, best_left = similarity.argmax(axis=1), similarity.argmax(axis=0)
         for i, record in enumerate(left_records):
             j = int(best_right[i])
             partner = right_records[j]
             if best_left[j] == i and low <= similarity[i, j] < high and record.uuid not in busy_left and partner.uuid not in busy_right:
-                proposals.append(Link(record.uuid, partner.uuid, float(similarity[i, j]), SOURCE_PROPOSAL))
-                reasons[record.uuid, partner.uuid] = [REASON_PROPOSAL]
+                candidates.append(Link(record.uuid, partner.uuid, float(similarity[i, j]), SOURCE_CANDIDATE))
+                reasons[record.uuid, partner.uuid] = [REASON_CANDIDATE]
     by_pair = {(link.left_uuid, link.right_uuid): link for link in links}
-    every = {**by_pair, **{(link.left_uuid, link.right_uuid): link for link in proposals}}
+    every = {**by_pair, **{(link.left_uuid, link.right_uuid): link for link in candidates}}
     reviews = {key: Review(tuple(found), level(tuple(found), every[key])) for key, found in reasons.items()}
-    return ReviewResult(reviews, proposals)
+    return ReviewResult(reviews, candidates)

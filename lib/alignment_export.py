@@ -8,15 +8,16 @@ entrée de droite sans correspondance après la paire qui contient l'entrée
 de droite appariée qui la précède (avant la première paire s'il n'y en a
 pas).
 
-Une **proposition** (`lib/alignment_review.py`) n'est pas un lien : deux
-entrées sans correspondance suggérées au relecteur. Passée avec les liens à
-`natural_rows`, elle occupe une ligne à elle (statut `proposition`).
+Une **candidate non appariée** (`lib/alignment_review.py`) n'est pas un
+lien : deux entrées sans correspondance soumises au relecteur. Passée avec
+les liens à `natural_rows`, elle occupe une ligne à elle (statut
+`candidate`).
 
 L'export CSV s'adresse aux utilisateurs des données (historiens) : colonnes
 en français, texte sans Markdown, empans NER éclatés en colonnes
 `sujet` / `description` / `adresse`, et, pour chaque paire, sa `certitude`
 (`relue`, `incertaine` à la relecture, ou `automatique`), son
-`niveau_incertitude` (0 à 2) et ses `motifs_relecture`.
+`niveau_incertitude` (faible, moyenne ou forte) et ses `motifs_relecture`.
 """
 
 import csv
@@ -24,12 +25,12 @@ import io
 from collections import defaultdict
 from dataclasses import dataclass
 
-from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_PROPOSAL, Link, Record, clean_text
-from lib.alignment_review import SEPARATOR, Review
+from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_CANDIDATE, Link, Record, clean_text
+from lib.alignment_review import LEVEL_LABELS, SEPARATOR, Review
 from lib.ner.spans import normalize_markdown, parse_tagged_text, project_spans
 
-PAIR, LEFT_ONLY, RIGHT_ONLY, PROPOSAL = "pair", "left", "right", "proposal"
-STATUS_LABELS = {PAIR: "apparié", LEFT_ONLY: "gauche seulement", RIGHT_ONLY: "droite seulement", PROPOSAL: "proposition"}
+PAIR, LEFT_ONLY, RIGHT_ONLY, CANDIDATE = "pair", "left", "right", "candidate"
+STATUS_LABELS = {PAIR: "apparié", LEFT_ONLY: "gauche seulement", RIGHT_ONLY: "droite seulement", CANDIDATE: "candidate"}
 CERTAINTY_LABELS = {SOURCE_MANUAL: "relue", SOURCE_MANUAL_UNCERTAIN: "incertaine"}  # autres liens : AUTOMATIC
 AUTOMATIC = "automatique"
 SPAN_COLUMNS = {"SUBJ": "sujet", "DESC": "description", "ADDR": "adresse"}
@@ -57,7 +58,7 @@ class JoinedRow:
     @property
     def kind(self) -> str:
         if self.link is not None:
-            return PROPOSAL if self.link.source == SOURCE_PROPOSAL else PAIR
+            return CANDIDATE if self.link.source == SOURCE_CANDIDATE else PAIR
         return LEFT_ONLY if self.left is not None else RIGHT_ONLY
 
 
@@ -141,7 +142,7 @@ def review_values(row: JoinedRow, reviews: dict[tuple[str, str], Review] | None)
         values["certitude"] = CERTAINTY_LABELS.get(row.link.source, AUTOMATIC)
     if reviews is not None and values["certitude"] in ("", AUTOMATIC):
         found = reviews.get((row.link.left_uuid, row.link.right_uuid))
-        values["niveau_incertitude"] = str(found.level if found else 0)
+        values["niveau_incertitude"] = LEVEL_LABELS[found.level if found else 0]
         values["motifs_relecture"] = SEPARATOR.join(found.reasons) if found else ""
     return values
 
@@ -160,7 +161,7 @@ def export_row(
         **review_values(row, reviews),
         "rubriques_correspondantes": "",
     }
-    if row.kind in (PAIR, PROPOSAL) and matching is not None:
+    if row.kind in (PAIR, CANDIDATE) and matching is not None:
         values["rubriques_correspondantes"] = "oui" if (row.left.section_uuid, row.right.section_uuid) in matching else "non"
     for side, name in SIDES.items():
         values |= {f"{name}_{column}": value for column, value in side_values(getattr(row, side)).items()}

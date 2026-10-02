@@ -363,13 +363,13 @@ chacune avec son poids : 105 `OUI`, 90 `NON` et 21 `INCERTAIN`.
 **Conclusion.** La passe résiduelle reste à seuil fixe. Les cas douteux
 sont signalés pour une **relecture humaine ciblée**
 (`lib/alignment_review.py`, voir `docs/pipeline.md`).
-- Trois motifs : `contexte incertain`, `homonyme proche` et `proposition`.
-- Un niveau d'incertitude ordinal, de 0 à 2.
+- Trois motifs : `déduite des voisines (p < 0,9)`, `homonyme proche` et `candidate non appariée`.
+- Une incertitude ordinale : faible, moyenne ou forte.
 - Les décisions sont reportées dans le patch des entrées, avec un statut
   `incertaine` pour ce qui ne peut pas être tranché.
 
-Sur ce gold, la part de `OUI` (pondérée) baisse bien avec le niveau : 94 %,
-75 %, 31 %. Il reste à relire 445 lignes sur 14 491 paires. Ces chiffres
+Sur ce gold, la part de `OUI` (pondérée) baisse bien de l'incertitude
+faible à forte : 94 %, 75 %, 31 %. Il reste à vérifier 445 lignes sur 14 491 paires. Ces chiffres
 sont des **observations sur 1807/1808**. Pour une autre paire d'annuaires,
 on tire un petit gold et on lance `tools/audit_alignment_review.py` avant de
 se fier aux seuils.
@@ -393,7 +393,7 @@ se fier aux seuils.
 
 ## 8. Perspectives
 
-1. **Évaluation.** Constituer un échantillon de référence, stratifié par rubrique et par type de cas (trou 1×1, homonymes, inversions). Mesurer précision, rappel et calibration des quatre variantes du tableau de la section 6. Les inversions sont faites (§ 6.1). Restent les paires du pair-HMM, dont le motif `contexte incertain` n'est pas encore évalué.
+1. **Évaluation.** Constituer un échantillon de référence, stratifié par rubrique et par type de cas (trou 1×1, homonymes, inversions). Mesurer précision, rappel et calibration des quatre variantes du tableau de la section 6. Les inversions sont faites (§ 6.1). Restent les paires du pair-HMM, dont le motif `déduite des voisines` n'est pas encore évalué.
 2. **Sensibilité.** Étudier l'effet du seuil des ancres, de $w$ et du nombre de classes.
 3. **Émissions multivariées.** Séparer nom et adresse dans $\lambda$, par exemple avec un modèle de Fellegi-Sunter à deux champs.
 4. **Plus de deux éditions.** Enchaîner les alignements 1803 → 1804 → … et contrôler leur cohérence transitive.

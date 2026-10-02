@@ -1,17 +1,27 @@
 # Guide de relecture de l'alignement entre éditions
 
-Ce guide sert à relire les paires à vérifier dans `tools/display_alignment.py` (filtre *Niveau d'incertitude minimal*) et à étiqueter un gold d'inversions (`tools/sample_alignment_gold.py`, colonne `meme_entree`). La question est toujours la même :
+Ce guide sert à relire les paires à vérifier dans `tools/display_alignment.py` (filtre *Incertitude* : moyenne ou forte) et à étiqueter un gold d'inversions (`tools/sample_alignment_gold.py`, colonne `meme_entree`). La question est toujours la même :
 
 > Ces deux entrées désignent-elles **la même entrée de l'annuaire**, d'une édition à l'autre ?
 
 Il s'agit de la même ligne de l'annuaire, avec sa personne ou sa maison de commerce, et pas forcément exactement du même individu. Les conventions ci-dessous valent pour toutes les paires d'annuaires. Les exemples viennent de 1807/1808, à titre d'illustration.
+
+## Motifs affichés
+
+| Motif | Ce qu'il signale |
+|---|---|
+| `déduite des voisines (p < 0,9)` | Paire retenue parce que les entrées voisines sont appariées des deux côtés, mais avec une probabilité modeste : vérifier qu'il ne s'agit pas d'un remplacement (une entrée disparue, une autre apparue au même rang). |
+| `homonyme proche` | Une autre entrée est presque aussi proche : vérifier qu'on n'a pas apparié le mauvais homonyme. |
+| `candidate non appariée` | Deux entrées restées seules, chacune la plus proche de l'autre, mais pas assez semblables pour être appariées automatiquement : décider si elles se correspondent. |
+
+L'incertitude (faible, moyenne, forte) ne sert qu'à ordonner la relecture : elle n'est pas une probabilité.
 
 ## Trois réponses
 
 | Réponse | Gold (`meme_entree`) | Patch des entrées |
 |---|---|---|
 | Même entrée | `OUI` | ligne de la paire (bouton **copier**) |
-| Pas la même entrée | `NON` | rien pour une proposition ; pour une paire retenue à tort, une ligne par entrée, seule (ou la bonne paire si on la connaît) |
+| Pas la même entrée | `NON` | rien pour une candidate non appariée ; pour une paire retenue à tort, une ligne par entrée, seule (ou la bonne paire si on la connaît) |
 | On ne peut pas trancher | `INCERTAIN` | ligne de la paire avec `certitude=incertaine` (bouton **incertaine**) si la paire est plausible ; sinon rien |
 
 `INCERTAIN` est une réponse à part entière, pas un échec. L'export la transmet aux utilisateurs des données (`certitude = incertaine`), qui décident de s'en servir ou non. Mieux vaut `INCERTAIN` qu'un `OUI` ou un `NON` arbitraire.
