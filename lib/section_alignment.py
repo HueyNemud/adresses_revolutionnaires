@@ -35,7 +35,7 @@ from pathlib import Path
 from rapidfuzz.distance import JaroWinkler
 from rapidfuzz.process import cdist
 
-from lib.alignment import SOURCE_MANUAL, Record, clean_title
+from lib.alignment import SOURCE_MANUAL, Link, Record, clean_title
 from lib.sequence import needleman_wunsch
 
 SOURCE_AUTO = "auto"
@@ -326,19 +326,27 @@ def canonical_training_text(text: str, left_keys: dict[str, str], right_keys: di
 
 
 def segments(alignment: SectionAlignment) -> list[tuple[list[Section], list[Section]]]:
-    """Segments à aligner : chaque groupe manuel de rubriques (entrées de ses
-    N rubriques concaténées) ; chaque paire automatique et, entre deux paires
-    (ou avant la première, après la dernière), le « trou » des rubriques
-    restées seules des deux côtés, s'il en a des deux côtés (hors rubriques
-    déclarées seules au patch)."""
-    result = [(group.left, group.right) for group in alignment.groups if group.source != SOURCE_AUTO]
-    left, right = alignment.auto_left, alignment.auto_right
-    previous_i, previous_j = -1, -1
-    for i, j in [*alignment.auto_pairs, (len(left), len(right))]:
-        gap_left, gap_right = left[previous_i + 1 : i], right[previous_j + 1 : j]
-        if gap_left and gap_right:
-            result.append((gap_left, gap_right))
-        if i < len(left):
-            result.append(([left[i]], [right[j]]))
-        previous_i, previous_j = i, j
-    return result
+    """Segments à aligner : un par groupe de rubriques appariées (groupes du
+    patch, entrées de leurs N rubriques concaténées, puis paires
+    automatiques). On n'apparie **jamais** des entrées de rubriques qui ne se
+    correspondent pas : une rubrique sans correspondance (non alignée ou
+    déclarée seule) n'est dans aucun segment ; pour l'apparier, la lier dans
+    le patch des rubriques."""
+    return [(group.left, group.right) for group in alignment.groups]
+
+
+def restrict_to_corresponding(
+    links: list[Link], left: dict[str, Record], right: dict[str, Record], alignment: SectionAlignment
+) -> tuple[list[Link], list[Link]]:
+    """(liens gardés, liens écartés) : un lien entre deux entrées dont les
+    rubriques ne se correspondent pas (`corresponding`) est écarté, quelle
+    que soit sa source — Dedupe, ou patch des entrées (corriger alors le
+    patch des rubriques). Les liens vers des entrées inconnues sont gardés
+    (signalés ailleurs)."""
+    matching = corresponding(alignment)
+    kept, dropped = [], []
+    for link in links:
+        left_record, right_record = left.get(link.left_uuid), right.get(link.right_uuid)
+        known = left_record is not None and right_record is not None
+        (dropped if known and (left_record.section_uuid, right_record.section_uuid) not in matching else kept).append(link)
+    return kept, dropped

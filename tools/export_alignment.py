@@ -16,9 +16,7 @@ naturel des listes (`lib/alignment_export.py`) : `statut` (apparié / gauche
 seulement / droite seulement), `score`, `methode` (source du lien),
 `certitude` (relue / incertaine à la relecture / automatique),
 `niveau_incertitude` (faible, moyenne, forte) et
-`motifs_relecture` (`lib/alignment_review.py`),
-`rubriques_correspondantes` (oui / non : les rubriques des deux entrées se
-correspondent-elles, d'après `lib/section_alignment.py`), puis pour chaque
+`motifs_relecture` (`lib/alignment_review.py`), puis pour chaque
 côté (`gauche_…`, `droite_…`) : volume, page, rubrique, texte sans Markdown,
 empans `sujet` / `description` / `adresse` (plusieurs empans de même classe
 séparés par « | »), texte balisé et uuid.
@@ -26,6 +24,10 @@ séparés par « | »), texte balisé et uuid.
 `--candidates` ajoute les candidates non appariées à vérifier (deux entrées
 sans correspondance, statut `candidate`) ; par défaut, l'export ne contient
 que les liens retenus.
+
+On n'apparie qu'entre rubriques appariées (`lib/section_alignment.py`) : un
+lien entre rubriques qui ne se correspondent pas (Dedupe en produit) est
+écarté, et compté en console.
 
 Sortie par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
 `--excel` : séparateur `;` et UTF-8 avec BOM, pour un tableur en français.
@@ -45,7 +47,7 @@ from lib.alignment import load_volume, read_links
 from lib.alignment_review import DEFAULT_MARGIN, review
 from lib.alignment_export import STATUS_LABELS, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import apply_patch, read_patch, resolve, validate
-from lib.section_alignment import SECTION_PATCH_SUFFIX, corresponding, load_section_alignment
+from lib.section_alignment import SECTION_PATCH_SUFFIX, load_section_alignment, restrict_to_corresponding
 
 ANNUAIRES_DIR = Path("annuaires")
 PATCH_DIR = Path("data/alignement")
@@ -102,6 +104,9 @@ def main() -> None:
     sections = load_section_alignment(
         list(left.values()), list(right.values()), PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}", rewrite=False
     )
+    links, dropped = restrict_to_corresponding(links, left, right, sections)
+    if dropped:
+        console.print(f"[yellow]{len(dropped)} lien(s) entre rubriques non appariées écarté(s).[/yellow]")
     params = Params()
     found = review(
         links, list(left.values()), list(right.values()), sections, params.threshold, params.residual_threshold, params.subj_weight,
@@ -113,7 +118,7 @@ def main() -> None:
 
     output = args.output or default_output(args.alignment)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(export_csv(rows, corresponding(sections), args.excel, found.reviews), encoding=export_encoding(args.excel), newline="")
+    output.write_text(export_csv(rows, args.excel, found.reviews), encoding=export_encoding(args.excel), newline="")
     counts = Counter(row.kind for row in rows)
     summary = ", ".join(f"{counts[kind]} {label}" for kind, label in STATUS_LABELS.items())
     console.print(f"[bold green]💾 {len(rows)} ligne(s)[/bold green] ({summary}) → [yellow]{output}[/yellow]")

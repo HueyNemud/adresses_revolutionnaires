@@ -44,7 +44,6 @@ EXPORT_FIELDS = [
     "certitude",
     "niveau_incertitude",
     "motifs_relecture",
-    "rubriques_correspondantes",
     *(f"{side}_{column}" for side in SIDES.values() for column in SIDE_COLUMNS),
 ]
 
@@ -147,40 +146,28 @@ def review_values(row: JoinedRow, reviews: dict[tuple[str, str], Review] | None)
     return values
 
 
-def export_row(
-    row: JoinedRow, matching: set[tuple[str, str]] | None, reviews: dict[tuple[str, str], Review] | None = None
-) -> dict[str, str]:
-    """Ligne d'export. `matching` : paires d'uuid de rubriques qui se
-    correspondent (`lib.section_alignment.corresponding`) ; None pour ne pas
-    remplir `rubriques_correspondantes`. `reviews` : motifs de relecture
+def export_row(row: JoinedRow, reviews: dict[tuple[str, str], Review] | None = None) -> dict[str, str]:
+    """Ligne d'export. `reviews` : motifs de relecture
     (`lib.alignment_review.review`) ; None pour ne pas remplir le niveau."""
     values = {
         "statut": STATUS_LABELS[row.kind],
         "score": "" if row.link is None or row.link.score is None else f"{row.link.score:.4f}",
         "methode": row.link.source if row.link else "",
         **review_values(row, reviews),
-        "rubriques_correspondantes": "",
     }
-    if row.kind in (PAIR, CANDIDATE) and matching is not None:
-        values["rubriques_correspondantes"] = "oui" if (row.left.section_uuid, row.right.section_uuid) in matching else "non"
     for side, name in SIDES.items():
         values |= {f"{name}_{column}": value for column, value in side_values(getattr(row, side)).items()}
     return values
 
 
-def export_csv(
-    rows: list[JoinedRow],
-    matching: set[tuple[str, str]] | None = None,
-    excel: bool = False,
-    reviews: dict[tuple[str, str], Review] | None = None,
-) -> str:
+def export_csv(rows: list[JoinedRow], excel: bool = False, reviews: dict[tuple[str, str], Review] | None = None) -> str:
     """CSV de la jointure. `excel` : séparateur `;` (tableur réglé en
     français) ; l'appelant écrit alors en `utf-8-sig`, que le tableur
     reconnaît."""
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=EXPORT_FIELDS, delimiter=";" if excel else ",", lineterminator="\n")
     writer.writeheader()
-    writer.writerows(export_row(row, matching, reviews) for row in rows)
+    writer.writerows(export_row(row, reviews) for row in rows)
     return buffer.getvalue()
 
 

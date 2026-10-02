@@ -11,20 +11,25 @@ On choisit une paire d'annuaires par une sortie brute : celle de Dedupe
 `data/alignement/<gauche>__<droite>.patch.csv` est appliqué en mémoire
 (`lib/alignment_patch.py`) : ce qui est affiché est le résultat final.
 
-La correspondance des rubriques (`lib/section_alignment.py`, avec son patch
-`data/alignement/<gauche>__<droite>.sections.csv`, non réécrit ici) sert à
-signaler les correspondances entre rubriques **non correspondantes** —
-et non entre rubriques de noms différents : « Liste » / « Listes de
-non-commerçans » se correspondent. Elle est détaillée dans un encart, et
-chaque bandeau de rubrique a un bouton **uuid** pour alimenter ce patch.
+On n'apparie qu'entre rubriques appariées (`lib/section_alignment.py`, avec
+son patch `data/alignement/<gauche>__<droite>.sections.csv`, non réécrit
+ici) : un lien entre rubriques qui ne se correspondent pas — Dedupe en
+produit — est écarté à l'affichage comme à l'export, et compté. La
+correspondance des rubriques est détaillée dans un encart, et chaque
+bandeau de rubrique a un bouton **uuid** pour alimenter son patch.
 
 Une seule table, dans l'**ordre naturel** des listes : les correspondances et
 les entrées de gauche sans correspondance dans l'ordre de l'annuaire de
 gauche, chaque entrée de droite sans correspondance insérée après la paire
-qui contient l'entrée de droite appariée qui la précède. Filtres : types de
-lignes (correspondances, sans correspondance à gauche / à droite), rubrique,
-recherche, plage de scores, rubriques non correspondantes, corrections
-manuelles.
+qui contient l'entrée de droite appariée qui la précède. La dernière
+colonne donne le **statut** de chaque ligne en clair (appariée, candidate
+non appariée, sans correspondance), avec une légende au-dessus de la table.
+
+Barre latérale, du plus courant au plus fin : choix de l'alignement ;
+filtres (statut des lignes, incertitude, rubrique, recherche, score,
+corrections manuelles) ; affichage ; export ; et, repliés en bas, les
+réglages fins de la relecture (seuil des candidates, écart « homonyme
+proche »).
 
 Le patch s'édite à la main. Pour l'alimenter, chaque entrée a un bouton
 **uuid** (copie son uuid) et chaque ligne un bouton **copier** (copie une
@@ -35,10 +40,10 @@ seule pour une entrée sans correspondance).
 incertitude (faible, moyenne ou forte) et ses motifs (`déduite des voisines
 (p < 0,9)`, `homonyme proche`) ; des **candidates non appariées** (deux
 entrées sans correspondance, chacune la plus proche de l'autre, dans la zone
-grise de similarité) occupent une ligne à part, sur fond jaune. Le filtre
+grise de similarité) occupent une ligne à part, sur fond ambre : elles ne
+sont **pas** appariées, c'est au relecteur de décider. Le filtre
 « Incertitude » ne garde que les lignes d'incertitude moyenne ou forte, ou
-forte seulement. Une décision
-incertaine se copie avec le bouton **incertaine** (ligne de patch
+forte seulement. Une décision incertaine se copie avec le bouton **incertaine** (ligne de patch
 `certitude=incertaine`).
 
 Le bouton **Exporter en CSV** télécharge les lignes affichées (filtres et tri
@@ -59,7 +64,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ depuis tools/
 
 from align_directories_nw import Params
-from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Record, load_volume, read_links
+from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, load_volume, read_links
 from lib.alignment_export import LEFT_ONLY, PAIR, CANDIDATE, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import PATCH_FIELDS, UNCERTAIN, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
 from lib.alignment_review import DEFAULT_MARGIN, LEVEL_LABELS, SEPARATOR, Review, review
@@ -69,9 +74,9 @@ from lib.section_alignment import (
     SECTION_PATCH_SUFFIX,
     SOURCE_AUTO,
     SectionAlignment,
-    corresponding,
     load_section_alignment,
     read_section_patch,
+    restrict_to_corresponding,
 )
 
 ANNUAIRES_DIR = Path("annuaires")
@@ -86,12 +91,12 @@ LEVEL_OPTIONS = {0: "toutes les lignes", 1: "moyenne ou forte", 2: "forte seulem
 ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
 KIND_LABELS = {
-    PAIR: "Correspondances",
-    CANDIDATE: "Candidates non appariées",
-    LEFT_ONLY: "Sans correspondance à gauche",
-    RIGHT_ONLY: "Sans correspondance à droite",
+    PAIR: "✓ Appariées",
+    CANDIDATE: "? Candidates non appariées (à décider)",
+    LEFT_ONLY: "✗ Sans correspondance à gauche",
+    RIGHT_ONLY: "✗ Sans correspondance à droite",
 }
-UNCERTAIN_COLORS = ("#fef3c7", "#92400e")
+LEVEL_CLASSES = {1: "level-medium", 2: "level-high"}  # badge d'incertitude moyenne / forte
 MANUAL_SOURCES = {SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN}
 MANUAL_COLORS = ("#ede9fe", "#6d28d9")
 CONFIRMED = "confirmée sans correspondance"
@@ -108,10 +113,24 @@ CSS = f"""<style>
   .ner-table tr.section td {{ background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.85em; }}
   .ner-table tr.left td.empty, .ner-table tr.right td.empty {{ background: #fef2f2; }}
   .ner-table tr.candidate td {{ background: #fffbeb; }}
+  .ner-table tr.candidate td:first-child {{ box-shadow: inset 4px 0 0 #d97706; }}
+  .ner-table tr.pair td:first-child {{ box-shadow: inset 4px 0 0 #16a34a; }}
+  .ner-table tr.left td:first-child, .ner-table tr.right td:first-child {{ box-shadow: inset 4px 0 0 #cbd5e1; }}
   .ner-table col.number {{ width: 3.5em; }}
-  .ner-table col.score {{ width: 8em; }}
+  .ner-table col.score {{ width: 14em; }}
   .meta {{ font-family: monospace; font-size: 0.78em; color: #64748b; }}
-  .diff {{ color: #b91c1c; }}
+  .status {{ display: inline-block; font-weight: 600; font-size: 0.85em; padding: 1px 8px; border-radius: 10px; margin-bottom: 3px; }}
+  .status.pair {{ background: #dcfce7; color: #166534; }}
+  .status.manual {{ background: #ede9fe; color: #5b21b6; }}
+  .status.uncertain {{ background: #fef3c7; color: #92400e; }}
+  .status.candidate {{ background: #fde68a; color: #78350f; border: 1px dashed #b45309; }}
+  .status.alone {{ background: #f1f5f9; color: #475569; }}
+  .level {{ display: inline-block; font-size: 0.78em; padding: 0 6px; border-radius: 8px; margin-top: 3px; }}
+  .level.level-medium {{ background: #ffedd5; color: #9a3412; }}
+  .level.level-high {{ background: #fee2e2; color: #991b1b; }}
+  .reasons {{ font-size: 0.78em; color: #475569; }}
+  .legend-table {{ font-size: 0.85em; color: #475569; margin: 4px 0 8px; line-height: 2.1; }}
+  .legend-table .status, .legend-table .level {{ margin-right: 4px; }}
   .low {{ color: #b91c1c; font-weight: 600; }}
   .empty {{ color: #b91c1c; font-size: 0.85em; font-style: italic; }}
   button.copy {{ font-size: 0.72em; padding: 0 6px; margin-left: 4px; border: 1px solid #cbd5e1; border-radius: 4px;
@@ -164,6 +183,7 @@ class Alignment:
     confirmed: set[str]  # uuid déclarés sans correspondance par le patch
     sections: SectionAlignment  # correspondance des rubriques (avec leur patch)
     n_section_patch: int
+    dropped: list[Link]  # liens entre rubriques non appariées, écartés (automatiques et du patch)
 
 
 @st.cache_resource(show_spinner="Application du patch…", max_entries=4)
@@ -191,6 +211,7 @@ def load_alignment(
     sections = load_section_alignment(
         list(records["left"].values()), list(records["right"].values()), Path(section_patch_path), rewrite=False
     )
+    links, dropped = restrict_to_corresponding(links, records["left"], records["right"], sections)
     declared = {uuid for entry in resolution.entries if not entry.is_pair for _, uuid in entry.uuids()}
     params = Params()
     found = review(
@@ -199,17 +220,12 @@ def load_alignment(
     )
     joined, n_missing = natural_rows(links + found.candidates, records["left"], records["right"])
     rows = build_rows(joined, found.reviews)
-    matching = corresponding(sections)
-    unmatched = pd.Series(
-        [(left, right) not in matching for left, right in zip(rows["left_section_uuid"], rows["right_section_uuid"])], index=rows.index
-    )
-    rows["different_section"] = (rows["kind"] == PAIR) & unmatched
     confirmed = {e.left_uuid for e in resolution.entries if e.left_uuid and not e.right_uuid} | {
         e.right_uuid for e in resolution.entries if e.right_uuid and not e.left_uuid
     }
     return Alignment(
         rows, joined, found.reviews, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed, sections,
-        len(read_section_patch(Path(section_patch_path))),
+        len(read_section_patch(Path(section_patch_path))), dropped,
     )
 
 
@@ -268,35 +284,65 @@ def patch_line(left: Record | None, right: Record | None, certitude: str = "") -
     return buffer.getvalue()
 
 
-def entry_html(row, side: str, different_section: bool, confirmed: set[str]) -> str:
+def entry_html(row, side: str, confirmed: set[str]) -> str:
     uuid = getattr(row, f"{side}_uuid")
     if not uuid:
-        return "<span class='empty'>sans correspondance</span>"
+        return "<span class='empty'>aucune entrée appariée</span>"
     tagged, markdown = getattr(row, f"{side}_tagged_text"), getattr(row, f"{side}_markdown")
     content = render_tagged_html(tagged) or html.escape(markdown)
-    section_class = "meta diff" if different_section else "meta"
     page = getattr(row, f"{side}_page")
     title = getattr(row, f"{side}_section_title") or NO_SECTION
     flag = f" {badge(CONFIRMED, MANUAL_COLORS)}" if uuid in confirmed else ""
     return (
         f"{content}{flag}<br><span class='meta'>p. {html.escape(page)}</span> · "
-        f"<span class='{section_class}'>{html.escape(title)}</span>"
+        f"<span class='meta'>{html.escape(title)}</span>"
         f"{copy_button('uuid', uuid, f'Copier l’uuid {uuid}')}"
     )
 
 
-def score_html(row, threshold: float) -> str:
-    if row.kind not in (PAIR, CANDIDATE):
-        return ""
-    if row.source == SOURCE_MANUAL_UNCERTAIN:
-        manual = badge(UNCERTAIN, UNCERTAIN_COLORS)
+def status_badge(kind: str, source: str = "") -> str:
+    """Statut d'une ligne, en clair : appariée (automatiquement, relue, ou
+    relue mais incertaine), candidate non appariée, sans correspondance."""
+    if kind == CANDIDATE:
+        label, css = "? non appariée · candidate à décider", "candidate"
+    elif kind != PAIR:
+        label, css = "✗ sans correspondance", "alone"
+    elif source == SOURCE_MANUAL_UNCERTAIN:
+        label, css = "✓ appariée · relue, incertaine", "uncertain"
+    elif source == SOURCE_MANUAL:
+        label, css = "✓ appariée · relue", "manual"
     else:
-        manual = badge(SOURCE_MANUAL, MANUAL_COLORS) if row.source == SOURCE_MANUAL else ""
-    reasons = f"<br><span class='meta'>incertitude {LEVEL_LABELS[row.level]} · {html.escape(row.reasons)}</span>" if row.reasons else ""
-    if pd.isna(row.score):
-        return (manual or "<span class='meta'>—</span>") + reasons
-    css = " class='low'" if row.score < threshold else ""
-    return f"<span{css}>{row.score:.3f}</span> {manual}{reasons}"
+        label, css = "✓ appariée", "pair"
+    return f"<span class='status {css}'>{label}</span>"
+
+
+def level_badge(level: int) -> str:
+    return f"<span class='level {LEVEL_CLASSES[level]}'>incertitude {LEVEL_LABELS[level]}</span>" if level else ""
+
+
+def status_html(row, threshold: float) -> str:
+    """Statut, score (similarité ou probabilité selon la méthode), incertitude et motifs."""
+    parts = [status_badge(row.kind, row.source)]
+    if row.kind in (PAIR, CANDIDATE) and not pd.isna(row.score):
+        css = " class='low'" if row.score < threshold else ""
+        parts.append(f"<span class='meta'>score</span> <span{css}>{row.score:.3f}</span>")
+    if row.level:
+        parts.append(f"{level_badge(row.level)}<br><span class='reasons'>{html.escape(row.reasons)}</span>")
+    return "<br>".join(parts)
+
+
+def legend_html() -> str:
+    """Légende des statuts et de l'incertitude, au-dessus de la table."""
+    return (
+        "<div class='legend-table'>"
+        f"{status_badge(PAIR)} lien retenu (bordure verte) · "
+        f"{status_badge(PAIR, SOURCE_MANUAL)} lien du patch · "
+        f"{status_badge(PAIR, SOURCE_MANUAL_UNCERTAIN)} lien du patch marqué incertain<br>"
+        f"{status_badge(CANDIDATE)} deux entrées <b>non appariées</b>, soumises au relecteur (fond ambre) · "
+        f"{status_badge(LEFT_ONLY)} entrée seule (bordure grise)<br>"
+        f"{level_badge(1)}{level_badge(2)} à vérifier, motif en dessous (incertitude faible : rien n'est affiché)"
+        "</div>"
+    )
 
 
 def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, records: dict, confirmed: set[str]) -> list[str]:
@@ -319,7 +365,6 @@ def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, 
             rows.append(f"<tr class='section'><td colspan='4'>{html.escape(title or NO_SECTION)}{button}</td></tr>")
         left_record = records["left"].get(row.left_uuid)
         right_record = records["right"].get(row.right_uuid)
-        different = row.different_section
         line = copy_button("copier", patch_line(left_record, right_record), "Copier une ligne de patch pour cette ligne")
         if row.kind in (PAIR, CANDIDATE):
             line += copy_button(
@@ -330,9 +375,9 @@ def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, 
         rows.append(
             f"<tr class='{row.kind}'>"
             f"<td class='meta'>{number}</td>"
-            f"<td{empty_left}>{entry_html(row, 'left', different, confirmed)}</td>"
-            f"<td{empty_right}>{entry_html(row, 'right', different, confirmed)}</td>"
-            f"<td>{score_html(row, low_score)}<br>{line}</td>"
+            f"<td{empty_left}>{entry_html(row, 'left', confirmed)}</td>"
+            f"<td{empty_right}>{entry_html(row, 'right', confirmed)}</td>"
+            f"<td>{status_html(row, low_score)}<br>{line}</td>"
             "</tr>"
         )
     return rows
@@ -358,7 +403,7 @@ def paginated_table(view: pd.DataFrame, headers: list[str], render, page_size: i
     start = page * page_size
     head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
     st.html(
-        f"{CSS}{COPY_SCRIPT}<div class='table-scroll'><table class='ner-table'>"
+        f"{CSS}{COPY_SCRIPT}{legend_html()}<div class='table-scroll'><table class='ner-table'>"
         "<colgroup><col class='number'><col><col><col class='score'></colgroup>"
         f"<thead><tr>{head}</tr></thead><tbody>{''.join(render(view.iloc[start : start + page_size], start + 1))}</tbody>"
         "</table></div>",
@@ -421,19 +466,19 @@ def choose_alignment() -> Path | None:
     return st.sidebar.selectbox("Alignement", paths, format_func=lambda p: p.name.removesuffix(".csv"))
 
 
-def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> None:
+def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int, n_dropped: int) -> None:
     counts = rows["kind"].value_counts()
     matched, candidates_kept = counts.get(PAIR, 0), counts.get(CANDIDATE, 0)
     n_left, n_right = matched + candidates_kept + counts.get(LEFT_ONLY, 0), matched + candidates_kept + counts.get(RIGHT_ONLY, 0)
-    pairs = rows[rows["kind"] == PAIR]
     columns = st.columns(6)
     columns[0].metric("Correspondances", f"{matched:,}".replace(",", " "))
     columns[1].metric(f"Appariées à gauche ({left_name})", f"{matched / n_left:.1%}", f"{n_left - matched} sans correspondance", delta_color="off")
     columns[2].metric(f"Appariées à droite ({right_name})", f"{matched / n_right:.1%}", f"{n_right - matched} sans correspondance", delta_color="off")
     columns[3].metric(
-        "Rubriques non correspondantes",
-        f"{int(pairs['different_section'].sum())}",
-        help="Correspondances entre deux rubriques qui ne se correspondent pas (alignement des rubriques et son patch).",
+        "Liens écartés",
+        str(n_dropped),
+        help="Liens entre deux rubriques non appariées, écartés : on n'apparie qu'entre rubriques appariées "
+        "(correspondance des rubriques et son patch).",
     )
     columns[4].metric("Lignes du patch", str(n_patch))
     levels = rows.loc[rows["kind"].isin([PAIR, CANDIDATE]), "level"].value_counts()
@@ -459,21 +504,23 @@ def main() -> None:
     patch_path = PATCH_DIR / f"{pair_name}.patch.csv"
     section_patch_path = PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
     left_dir, right_dir = str(ANNUAIRES_DIR / left_name), str(ANNUAIRES_DIR / right_name)
+    # Barre latérale, du plus courant au plus fin. Les réglages fins sont lus
+    # d'abord (ils entrent dans le calcul mis en cache) mais affichés en bas.
+    filters_box, display_box, export_box = st.sidebar.container(), st.sidebar.container(), st.sidebar.container()
     params = Params()
-    st.sidebar.header("Relecture")
-    min_level = st.sidebar.selectbox("Incertitude", list(LEVEL_OPTIONS), format_func=LEVEL_OPTIONS.get)
-    candidate_low = st.sidebar.slider(
-        "Similarité minimale d'une candidate non appariée",
-        0.5,
-        params.residual_threshold,
-        params.threshold,
-        step=0.01,
-        help=f"Zone grise [seuil ; {params.residual_threshold}[ : par défaut le seuil de Needleman-Wunsch d'`align_directories_nw.py`.",
-    )
-    margin = st.sidebar.number_input(
-        "Écart « homonyme proche »", 0.0, 0.5, DEFAULT_MARGIN, step=0.01,
-        help="Signale une paire si une autre entrée du segment est à moins de cet écart de similarité.",
-    )
+    with st.sidebar.expander("Réglages fins de la relecture"):
+        candidate_low = st.slider(
+            "Similarité minimale d'une candidate non appariée",
+            0.5,
+            params.residual_threshold,
+            params.threshold,
+            step=0.01,
+            help=f"Zone grise [seuil ; {params.residual_threshold}[ : par défaut le seuil de Needleman-Wunsch d'`align_directories_nw.py`.",
+        )
+        margin = st.number_input(
+            "Écart « homonyme proche »", 0.0, 0.5, DEFAULT_MARGIN, step=0.01,
+            help="Signale une paire si une autre entrée du segment est à moins de cet écart de similarité.",
+        )
     try:
         alignment = load_alignment(
             left_dir,
@@ -522,9 +569,28 @@ def main() -> None:
     if alignment.orphans:
         with st.expander(f"⚠ {len(alignment.orphans)} ligne(s) orpheline(s) du patch, non appliquée(s)"):
             st.dataframe(pd.DataFrame([asdict(entry) for entry in alignment.orphans]), width="stretch")
+    manual_dropped = [link for link in alignment.dropped if link.source in MANUAL_SOURCES]
+    if manual_dropped:
+        with st.expander(f"⚠ {len(manual_dropped)} paire(s) du patch entre rubriques non appariées, non appliquée(s)"):
+            st.caption("On n'apparie qu'entre rubriques appariées : lier d'abord les deux rubriques dans le patch des rubriques.")
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "gauche": records["left"][link.left_uuid].text,
+                            "rubrique gauche": records["left"][link.left_uuid].section_title,
+                            "droite": records["right"][link.right_uuid].text,
+                            "rubrique droite": records["right"][link.right_uuid].section_title,
+                        }
+                        for link in manual_dropped
+                    ]
+                ),
+                width="stretch",
+                hide_index=True,
+            )
     legend = "".join(badge(label, colors) for label, colors in LABEL_COLORS.items())
     st.markdown(f"<div class='legend'>{legend}</div>", unsafe_allow_html=True)
-    kpis(left_name, right_name, rows, alignment.n_patch)
+    kpis(left_name, right_name, rows, alignment.n_patch, len(alignment.dropped))
     with st.expander("Bilan par rubrique"):
         st.caption("Rubriques telles que comparées (titre `##`, sinon `#`, nettoyé) : une rubrique renommée apparaît deux fois.")
         st.dataframe(section_summary(rows), width="stretch")
@@ -539,23 +605,24 @@ def main() -> None:
         st.dataframe(section_table(alignment.sections), width="stretch", hide_index=True)
 
     # Filtres
-    st.sidebar.header("Filtres")
-    st.sidebar.caption("Lignes affichées")
-    kinds = [kind for kind, label in KIND_LABELS.items() if st.sidebar.checkbox(label, value=True, key=f"kind_{kind}")]
-    sections = sorted({record.section for side in records.values() for record in side.values()})
-    section = st.sidebar.selectbox("Rubrique", [ALL_SECTIONS, *sections], format_func=lambda s: s or NO_SECTION)
-    query = st.sidebar.text_input("Recherche (texte des entrées)")
-    low, high = st.sidebar.slider("Score des correspondances", 0.0, 1.0, (0.0, 1.0), step=0.01)
-    low_score = st.sidebar.slider("Score signalé en rouge sous", 0.0, 1.0, 0.8, step=0.01)
-    only_diff = st.sidebar.checkbox("Seulement les correspondances entre rubriques non correspondantes")
-    only_manual = st.sidebar.checkbox("Seulement les corrections manuelles")
-    st.sidebar.header("Affichage")
-    order = st.sidebar.selectbox("Tri", ORDER_OPTIONS)
-    page_size = st.sidebar.selectbox("Lignes par page", PAGE_SIZE_OPTIONS, index=1)
-    st.sidebar.header("Export")
-    excel = st.sidebar.checkbox(
-        "Pour un tableur en français", value=True, help="Séparateur `;` et UTF-8 avec BOM, qu'Excel ouvre directement."
-    )
+    with filters_box:
+        st.header("Filtres")
+        st.caption("Statut des lignes")
+        kinds = [kind for kind, label in KIND_LABELS.items() if st.checkbox(label, value=True, key=f"kind_{kind}")]
+        min_level = st.selectbox("Incertitude", list(LEVEL_OPTIONS), format_func=LEVEL_OPTIONS.get)
+        sections = sorted({record.section for side in records.values() for record in side.values()})
+        section = st.selectbox("Rubrique", [ALL_SECTIONS, *sections], format_func=lambda s: s or NO_SECTION)
+        query = st.text_input("Recherche (texte des entrées)")
+        low, high = st.slider("Score des correspondances", 0.0, 1.0, (0.0, 1.0), step=0.01)
+        only_manual = st.checkbox("Seulement les corrections manuelles")
+    with display_box:
+        st.header("Affichage")
+        order = st.selectbox("Tri", ORDER_OPTIONS)
+        page_size = st.selectbox("Lignes par page", PAGE_SIZE_OPTIONS, index=1)
+        low_score = st.slider("Score signalé en rouge sous", 0.0, 1.0, 0.8, step=0.01)
+    with export_box:
+        st.header("Export")
+        excel = st.checkbox("Pour un tableur en français", value=True, help="Séparateur `;` et UTF-8 avec BOM, qu'Excel ouvre directement.")
 
     view = rows[rows["kind"].isin(kinds)]
     view = view[(view["kind"] != PAIR) | view["score"].between(low, high) | view["score"].isna()]
@@ -563,8 +630,6 @@ def main() -> None:
         view = view[(view["left_section"] == section) | (view["right_section"] == section)]
     if query:
         view = view[text_mask(view, query, ["left_markdown", "right_markdown"])]
-    if only_diff:
-        view = view[view["different_section"]]
     if only_manual:
         view = view[view["source"].isin(MANUAL_SOURCES) | view["left_uuid"].isin(confirmed) | view["right_uuid"].isin(confirmed)]
     if min_level:
@@ -576,18 +641,17 @@ def main() -> None:
 
     # Retour à la première page quand la sélection change.
     selection = (
-        alignment_path.name, tuple(kinds), section, query, low, high, only_diff, only_manual, order, page_size,
+        alignment_path.name, tuple(kinds), section, query, low, high, only_manual, order, page_size,
         min_level, candidate_low, margin,
     )
     if st.session_state.get("_selection") != selection:
         st.session_state["_selection"] = selection
         st.session_state.page = 0
 
-    matching = corresponding(alignment.sections)
-    st.sidebar.download_button(
+    export_box.download_button(
         f"Exporter en CSV ({len(view):,} lignes)".replace(",", " "),
         # Généré au clic seulement : lignes affichées, dans l'ordre affiché.
-        lambda: export_csv([alignment.joined[index] for index in view.index], matching, excel, alignment.reviews).encode(export_encoding(excel)),
+        lambda: export_csv([alignment.joined[index] for index in view.index], excel=excel, reviews=alignment.reviews).encode(export_encoding(excel)),
         file_name=f"{pair_name}.jointure.csv",
         mime="text/csv",
         icon=":material/download:",
@@ -597,7 +661,7 @@ def main() -> None:
 
     paginated_table(
         view,
-        ["#", f"gauche — {left_name}", f"droite — {right_name}", "score"],
+        ["#", f"gauche — {left_name}", f"droite — {right_name}", "statut"],
         lambda page, first: table_rows(page, first, low_score, order == NATURAL_ORDER, records, confirmed),
         page_size,
     )

@@ -15,12 +15,9 @@ temps :
    patch des rubriques (`data/alignement/<gauche>__<droite>.sections.csv`) :
    groupes imposés à la main, éventuellement 1-N ou N-1, et rubriques
    déclarées sans correspondance ;
-2. **entrées** : dans chaque groupe de rubriques — entrées des N rubriques
-   d'un groupe manuel concaténées dans l'ordre de chaque annuaire — et dans
-   chaque « trou » entre deux paires automatiques, qui regroupe les
-   rubriques restées seules de part et d'autre (rubrique renommée au-delà du
-   seuil, scindée…, mais pas celles déclarées seules au patch) — les deux
-   suites d'entrées sont alignées par Needleman-Wunsch, dont les paires très
+2. **entrées** : dans chaque groupe de rubriques appariées — entrées des N
+   rubriques d'un groupe manuel concaténées dans l'ordre de chaque annuaire
+   — les deux suites d'entrées sont alignées par Needleman-Wunsch, dont les paires très
    sûres servent d'**ancres** ; entre deux ancres, un **pair-HMM**
    (`lib/pair_hmm.py`) décide des autres paires selon leur probabilité a
    posteriori, qui tient compte du contexte : une paire encadrée par deux
@@ -29,6 +26,10 @@ temps :
 3. **passe résiduelle** : dans chaque segment, les entrées restées seules
    sont appariées sans contrainte d'ordre (affectation optimale), à un seuil
    plus strict, pour récupérer les inversions locales.
+
+On n'apparie jamais deux entrées de rubriques qui ne se correspondent pas :
+une rubrique sans correspondance (renommée au-delà du seuil, scindée…) ne
+s'aligne qu'une fois liée dans le patch des rubriques.
 
 Similarité de deux entrées, sur les mêmes champs que Dedupe
 (`dedupe_records`, en minuscules) : `w · JaroWinkler(subj) + (1 − w) ·

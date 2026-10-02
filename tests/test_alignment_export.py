@@ -68,14 +68,13 @@ class ExportTests(unittest.TestCase):
         left = record("l0", 0, "<SUBJ>Dupont</SUBJ>, <ADDR>rue A</ADDR>", section_uuid="a")
         right = record("r0", 0, section_uuid="b")
         rows, _ = natural_rows([Link("l0", "r0", 0.91234, "nw")], side([left]), side([right]))
-        values = export_row(rows[0], {("a", "c")})
+        values = export_row(rows[0])
         self.assertEqual(values["statut"], "apparié")
         self.assertEqual(values["score"], "0.9123")
-        self.assertEqual(values["rubriques_correspondantes"], "non")
+        self.assertNotIn("rubriques_correspondantes", values)
         self.assertEqual(values["gauche_volume"], "VOL_l")
         self.assertEqual(values["gauche_sujet"], "Dupont")
         self.assertEqual(values["droite_sujet"], "")
-        self.assertEqual(export_row(rows[0], None)["rubriques_correspondantes"], "")
 
     def test_certainty_level_and_reasons(self):
         left = side([record("l0", 0), record("l1", 1), record("l2", 2), record("l3", 3)])
@@ -88,7 +87,7 @@ class ExportTests(unittest.TestCase):
         ]
         reviews = {("l1", "r1"): Review(("déduite des voisines (p < 0,9)",), 2), ("l3", "r3"): Review(("candidate non appariée",), 2)}
         rows, _ = natural_rows(links, left, right)
-        values = [export_row(row, None, reviews) for row in rows]
+        values = [export_row(row, reviews) for row in rows]
         columns = [(v["statut"], v["certitude"], v["niveau_incertitude"], v["motifs_relecture"]) for v in values]
         self.assertEqual(
             columns,
@@ -101,8 +100,8 @@ class ExportTests(unittest.TestCase):
         )
         self.assertEqual(rows[3].kind, CANDIDATE)
         manual, _ = natural_rows([Link("l0", "r0", None, SOURCE_MANUAL)], left, right)
-        self.assertEqual(export_row(manual[0], None)["certitude"], "relue")
-        self.assertEqual(export_row(rows[0], None)["niveau_incertitude"], "")
+        self.assertEqual(export_row(manual[0])["certitude"], "relue")
+        self.assertEqual(export_row(rows[0])["niveau_incertitude"], "")
 
     def test_export_csv_excel(self):
         rows, _ = natural_rows([], side([record("l0", 0)]), {})

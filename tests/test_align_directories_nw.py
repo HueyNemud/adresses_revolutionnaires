@@ -91,14 +91,17 @@ class AlignTests(unittest.TestCase):
         self.assertEqual(pairs(result), {("g0", "d1"), ("g1", "d0"), ("g2", "d2")})
         self.assertEqual(sum(link.source == SOURCE_NW_RESIDUAL for link in result.links), 1)
 
-    def test_gap_between_anchors_is_aligned(self):
-        """Rubriques trop différentes pour s'aligner, entre deux ancres : leurs
-        entrées sont alignées ensemble."""
+    def test_unpaired_sections_are_never_aligned(self):
+        """Rubriques trop différentes pour s'aligner, entre deux rubriques
+        appariées : leurs entrées ne sont pas appariées, même identiques ;
+        il faut lier les rubriques dans le patch."""
         left = records("g", [("architectes", "Brongniart, rue Monsieur, 1."), ("jardiniers fleuristes", "Vilmorin, quai de la Megisserie, 30."), ("vins", "Bardet, en gros, 5.")])
         right = records("d", [("architectes", "Brongniart, rue Monsieur, 1."), ("marchands d arbres", "Vilmorin, quai de la Mégisserie, 30."), ("vins", "Bardet, en gros, 5.")])
         result = align(left, right)
-        self.assertEqual(pairs(result), {("g0", "d0"), ("g1", "d1"), ("g2", "d2")})
+        self.assertEqual(pairs(result), {("g0", "d0"), ("g2", "d2")})
         self.assertEqual(len(result.sections.groups), 2)
+        patch = [SectionPatchEntry(left_uuid="g:jardiniers fleuristes", right_uuid="d:marchands d arbres")]
+        self.assertIn(("g1", "d1"), pairs(align(left, right, sections=align_sections(left, right, patch))))
 
     def test_manual_section_group_out_of_order(self):
         """Rubrique renommée et déplacée dans l'ordre alphabétique, liée par

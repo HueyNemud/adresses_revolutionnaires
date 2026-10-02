@@ -20,6 +20,12 @@ compare la clé propre à chaque annuaire (sorties par défaut
 `<gauche>__<droite>.rubriques-brutes.csv` et `….rubriques-brutes.dedupe.csv`,
 pour ne pas écraser la variante par défaut).
 
+Dedupe ne compare la rubrique que comme un champ parmi d'autres : il peut
+donc lier deux entrées de rubriques qui ne se correspondent pas. Ces liens
+sont **toujours écartés** (`restrict_to_corresponding`), dans la sortie
+brute comme dans la sortie finale, y compris les paires du patch des
+entrées (lier d'abord les rubriques dans le patch des rubriques).
+
 DESC et ADDR ne sont pas comparés séparément : ils varient d'une édition à
 l'autre, même pour une même personne, et restent présents dans `text`.
 
@@ -69,6 +75,7 @@ from lib.section_alignment import (
     canonical_keys,
     canonical_training_text,
     load_section_alignment,
+    restrict_to_corresponding,
 )
 
 console = Console()
@@ -301,6 +308,12 @@ def main() -> None:
         sys.exit(1)
     console.print(f"{args.left.name} : {len(left_records)} entrées ; {args.right.name} : {len(right_records)} entrées")
 
+    try:
+        sections = load_section_alignment(list(left_records.values()), list(right_records.values()), section_patch_path)
+    except (OSError, csv.Error, ValueError) as error:
+        console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
+        sys.exit(1)
+
     raw_path = dedupe_path(output_path)
     if args.apply_only:
         if not raw_path.exists():
@@ -314,14 +327,12 @@ def main() -> None:
                 "(étapes amont modifiées) : relancer Dedupe sans --apply-only."
             )
             sys.exit(1)
+        links, dropped = restrict_to_corresponding(links, left_records, right_records, sections)
     else:
-        try:
-            sections = load_section_alignment(list(left_records.values()), list(right_records.values()), section_patch_path)
-        except (OSError, csv.Error, ValueError) as error:
-            console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
-            sys.exit(1)
         print_sections(sections, section_patch_path)
-        links = infer_links(left_records, right_records, args, training_path, sections)
+        links, dropped = restrict_to_corresponding(
+            infer_links(left_records, right_records, args, training_path, sections), left_records, right_records, sections
+        )
         write_links(raw_path, links, left_records, right_records)
         console.print(f"[bold green]✅ Sortie Dedupe :[/bold green] [yellow]{raw_path}[/yellow]")
 
@@ -330,8 +341,18 @@ def main() -> None:
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur dans le patch :[/bold red] {error}")
         sys.exit(1)
+    links, manual_dropped = restrict_to_corresponding(links, left_records, right_records, sections)
     write_links(output_path, links, left_records, right_records)
 
+    if dropped:
+        console.print(f"[yellow]{len(dropped)} lien(s) Dedupe entre rubriques non appariées écarté(s).[/yellow]")
+    for link in manual_dropped:
+        left_record, right_record = left_records[link.left_uuid], right_records[link.right_uuid]
+        console.print(
+            f"⚠ Paire du patch entre rubriques non appariées, non appliquée (lier les rubriques dans {section_patch_path}) : "
+            f"{left_record.section_title} / {left_record.text} ↔ {right_record.section_title} / {right_record.text}",
+            markup=False,
+        )
     console.print(f"\n[bold green]✅ Correspondances :[/bold green] [yellow]{output_path}[/yellow]")
     print_patch_summary(patch_path, resolution, stats)
     print_summary(args.left.name, args.right.name, len(left_records), len(right_records), links)

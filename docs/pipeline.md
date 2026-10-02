@@ -396,7 +396,7 @@ flowchart TD
     DC --> AP["Application du patch des entrées<br/>(lib/alignment_patch.py)"]
     EP[/"Patch des entrées<br/><code>data/alignement/…patch.csv</code>"/] --> AP
     AP --> F["<code>&lt;gauche&gt;__&lt;droite&gt;.csv</code><br/>résultat final"]
-    S -->|"groupes et trous"| N["align_directories_nw.py<br/>NW + résiduelle + pair-HMM"]
+    S -->|"groupes de rubriques appariées"| N["align_directories_nw.py<br/>NW + résiduelle + pair-HMM"]
     N --> NC["<code>….nw.csv</code>"]
     DC --> V["tools/display_alignment.py<br/>(patch appliqué en mémoire)"]
     NC --> V
@@ -477,6 +477,13 @@ uv run align_directories.py <gauche> <droite> --raw-sections   # variante à cl�
   `data/alignement/<gauche>__<droite>.training.json` et réutilisées ensuite
   sans interaction.
 - **Seuil :** `--threshold` (score minimal, défaut 0,5).
+- **Seulement entre rubriques appariées :** Dedupe ne voit la rubrique que
+  comme un champ parmi d'autres et peut lier deux rubriques qui ne se
+  correspondent pas ; ces liens sont écartés (`restrict_to_corresponding`,
+  `lib/section_alignment.py`), comme les paires du patch des entrées qui
+  violent cette règle (signalées en console : lier d'abord les rubriques).
+  Le viewer et l'export appliquent le même filtre aux sorties plus
+  anciennes.
 - **Sorties** dans `annuaires/alignements/`, dans l'ordre de l'annuaire de
   gauche : `<gauche>__<droite>.dedupe.csv` (liens bruts) et
   `<gauche>__<droite>.csv` (résultat final, Dedupe + patch des entrées). La
@@ -496,8 +503,9 @@ Sans apprentissage supervisé ; méthode, formalisation et premiers résultats
 dans [`alignement_ordonne.md`](alignement_ordonne.md). En bref :
 
 1. rubriques alignées comme ci-dessus ; les entrées sont traitées par
-   groupe de rubriques appariées et par « trou » entre deux groupes (rubriques
-   non appariées des deux côtés mises en commun) ;
+   groupe de rubriques appariées, et seulement là : une rubrique sans
+   correspondance n'est jamais appariée (la lier dans le patch des
+   rubriques) ;
 2. Needleman-Wunsch sur les entrées de chaque segment ; ses paires de
    similarité ≥ 0,9 sont des **ancres** ;
 3. passe résiduelle (affectation optimale, similarité ≥ 0,85) sur les
@@ -580,20 +588,22 @@ final.
   droite sans correspondance vient après la paire qui contient l'entrée de
   droite appariée qui la précède. Un bandeau marque chaque changement de
   rubrique.
-- **Filtres :** types de lignes (correspondances, sans correspondance à
-  gauche / à droite), rubrique, recherche, plage de scores, rubriques non
-  correspondantes (paires dont les rubriques ne se correspondent pas selon
-  la correspondance des rubriques), corrections manuelles ; tri par score
-  pour relire les cas limites.
-- **Relecture** (`lib/alignment_review.py`, voir ci-dessous) : chaque
-  correspondance porte une incertitude (faible, moyenne, forte) et ses
-  motifs ; les **candidates non appariées** (deux entrées sans
-  correspondance, chacune la plus proche de l'autre, dans la zone grise de
-  similarité) occupent une ligne sur fond jaune. Le filtre *Incertitude*
-  ne garde que les lignes d'incertitude moyenne ou forte (ou forte
-  seulement), le tri *incertitude décroissante* les place en tête ; le seuil
-  bas des candidates et l'écart « homonyme proche » se règlent dans la
-  barre latérale.
+- **Statut de chaque ligne, en clair** (dernière colonne, légende
+  au-dessus de la table) : `✓ appariée` (bordure verte ; `relue` ou
+  `relue, incertaine` pour un lien du patch), `? non appariée · candidate
+  à décider` (fond ambre : deux entrées **non** appariées, soumises au
+  relecteur), `✗ sans correspondance` (bordure grise). Viennent ensuite le
+  score, et pour une ligne à vérifier un badge d'incertitude (moyenne en
+  orange, forte en rouge) avec son motif.
+- **Barre latérale, du plus courant au plus fin :** alignement ; *Filtres*
+  (statut des lignes, incertitude, rubrique, recherche, plage de scores,
+  corrections manuelles) ; *Affichage* (tri, dont *incertitude
+  décroissante*, lignes par page, score signalé en rouge) ; *Export* ; et,
+  repliés en bas, les *Réglages fins de la relecture* (similarité minimale
+  d'une candidate, écart « homonyme proche »).
+- **Seulement entre rubriques appariées :** un lien entre rubriques non
+  appariées est écarté ; l'indicateur *Liens écartés* les compte, et un
+  encart liste les paires du patch concernées.
 - **Encarts :** lignes orphelines des deux patchs, bilan par rubrique,
   correspondance des rubriques.
 - **Copie pour les patchs :** le bouton `uuid` d'une entrée ou d'un bandeau
@@ -639,7 +649,6 @@ par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
 | `certitude` | Pour une paire : `relue` (patch), `incertaine` (patch, `certitude=incertaine`) ou `automatique` |
 | `niveau_incertitude` | Pour une paire automatique ou une candidate : `faible`, `moyenne` ou `forte` (vide pour une paire relue) |
 | `motifs_relecture` | Motifs de cette incertitude (`déduite des voisines (p < 0,9)`, `homonyme proche`, `candidate non appariée`), séparés par « \| » |
-| `rubriques_correspondantes` | Pour une paire : `oui` si les rubriques des deux entrées se correspondent (correspondance des rubriques et son patch), sinon `non` — à vérifier en priorité |
 | `gauche_…`, `droite_…` | Pour chaque côté : `volume`, `page`, `rubrique` (titre lisible), `texte` (sans Markdown), `sujet` / `description` / `adresse` (texte des empans SUBJ / DESC / ADDR, plusieurs empans d'une classe séparés par « \| »), `texte_balise` (`tagged_text` d'origine), `uuid` |
 
 `--excel` écrit avec le séparateur `;` et en UTF-8 avec BOM, qu'un tableur

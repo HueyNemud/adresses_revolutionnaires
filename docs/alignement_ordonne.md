@@ -62,7 +62,7 @@ Les données sont les éditions 1807 et 1808 (AD75, PER 292), segmentées en ent
 flowchart TD
     A[Deux annuaires : suites de rubriques,<br/>chaque rubrique une suite d'entrées] --> B
     B["① Alignement des rubriques<br/>NW sur Jaro-Winkler des titres + patch manuel"] --> C
-    C["Segments : groupes de rubriques appariées<br/>et « trous » entre deux paires"] --> D
+    C["Segments : groupes de rubriques appariées"] --> D
     D["② Needleman-Wunsch sur les entrées<br/>(par segment)"] --> E
     E["Ancres : paires NW de similarité ≥ 0,9"] --> F
     D --> G["③ Passe résiduelle : affectation optimale<br/>des entrées restées seules (inversions)"]
@@ -128,14 +128,15 @@ où $\mathrm{Indel}(x,y) = 1 - d_{\mathrm{indel}}(x,y)/(|x|+|y|)$. Si l'un des d
 - Une rubrique peut aussi être déclarée sans correspondance.
 - Les rubriques citées par le patch sont retirées des deux suites, qu'on aligne ensuite automatiquement.
 
-Les **segments** sont de trois sortes :
+Les **segments** sont les groupes de rubriques appariées :
 - les groupes manuels, dont les entrées de toutes les rubriques sont concaténées dans l'ordre de chaque annuaire ;
-- les paires automatiques ;
-- les « trous » entre deux paires automatiques consécutives, qui regroupent les rubriques restées seules de part et d'autre, à condition qu'il y en ait des deux côtés.
+- les paires automatiques.
+
+**On n'apparie jamais deux entrées de rubriques qui ne se correspondent pas.** Une rubrique restée seule (renommée au-delà du seuil, scindée…) n'est dans aucun segment : pour apparier ses entrées, il faut la lier dans le patch des rubriques. La même règle s'applique à Dedupe, qui ne voit la rubrique que comme un champ parmi d'autres : ses liens entre rubriques non appariées sont écartés (`restrict_to_corresponding`), de même que les paires du patch des entrées qui la violent.
 
 Sur 1807/1808 : 144 paires automatiques (dont 12 de titres différents), 2 groupes manuels (1-1 et 1-3), 6 rubriques sans correspondance, toutes en 1808.
 
-*Usage partagé.* Dedupe compare la rubrique comme une chaîne. Pour qu'il profite de cette correspondance, chaque rubrique reçoit une **clé canonique** : celle de la première rubrique de gauche de son groupe. La même réécriture s'applique aux paires d'entraînement déjà étiquetées. L'outil de relecture, lui, signale les paires dont les rubriques ne se correspondent pas.
+*Usage partagé.* Dedupe compare la rubrique comme une chaîne. Pour qu'il profite de cette correspondance, chaque rubrique reçoit une **clé canonique** : celle de la première rubrique de gauche de son groupe. La même réécriture s'applique aux paires d'entraînement déjà étiquetées.
 
 ### 4.3 Alignement ordonné des entrées : Needleman-Wunsch
 
@@ -297,7 +298,7 @@ On itère jusqu'à ce que le gain de log-vraisemblance soit inférieur à 1 nat.
 
 ## 6. Résultats préliminaires (1807 → 1808)
 
-Il n'existe pas encore de vérité de référence. Les chiffres ci-dessous décrivent le comportement des méthodes, pas leur exactitude. Les deux variantes de Dedupe diffèrent par la comparaison des rubriques : titres bruts, ou clé canonique de groupe (§ 4.2). Chacune correspond à une seule exécution, et l'entraînement de Dedupe comporte une part d'aléa.
+Il n'existe pas encore de vérité de référence. Les chiffres ci-dessous décrivent le comportement des méthodes, pas leur exactitude. Ils datent d'avant la règle « seulement entre rubriques appariées » : les liens Dedupe de la colonne « entre rubriques non correspondantes » sont désormais écartés. Les deux variantes de Dedupe diffèrent par la comparaison des rubriques : titres bruts, ou clé canonique de groupe (§ 4.2). Chacune correspond à une seule exécution, et l'entraînement de Dedupe comporte une part d'aléa.
 
 | méthode | paires | entre rubriques non correspondantes | communes avec NW + pair-HMM |
 |---|---|---|---|

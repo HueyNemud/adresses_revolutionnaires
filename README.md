@@ -10,7 +10,8 @@ début du XIXᵉ siècle en données structurées :
    `ADDR` (où ?) par un modèle GLiNER, avec les entrées à relire en priorité
    signalées ;
 3. les **correspondances** entre les entrées de deux éditions d'un annuaire,
-   par Dedupe ou par un alignement fondé sur l'ordre des entrées, avec pour
+   par Dedupe ou par un alignement fondé sur l'ordre des entrées, toujours
+   entre rubriques appariées d'une édition à l'autre, avec pour
    chaque paire une incertitude (faible, moyenne, forte) et ses motifs, qui
    orientent la relecture humaine.
 

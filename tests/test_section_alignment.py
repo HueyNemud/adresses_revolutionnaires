@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lib.alignment import SOURCE_MANUAL, Record, dedupe_records
+from lib.alignment import SOURCE_MANUAL, Link, Record, dedupe_records
 from lib.section_alignment import (
     SOURCE_AUTO,
     SectionPatchEntry,
@@ -12,7 +12,9 @@ from lib.section_alignment import (
     corresponding,
     load_section_alignment,
     read_section_patch,
+    restrict_to_corresponding,
     sections,
+    segments,
     validate_section_patch,
     write_section_patch,
 )
@@ -110,6 +112,24 @@ class AlignSectionsTests(unittest.TestCase):
             write_section_patch(path, [SectionPatchEntry(left_uuid="ancien", right_uuid="d:marchands d arbres", left_title="JARDINIERS FLEURISTES")])
             load_section_alignment(records("g", LEFT), records("d", RIGHT), path)
             self.assertEqual(read_section_patch(path)[0].left_uuid, "g:jardiniers fleuristes")
+
+
+class OnlyPairedSectionsTests(unittest.TestCase):
+    def test_segments_are_paired_groups_only(self):
+        alignment = align_sections(records("g", LEFT), records("d", RIGHT))
+        unmatched = {section.key for section in alignment.unmatched_left + alignment.unmatched_right}
+        self.assertIn("jardiniers fleuristes", unmatched)
+        keys = {section.key for left, right in segments(alignment) for section in left + right}
+        self.assertFalse(keys & unmatched)
+        self.assertEqual(len(segments(alignment)), len(alignment.groups))
+
+    def test_links_between_unpaired_sections_are_dropped(self):
+        left, right = records("g", LEFT), records("d", RIGHT)
+        alignment = align_sections(left, right)
+        by_uuid = lambda items: {record.uuid: record for record in items}
+        good, bad, unknown = Link("g0", "d0", 0.9), Link("g2", "d2", 0.9), Link("g9", "d0", 0.9)
+        kept, dropped = restrict_to_corresponding([good, bad, unknown], by_uuid(left), by_uuid(right), alignment)
+        self.assertEqual((kept, dropped), ([good, unknown], [bad]))
 
 
 class ValidateTests(unittest.TestCase):
