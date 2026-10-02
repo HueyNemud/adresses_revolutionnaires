@@ -696,10 +696,16 @@ uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.
   précision et gain plafond de la règle de la passe résiduelle, devenir de
   chaque paire du gold selon la relecture (retenue avec ou sans motif,
   candidate non appariée, ni l'une ni l'autre), part de OUI par
-  incertitude, charge de relecture. Le gold ne contenant que des
-  inversions, le motif `déduite des voisines` n'y est pas évalué.
-- **Pour une nouvelle paire d'annuaires**, les seuils ne sont pas à
-  reprendre de 1807/1808 les yeux fermés : tirer un petit gold
+  incertitude, charge de relecture, et rubriques sans correspondance (avec
+  leurs entrées, exclues de tout appariement). Le gold ne contenant que des
+  inversions de rubriques appariées, le motif `déduite des voisines` et la
+  perte due aux rubriques sans correspondance n'y sont pas évalués.
+- **Pour une nouvelle paire d'annuaires**, commencer par les rubriques sans
+  correspondance (console d'`align_directories_nw.py`, encart
+  *Correspondance des rubriques* du viewer, section 3 du rapport d'audit) :
+  leurs entrées ne sont jamais appariées et le gold ne voit pas cette perte.
+  Lier dans le patch des rubriques celles qui ont un équivalent. Ensuite,
+  les seuils ne sont pas à reprendre de 1807/1808 les yeux fermés : tirer un petit gold
   (`--per-stratum 4`, ≈ 100 paires), l'étiqueter, lancer l'audit, et
   n'ajuster τ, θr ou `--ecart` que si le rapport l'exige (part de OUI qui ne
   baisse plus de l'incertitude faible à forte, règle imprécise, motifs qui n'attrapent pas

@@ -22,11 +22,14 @@ Rapport `rapports/audit_alignement/<gauche>__<droite>.md` :
    ou ni l'une ni l'autre ; on attend des OUI en incertitude faible et des
    NON / INCERTAIN ailleurs, et une part de OUI qui baisse de l'incertitude
    faible à forte ;
-3. charge de relecture sur toute la sortie, par motif et par niveau.
+3. charge de relecture sur toute la sortie, par motif et par niveau ;
+4. rubriques sans correspondance et leurs entrées : on n'apparie qu'entre
+   rubriques appariées, elles sont donc exclues de tout appariement.
 
-Le gold ne contient que des candidates hors de l'ordre (inversions) : les
-paires décidées par le pair-HMM (motif `déduite des voisines`) n'y figurent pas, et
-ce motif n'est donc pas évalué ici.
+Le gold ne contient que des candidates hors de l'ordre (inversions), tirées
+dans les rubriques appariées : les paires décidées par le pair-HMM (motif
+`déduite des voisines`) et la perte due aux rubriques sans correspondance
+n'y figurent pas ; la section 4 chiffre cette perte à part.
 """
 
 import argparse
@@ -74,6 +77,16 @@ def counts_table(groups: dict[str, list[dict]], order: list[str]) -> str:
         share = f"{weighted['OUI'] / total:.0%}" if total else "–"
         rows.append([key, *(raw[name] for name in LABELS), *(round(weighted[name]) for name in LABELS), share])
     return md_table(["", *LABELS, *(f"{name} pondéré" for name in LABELS), "part OUI (pondérée)"], rows)
+
+
+def unmatched_section_table(sections, left_name: str, right_name: str) -> str:
+    """Rubriques sans correspondance de chaque côté, avec leur nombre d'entrées."""
+    rows = [
+        [name, section.title or "(sans rubrique)", "déclarée au patch" if (side, section.uuid) in sections.declared else "non alignée", len(section.records)]
+        for side, name, unmatched in (("left", left_name, sections.unmatched_left), ("right", right_name, sections.unmatched_right))
+        for section in unmatched
+    ]
+    return md_table(["annuaire", "rubrique", "origine", "entrées"], rows, align="lllr") if rows else "Aucune."
 
 
 def main() -> None:
@@ -154,6 +167,15 @@ def main() -> None:
         md_table(["incertitude", "paires"], [[LEVEL_LABELS[level], load_levels[level]] for level in sorted(load_levels)]),
         "",
         "Le gold ne contient que des inversions : le motif `déduite des voisines` (pair-HMM) n'y est pas évalué.",
+        "",
+        "## 4. Rubriques sans correspondance (entrées exclues de tout appariement)",
+        "",
+        unmatched_section_table(sections, left_name, right_name),
+        "",
+        f"Total : {sum(len(section.records) for section in sections.unmatched_left)} entrée(s) de {left_name}, "
+        f"{sum(len(section.records) for section in sections.unmatched_right)} de {right_name}. "
+        "On n'apparie qu'entre rubriques appariées : ces entrées restent sans correspondance tant que leur rubrique "
+        "n'est pas liée dans le patch des rubriques. Le gold, tiré dans les rubriques appariées, ne mesure pas cette perte.",
         "",
     ]
     output = args.output or REPORT_DIR / f"{pair_name}.md"

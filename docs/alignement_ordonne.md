@@ -42,7 +42,7 @@ Un annuaire est trié : les rubriques par ordre alphabétique, puis les entrées
 
 ## 2. Données et observations préliminaires
 
-Les données sont les éditions 1807 et 1808 (AD75, PER 292), segmentées en entrées et annotées. Les observations ci-dessous portent sur les 13 582 liens produits par Dedupe, faute de mieux.
+Les données sont les éditions 1807 et 1808 (AD75, PER 292), segmentées en entrées et annotées. Les observations ci-dessous portent sur les 13 582 liens bruts produits par Dedupe, faute de mieux, avant que soient écartés les 16 qui relient des rubriques non appariées (§ 4.2) ; ce filtrage ne change aucun des pourcentages arrondis.
 
 | | 1807 | 1808 |
 |---|---|---|
@@ -298,14 +298,14 @@ On itère jusqu'à ce que le gain de log-vraisemblance soit inférieur à 1 nat.
 
 ## 6. Résultats préliminaires (1807 → 1808)
 
-Il n'existe pas encore de vérité de référence. Les chiffres ci-dessous décrivent le comportement des méthodes, pas leur exactitude. Ils datent d'avant la règle « seulement entre rubriques appariées » : les liens Dedupe de la colonne « entre rubriques non correspondantes » sont désormais écartés. Les deux variantes de Dedupe diffèrent par la comparaison des rubriques : titres bruts, ou clé canonique de groupe (§ 4.2). Chacune correspond à une seule exécution, et l'entraînement de Dedupe comporte une part d'aléa.
+Il n'existe pas encore de vérité de référence. Les chiffres ci-dessous décrivent le comportement des méthodes, pas leur exactitude. Ils respectent la règle « seulement entre rubriques appariées » (§ 4.2) : les liens Dedupe qui l'enfreignent sont écartés et comptés à part ; les paires communes avec la méthode ordonnée n'en dépendent pas, puisque celle-ci n'en produit aucun. Les deux variantes de Dedupe diffèrent par la comparaison des rubriques : titres bruts, ou clé canonique de groupe (§ 4.2). Chacune correspond à une seule exécution, et l'entraînement de Dedupe comporte une part d'aléa.
 
-| méthode | paires | entre rubriques non correspondantes | communes avec NW + pair-HMM |
+| méthode | paires | liens écartés (rubriques non appariées) | communes avec NW + pair-HMM |
 |---|---|---|---|
 | Needleman-Wunsch seul | 14 355 | 0 | 14 320 |
 | **NW + pair-HMM** | **14 491** | 0 | — |
-| Dedupe, rubriques brutes | 13 582 | 16 | 13 187 |
-| Dedupe, clé canonique | 13 213 | 8 | 12 875 |
+| Dedupe, rubriques brutes | 13 566 | 16 | 13 187 |
+| Dedupe, clé canonique | 13 205 | 8 | 12 875 |
 
 Répartition des 14 491 paires : 11 820 ancres, 2 270 paires décidées par le pair-HMM et 401 inversions.
 
@@ -374,6 +374,13 @@ faible à forte : 94 %, 75 %, 31 %. Il reste à vérifier 445 lignes sur 14 491 
 sont des **observations sur 1807/1808**. Pour une autre paire d'annuaires,
 on tire un petit gold et on lance `tools/audit_alignment_review.py` avant de
 se fier aux seuils.
+
+**Limite : le gold ne voit que les rubriques appariées.** On n'apparie
+qu'entre rubriques appariées (§ 4.2) ; une rubrique sans correspondance
+perd donc toutes ses entrées, et le gold, tiré dans les segments, ne
+mesure pas cette perte. Sur 1807/1808, elle touche 6 rubriques de 1808
+(42 entrées). Le rapport d'audit la compte à part ; sur une autre paire
+d'annuaires, le rappel dépend d'abord de la qualité du patch des rubriques.
 
 ---
 
