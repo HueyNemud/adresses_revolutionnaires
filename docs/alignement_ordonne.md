@@ -314,13 +314,73 @@ Lecture qualitative d'un échantillon :
 - **Paires retirées** (35) : surtout des homonymes fréquents dont l'adresse a changé (Lambert, Gervais, Lemaire). Le modèle les juge ambiguës.
 - **Erreurs résiduelles visibles** : quelques remplacements acceptés (Potrel → Prot, *p* = 0,57).
 
+### 6.1 Évaluation de la passe résiduelle sur un gold d'inversions
+
+Un collègue a objecté que l'affectation optimale « force » des appariements
+et que son seuil conservateur perd des entrées déplacées qui ont aussi changé
+d'adresse. Une note de travail proposait de pénaliser le déplacement, dans
+Needleman-Wunsch et dans le HMM. Pour trancher, nous avons étiqueté un **gold
+d'inversions** (`tools/sample_alignment_gold.py`). Il regroupe 216 paires
+candidates hors de l'ordre, tirées par strate (déplacement × similarité),
+chacune avec son poids : 105 `OUI`, 90 `NON` et 21 `INCERTAIN`.
+
+| indice | OUI | NON | INCERTAIN |
+|---|---|---|---|
+| $s \ge 0{,}85$ | 93 | 5 | 6 |
+| $0{,}75 \le s < 0{,}85$ | 10 | 34 | 12 |
+| $s < 0{,}75$ | 2 | 51 | 3 |
+| meilleures partenaires mutuelles dans le segment | 104 | 13 | 13 |
+| pas meilleures partenaires mutuelles | 1 | 77 | 8 |
+
+- **La règle actuelle est précise.** En pondérant, elle retient environ 374
+  `OUI` pour 16 `NON` et 12 `INCERTAIN`, soit 93 % de précision.
+- **Le gain possible est plafonné, et il ne peut pas être automatisé.**
+  - Parmi les candidates rejetées, on estime environ 66 `OUI` et 72
+    `INCERTAIN` pour environ 1 700 `NON`, soit au mieux 0,5 % de paires en
+    plus.
+  - Ces `OUI` se trouvent dans la zone 0,75–0,85, chez des meilleures
+    partenaires mutuelles. On y compte en pondéré 28 `OUI`, 42 `NON` et 18
+    `INCERTAIN` : une acceptation automatique ferait plus de fausses paires
+    que de bonnes.
+  - Les notes d'étiquetage montrent pourquoi. Pour trancher, il faut un
+    savoir que les données n'ont pas : homonymes, père et fils, femme et
+    mari, coquilles des éditeurs, rues renommées.
+- **Le déplacement n'est pas informatif.**
+  - D'une classe de déplacement à l'autre, la part de `OUI` reste voisine
+    de 50 %.
+  - Rapporté à la taille de la rubrique, il ne sépare rien non plus.
+  - Une longue rubrique (« Non-commerçans ») déplace loin une entrée dont le
+    nom a été mal recopié.
+  - Pénaliser le déplacement n'aurait donc rien apporté.
+- **Trois estimations non supervisées d'un a priori par classe de
+  déplacement ont échoué.**
+  - L'échantillon à SUBJ identique et unique manque les entrées déplacées,
+    qui le sont surtout parce que leur nom a changé de graphie.
+  - Laisser l'EM apprendre $p(s\mid\text{différentes})$ fait diverger
+    l'estimation, comme au § 4.5.4.
+  - L'estimateur des moments hérite du biais de $p(s\mid\text{même})$.
+
+**Conclusion.** La passe résiduelle reste à seuil fixe. Les cas douteux
+sont signalés pour une **relecture humaine ciblée**
+(`lib/alignment_review.py`, voir `docs/pipeline.md`).
+- Trois motifs : `contexte incertain`, `homonyme proche` et `proposition`.
+- Un niveau d'incertitude ordinal, de 0 à 2.
+- Les décisions sont reportées dans le patch des entrées, avec un statut
+  `incertaine` pour ce qui ne peut pas être tranché.
+
+Sur ce gold, la part de `OUI` (pondérée) baisse bien avec le niveau : 94 %,
+75 %, 31 %. Il reste à relire 445 lignes sur 14 491 paires. Ces chiffres
+sont des **observations sur 1807/1808**. Pour une autre paire d'annuaires,
+on tire un petit gold et on lance `tools/audit_alignment_review.py` avant de
+se fier aux seuils.
+
 ---
 
 ## 7. Discussion
 
 - **Hypothèses.**
   - La probabilité a posteriori est **conditionnelle aux ancres** : une ancre erronée fausse les fenêtres voisines.
-  - Les inversions sont traitées hors modèle, par la passe résiduelle.
+  - Les inversions sont traitées hors modèle, par la passe résiduelle. Le gold du § 6.1 montre qu'une règle plus fine ne paierait pas : les cas manqués relèvent de la relecture humaine.
   - Les émissions reposent sur deux échantillons choisis par heuristique (SUBJ uniques, voisins d'ancres). Leurs biais sont connus mais pas quantifiés.
 - **Ce que l'ordre apporte et ce qu'il n'apporte pas.**
   - L'ordre tranche efficacement entre « déménagement » et « remplacement » lorsque le reste de la rubrique est stable.
@@ -333,7 +393,7 @@ Lecture qualitative d'un échantillon :
 
 ## 8. Perspectives
 
-1. **Évaluation.** Constituer un échantillon de référence, stratifié par rubrique et par type de cas (trou 1×1, homonymes, inversions). Mesurer précision, rappel et calibration des quatre variantes du tableau de la section 6.
+1. **Évaluation.** Constituer un échantillon de référence, stratifié par rubrique et par type de cas (trou 1×1, homonymes, inversions). Mesurer précision, rappel et calibration des quatre variantes du tableau de la section 6. Les inversions sont faites (§ 6.1). Restent les paires du pair-HMM, dont le motif `contexte incertain` n'est pas encore évalué.
 2. **Sensibilité.** Étudier l'effet du seuil des ancres, de $w$ et du nombre de classes.
 3. **Émissions multivariées.** Séparer nom et adresse dans $\lambda$, par exemple avec un modèle de Fellegi-Sunter à deux champs.
 4. **Plus de deux éditions.** Enchaîner les alignements 1803 → 1804 → … et contrôler leur cohérence transitive.

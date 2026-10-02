@@ -323,3 +323,22 @@ def canonical_training(data: dict, left_keys: dict[str, str], right_keys: dict[s
 
 def canonical_training_text(text: str, left_keys: dict[str, str], right_keys: dict[str, str]) -> str:
     return json.dumps(canonical_training(json.loads(text), left_keys, right_keys), ensure_ascii=False)
+
+
+def segments(alignment: SectionAlignment) -> list[tuple[list[Section], list[Section]]]:
+    """Segments à aligner : chaque groupe manuel de rubriques (entrées de ses
+    N rubriques concaténées) ; chaque paire automatique et, entre deux paires
+    (ou avant la première, après la dernière), le « trou » des rubriques
+    restées seules des deux côtés, s'il en a des deux côtés (hors rubriques
+    déclarées seules au patch)."""
+    result = [(group.left, group.right) for group in alignment.groups if group.source != SOURCE_AUTO]
+    left, right = alignment.auto_left, alignment.auto_right
+    previous_i, previous_j = -1, -1
+    for i, j in [*alignment.auto_pairs, (len(left), len(right))]:
+        gap_left, gap_right = left[previous_i + 1 : i], right[previous_j + 1 : j]
+        if gap_left and gap_right:
+            result.append((gap_left, gap_right))
+        if i < len(left):
+            result.append(([left[i]], [right[j]]))
+        previous_i, previous_j = i, j
+    return result

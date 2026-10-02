@@ -8,9 +8,15 @@ entrée de droite sans correspondance après la paire qui contient l'entrée
 de droite appariée qui la précède (avant la première paire s'il n'y en a
 pas).
 
+Une **proposition** (`lib/alignment_review.py`) n'est pas un lien : deux
+entrées sans correspondance suggérées au relecteur. Passée avec les liens à
+`natural_rows`, elle occupe une ligne à elle (statut `proposition`).
+
 L'export CSV s'adresse aux utilisateurs des données (historiens) : colonnes
 en français, texte sans Markdown, empans NER éclatés en colonnes
-`sujet` / `description` / `adresse`.
+`sujet` / `description` / `adresse`, et, pour chaque paire, sa `certitude`
+(`relue`, `incertaine` à la relecture, ou `automatique`), son
+`niveau_incertitude` (0 à 2) et ses `motifs_relecture`.
 """
 
 import csv
@@ -18,11 +24,14 @@ import io
 from collections import defaultdict
 from dataclasses import dataclass
 
-from lib.alignment import Link, Record, clean_text
+from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_PROPOSAL, Link, Record, clean_text
+from lib.alignment_review import SEPARATOR, Review
 from lib.ner.spans import normalize_markdown, parse_tagged_text, project_spans
 
-PAIR, LEFT_ONLY, RIGHT_ONLY = "pair", "left", "right"
-STATUS_LABELS = {PAIR: "apparié", LEFT_ONLY: "gauche seulement", RIGHT_ONLY: "droite seulement"}
+PAIR, LEFT_ONLY, RIGHT_ONLY, PROPOSAL = "pair", "left", "right", "proposal"
+STATUS_LABELS = {PAIR: "apparié", LEFT_ONLY: "gauche seulement", RIGHT_ONLY: "droite seulement", PROPOSAL: "proposition"}
+CERTAINTY_LABELS = {SOURCE_MANUAL: "relue", SOURCE_MANUAL_UNCERTAIN: "incertaine"}  # autres liens : AUTOMATIC
+AUTOMATIC = "automatique"
 SPAN_COLUMNS = {"SUBJ": "sujet", "DESC": "description", "ADDR": "adresse"}
 SPAN_SEPARATOR = " | "  # entre plusieurs empans de même classe
 SIDE_COLUMNS = ["volume", "page", "rubrique", "texte", *SPAN_COLUMNS.values(), "texte_balise", "uuid"]
@@ -31,6 +40,9 @@ EXPORT_FIELDS = [
     "statut",
     "score",
     "methode",
+    "certitude",
+    "niveau_incertitude",
+    "motifs_relecture",
     "rubriques_correspondantes",
     *(f"{side}_{column}" for side in SIDES.values() for column in SIDE_COLUMNS),
 ]
@@ -45,7 +57,7 @@ class JoinedRow:
     @property
     def kind(self) -> str:
         if self.link is not None:
-            return PAIR
+            return PROPOSAL if self.link.source == SOURCE_PROPOSAL else PAIR
         return LEFT_ONLY if self.left is not None else RIGHT_ONLY
 
 
@@ -119,31 +131,55 @@ def side_values(record: Record | None) -> dict[str, str]:
     }
 
 
-def export_row(row: JoinedRow, matching: set[tuple[str, str]] | None) -> dict[str, str]:
+def review_values(row: JoinedRow, reviews: dict[tuple[str, str], Review] | None) -> dict[str, str]:
+    """`certitude`, `niveau_incertitude`, `motifs_relecture` d'une ligne ;
+    niveau et motifs vides sans `reviews` et pour une paire relue."""
+    values = {"certitude": "", "niveau_incertitude": "", "motifs_relecture": ""}
+    if row.link is None:
+        return values
+    if row.kind == PAIR:
+        values["certitude"] = CERTAINTY_LABELS.get(row.link.source, AUTOMATIC)
+    if reviews is not None and values["certitude"] in ("", AUTOMATIC):
+        found = reviews.get((row.link.left_uuid, row.link.right_uuid))
+        values["niveau_incertitude"] = str(found.level if found else 0)
+        values["motifs_relecture"] = SEPARATOR.join(found.reasons) if found else ""
+    return values
+
+
+def export_row(
+    row: JoinedRow, matching: set[tuple[str, str]] | None, reviews: dict[tuple[str, str], Review] | None = None
+) -> dict[str, str]:
     """Ligne d'export. `matching` : paires d'uuid de rubriques qui se
     correspondent (`lib.section_alignment.corresponding`) ; None pour ne pas
-    remplir `rubriques_correspondantes`."""
+    remplir `rubriques_correspondantes`. `reviews` : motifs de relecture
+    (`lib.alignment_review.review`) ; None pour ne pas remplir le niveau."""
     values = {
         "statut": STATUS_LABELS[row.kind],
         "score": "" if row.link is None or row.link.score is None else f"{row.link.score:.4f}",
         "methode": row.link.source if row.link else "",
+        **review_values(row, reviews),
         "rubriques_correspondantes": "",
     }
-    if row.kind == PAIR and matching is not None:
+    if row.kind in (PAIR, PROPOSAL) and matching is not None:
         values["rubriques_correspondantes"] = "oui" if (row.left.section_uuid, row.right.section_uuid) in matching else "non"
     for side, name in SIDES.items():
         values |= {f"{name}_{column}": value for column, value in side_values(getattr(row, side)).items()}
     return values
 
 
-def export_csv(rows: list[JoinedRow], matching: set[tuple[str, str]] | None = None, excel: bool = False) -> str:
+def export_csv(
+    rows: list[JoinedRow],
+    matching: set[tuple[str, str]] | None = None,
+    excel: bool = False,
+    reviews: dict[tuple[str, str], Review] | None = None,
+) -> str:
     """CSV de la jointure. `excel` : séparateur `;` (tableur réglé en
     français) ; l'appelant écrit alors en `utf-8-sig`, que le tableur
     reconnaît."""
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=EXPORT_FIELDS, delimiter=";" if excel else ",", lineterminator="\n")
     writer.writeheader()
-    writer.writerows(export_row(row, matching) for row in rows)
+    writer.writerows(export_row(row, matching, reviews) for row in rows)
     return buffer.getvalue()
 
 

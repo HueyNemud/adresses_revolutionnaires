@@ -59,22 +59,30 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from rapidfuzz.distance import Indel, JaroWinkler
-from rapidfuzz.process import cdist
 from rich.console import Console
 from rich.table import Table
 from scipy.optimize import linear_sum_assignment
 
 from lib import pair_hmm
-from lib.alignment import SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_NW_RESIDUAL, Link, Record, dedupe_records, load_volume, read_links, write_links
+from lib.alignment import (
+    SOURCE_NW,
+    SOURCE_NW_CONTEXT,
+    SOURCE_NW_RESIDUAL,
+    Link,
+    Record,
+    load_volume,
+    read_links,
+    similarity_matrix,
+    write_links,
+)
 from lib.section_alignment import (
     DEFAULT_THRESHOLD,
     SECTION_PATCH_SUFFIX,
     SOURCE_AUTO,
-    Section,
     SectionAlignment,
     align_sections,
     load_section_alignment,
+    segments,
 )
 from lib.sequence import needleman_wunsch
 
@@ -187,47 +195,6 @@ def residual_pairs(similarity: np.ndarray, pairs: list[tuple[int, int]], thresho
     sub = similarity[np.ix_(rows, cols)]
     sub = np.where(sub >= threshold, sub, 0.0)
     return sorted((rows[i], cols[j]) for i, j in zip(*linear_sum_assignment(sub, maximize=True)) if sub[i, j] > 0)
-
-
-def similarity_matrix(left: list[Record], right: list[Record], subj_weight: float) -> np.ndarray:
-    """Similarité de chaque entrée de gauche à chaque entrée de droite, sur
-    les champs de Dedupe."""
-    left_fields, right_fields = dedupe_records(left), dedupe_records(right)
-    left_values = [left_fields[record.uuid] for record in left]
-    right_values = [right_fields[record.uuid] for record in right]
-
-    def matrix(name: str, scorer) -> np.ndarray:
-        return cdist(
-            [values[name] or "" for values in left_values],
-            [values[name] or "" for values in right_values],
-            scorer=scorer.normalized_similarity,
-            dtype=np.float32,
-            workers=-1,
-        )
-
-    text = matrix("text", Indel)
-    subj = matrix("subj", JaroWinkler)
-    both = np.outer([bool(values["subj"]) for values in left_values], [bool(values["subj"]) for values in right_values])
-    return np.where(both, subj_weight * subj + (1 - subj_weight) * text, text)
-
-
-def segments(alignment: SectionAlignment) -> list[tuple[list[Section], list[Section]]]:
-    """Segments à aligner : chaque groupe manuel de rubriques (entrées de ses
-    N rubriques concaténées) ; chaque paire automatique et, entre deux paires
-    (ou avant la première, après la dernière), le « trou » des rubriques
-    restées seules des deux côtés, s'il en a des deux côtés (hors rubriques
-    déclarées seules au patch)."""
-    result = [(group.left, group.right) for group in alignment.groups if group.source != SOURCE_AUTO]
-    left, right = alignment.auto_left, alignment.auto_right
-    previous_i, previous_j = -1, -1
-    for i, j in [*alignment.auto_pairs, (len(left), len(right))]:
-        gap_left, gap_right = left[previous_i + 1 : i], right[previous_j + 1 : j]
-        if gap_left and gap_right:
-            result.append((gap_left, gap_right))
-        if i < len(left):
-            result.append(([left[i]], [right[j]]))
-        previous_i, previous_j = i, j
-    return result
 
 
 def windows(

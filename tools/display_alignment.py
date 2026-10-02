@@ -31,6 +31,15 @@ Le patch s'édite à la main. Pour l'alimenter, chaque entrée a un bouton
 ligne de patch prête à coller : la paire pour une correspondance, l'entrée
 seule pour une entrée sans correspondance).
 
+**Relecture** (`lib/alignment_review.py`) : chaque correspondance porte un
+niveau d'incertitude (0 sûre, 1 à relire, 2 très incertaine) et ses motifs
+(`contexte incertain`, `homonyme proche`) ; des **propositions** (deux
+entrées sans correspondance, chacune la plus proche de l'autre, dans la zone
+grise de similarité) occupent une ligne à part, sur fond jaune. Le filtre
+« Niveau d'incertitude minimal » ne garde que ces lignes. Une décision
+incertaine se copie avec le bouton **incertaine** (ligne de patch
+`certitude=incertaine`).
+
 Le bouton **Exporter en CSV** télécharge les lignes affichées (filtres et tri
 appliqués) sous la forme de la jointure lisible de `lib/alignment_export.py`,
 comme `tools/export_alignment.py`.
@@ -48,9 +57,11 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ depuis tools/
 
-from lib.alignment import SOURCE_MANUAL, Record, load_volume, read_links
-from lib.alignment_export import LEFT_ONLY, PAIR, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
-from lib.alignment_patch import PATCH_FIELDS, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
+from align_directories_nw import Params
+from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Record, load_volume, read_links
+from lib.alignment_export import LEFT_ONLY, PAIR, PROPOSAL, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
+from lib.alignment_patch import PATCH_FIELDS, UNCERTAIN, PatchEntry, apply_patch, entry_from_records, read_patch, resolve, validate
+from lib.alignment_review import DEFAULT_MARGIN, REASONS, SEPARATOR, Review, review
 from lib.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.section_alignment import (
     SECTION_PATCH_FIELDS,
@@ -68,10 +79,19 @@ PATCH_DIR = Path("data/alignement")
 ALIGNMENT_SUFFIXES = (".dedupe.csv", ".nw.csv")  # align_directories.py, align_directories_nw.py
 PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
 NATURAL_ORDER = "ordre naturel"
-ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant"]
+LEVEL_ORDER = "niveau d'incertitude décroissant"
+ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant", LEVEL_ORDER]
+LEVEL_OPTIONS = {0: "0 — tout afficher", 1: "1 — à relire", 2: "2 — très incertaines"}
 ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
-KIND_LABELS = {PAIR: "Correspondances", LEFT_ONLY: "Sans correspondance à gauche", RIGHT_ONLY: "Sans correspondance à droite"}
+KIND_LABELS = {
+    PAIR: "Correspondances",
+    PROPOSAL: "Propositions à relire",
+    LEFT_ONLY: "Sans correspondance à gauche",
+    RIGHT_ONLY: "Sans correspondance à droite",
+}
+UNCERTAIN_COLORS = ("#fef3c7", "#92400e")
+MANUAL_SOURCES = {SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN}
 MANUAL_COLORS = ("#ede9fe", "#6d28d9")
 CONFIRMED = "confirmée sans correspondance"
 ENTRY_COLUMNS = [field.name for field in fields(Record)]
@@ -86,6 +106,7 @@ CSS = f"""<style>
   .ner-table tr:hover td {{ background: #f8fafc; }}
   .ner-table tr.section td {{ background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.85em; }}
   .ner-table tr.left td.empty, .ner-table tr.right td.empty {{ background: #fef2f2; }}
+  .ner-table tr.proposal td {{ background: #fffbeb; }}
   .ner-table col.number {{ width: 3.5em; }}
   .ner-table col.score {{ width: 8em; }}
   .meta {{ font-family: monospace; font-size: 0.78em; color: #64748b; }}
@@ -134,6 +155,7 @@ def load_records(volume_dir: str) -> dict[str, Record]:
 class Alignment:
     rows: pd.DataFrame  # sortie de `build_rows`
     joined: list[JoinedRow]  # mêmes lignes, même ordre (index de `rows`) : pour l'export
+    reviews: dict[tuple[str, str], Review]  # motifs de relecture (`lib/alignment_review.py`)
     n_patch: int
     n_missing: int  # liens Dedupe vers des entrées disparues, ignorés
     reanchored: int
@@ -153,6 +175,8 @@ def load_alignment(
     patch_mtime: float,
     section_patch_path: str,
     section_patch_mtime: float,
+    proposal_low: float,
+    margin: float,
 ) -> Alignment:
     """Résultat final (alignement + patch), recalculé seulement si l'un des
     fichiers change (`*_mtime` font partie de la clé de cache). Lève
@@ -163,11 +187,17 @@ def load_alignment(
     validate(entries)
     resolution = resolve(entries, records["left"], records["right"])
     links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
-    joined, n_missing = natural_rows(links, records["left"], records["right"])
-    rows = build_rows(joined)
     sections = load_section_alignment(
         list(records["left"].values()), list(records["right"].values()), Path(section_patch_path), rewrite=False
     )
+    declared = {uuid for entry in resolution.entries if not entry.is_pair for _, uuid in entry.uuids()}
+    params = Params()
+    found = review(
+        links, list(records["left"].values()), list(records["right"].values()), sections,
+        proposal_low, params.residual_threshold, params.subj_weight, margin, declared,
+    )
+    joined, n_missing = natural_rows(links + found.proposals, records["left"], records["right"])
+    rows = build_rows(joined, found.reviews)
     matching = corresponding(sections)
     unmatched = pd.Series(
         [(left, right) not in matching for left, right in zip(rows["left_section_uuid"], rows["right_section_uuid"])], index=rows.index
@@ -177,7 +207,7 @@ def load_alignment(
         e.right_uuid for e in resolution.entries if e.right_uuid and not e.left_uuid
     }
     return Alignment(
-        rows, joined, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed, sections,
+        rows, joined, found.reviews, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, confirmed, sections,
         len(read_section_patch(Path(section_patch_path))),
     )
 
@@ -186,9 +216,13 @@ def mtime(path: Path) -> float:
     return path.stat().st_mtime if path.exists() else 0.0
 
 
-def build_rows(joined: list[JoinedRow]) -> pd.DataFrame:
+def build_rows(joined: list[JoinedRow], reviews: dict[tuple[str, str], Review]) -> pd.DataFrame:
     """Une ligne par ligne de la jointure (ordre naturel), colonnes
-    `left_*` / `right_*` (vides du côté absent)."""
+    `left_*` / `right_*` (vides du côté absent), niveau d'incertitude et
+    motifs de relecture."""
+
+    def found(row: JoinedRow) -> Review | None:
+        return reviews.get((row.link.left_uuid, row.link.right_uuid)) if row.link else None
 
     def side(prefix: str, record: Record | None) -> dict:
         return {f"{prefix}_{column}": getattr(record, column) if record else "" for column in ENTRY_COLUMNS}
@@ -201,6 +235,8 @@ def build_rows(joined: list[JoinedRow]) -> pd.DataFrame:
                 "score": row.link.score if row.link else None,
                 "source": row.link.source if row.link else "",
                 "kind": row.kind,
+                "level": found(row).level if found(row) else 0,
+                "reasons": SEPARATOR.join(found(row).reasons) if found(row) else "",
             }
             for row in joined
         ]
@@ -223,9 +259,9 @@ def copy_button(label: str, text: str, title: str) -> str:
     return f'<button class="copy" data-copy="{html.escape(text, quote=True)}" title="{html.escape(title)}">{label}</button>'
 
 
-def patch_line(left: Record | None, right: Record | None) -> str:
+def patch_line(left: Record | None, right: Record | None, certitude: str = "") -> str:
     """Ligne CSV du patch (colonnes `PATCH_FIELDS`) pour cette paire ou cette entrée seule."""
-    entry = entry_from_records(left, right)
+    entry = entry_from_records(left, right, certitude=certitude)
     buffer = io.StringIO()
     csv.writer(buffer, lineterminator="").writerow([getattr(entry, name) for name in PATCH_FIELDS])
     return buffer.getvalue()
@@ -249,13 +285,17 @@ def entry_html(row, side: str, different_section: bool, confirmed: set[str]) -> 
 
 
 def score_html(row, threshold: float) -> str:
-    if row.kind != PAIR:
+    if row.kind not in (PAIR, PROPOSAL):
         return ""
-    manual = badge(SOURCE_MANUAL, MANUAL_COLORS) if row.source == SOURCE_MANUAL else ""
+    if row.source == SOURCE_MANUAL_UNCERTAIN:
+        manual = badge(UNCERTAIN, UNCERTAIN_COLORS)
+    else:
+        manual = badge(SOURCE_MANUAL, MANUAL_COLORS) if row.source == SOURCE_MANUAL else ""
+    reasons = f"<br><span class='meta'>niveau {row.level} · {html.escape(row.reasons)}</span>" if row.reasons else ""
     if pd.isna(row.score):
-        return manual or "<span class='meta'>—</span>"
+        return (manual or "<span class='meta'>—</span>") + reasons
     css = " class='low'" if row.score < threshold else ""
-    return f"<span{css}>{row.score:.3f}</span> {manual}"
+    return f"<span{css}>{row.score:.3f}</span> {manual}{reasons}"
 
 
 def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, records: dict, confirmed: set[str]) -> list[str]:
@@ -280,6 +320,10 @@ def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, 
         right_record = records["right"].get(row.right_uuid)
         different = row.different_section
         line = copy_button("copier", patch_line(left_record, right_record), "Copier une ligne de patch pour cette ligne")
+        if row.kind in (PAIR, PROPOSAL):
+            line += copy_button(
+                "incertaine", patch_line(left_record, right_record, UNCERTAIN), "Copier une ligne de patch : paire retenue mais incertaine"
+            )
         empty_left = " class='empty'" if row.kind == RIGHT_ONLY else ""
         empty_right = " class='empty'" if row.kind == LEFT_ONLY else ""
         rows.append(
@@ -378,9 +422,10 @@ def choose_alignment() -> Path | None:
 
 def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> None:
     counts = rows["kind"].value_counts()
-    matched, n_left, n_right = counts.get(PAIR, 0), counts.get(PAIR, 0) + counts.get(LEFT_ONLY, 0), counts.get(PAIR, 0) + counts.get(RIGHT_ONLY, 0)
+    matched, proposed = counts.get(PAIR, 0), counts.get(PROPOSAL, 0)
+    n_left, n_right = matched + proposed + counts.get(LEFT_ONLY, 0), matched + proposed + counts.get(RIGHT_ONLY, 0)
     pairs = rows[rows["kind"] == PAIR]
-    columns = st.columns(5)
+    columns = st.columns(6)
     columns[0].metric("Correspondances", f"{matched:,}".replace(",", " "))
     columns[1].metric(f"Appariées à gauche ({left_name})", f"{matched / n_left:.1%}", f"{n_left - matched} sans correspondance", delta_color="off")
     columns[2].metric(f"Appariées à droite ({right_name})", f"{matched / n_right:.1%}", f"{n_right - matched} sans correspondance", delta_color="off")
@@ -390,6 +435,14 @@ def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int) -> N
         help="Correspondances entre deux rubriques qui ne se correspondent pas (alignement des rubriques et son patch).",
     )
     columns[4].metric("Lignes du patch", str(n_patch))
+    levels = rows.loc[rows["kind"].isin([PAIR, PROPOSAL]), "level"].value_counts()
+    columns[5].metric(
+        "À relire",
+        f"{levels.get(1, 0) + levels.get(2, 0)}",
+        f"dont {levels.get(2, 0)} très incertaines",
+        delta_color="off",
+        help="Correspondances et propositions de niveau d'incertitude ≥ 1 (lib/alignment_review.py).",
+    )
 
 
 def main() -> None:
@@ -405,6 +458,22 @@ def main() -> None:
     patch_path = PATCH_DIR / f"{pair_name}.patch.csv"
     section_patch_path = PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
     left_dir, right_dir = str(ANNUAIRES_DIR / left_name), str(ANNUAIRES_DIR / right_name)
+    params = Params()
+    st.sidebar.header("Relecture")
+    min_level = st.sidebar.selectbox("Niveau d'incertitude minimal", list(LEVEL_OPTIONS), format_func=LEVEL_OPTIONS.get)
+    reasons = st.sidebar.multiselect("Motifs", REASONS, default=list(REASONS), disabled=min_level == 0)
+    proposal_low = st.sidebar.slider(
+        "Similarité minimale d'une proposition",
+        0.5,
+        params.residual_threshold,
+        params.threshold,
+        step=0.01,
+        help=f"Zone grise [seuil ; {params.residual_threshold}[ : par défaut le seuil de Needleman-Wunsch d'`align_directories_nw.py`.",
+    )
+    margin = st.sidebar.number_input(
+        "Écart « homonyme proche »", 0.0, 0.5, DEFAULT_MARGIN, step=0.01,
+        help="Signale une paire si une autre entrée du segment est à moins de cet écart de similarité.",
+    )
     try:
         alignment = load_alignment(
             left_dir,
@@ -415,6 +484,8 @@ def main() -> None:
             mtime(patch_path),
             str(section_patch_path),
             mtime(section_patch_path),
+            proposal_low,
+            margin,
         )
     except (ValueError, OSError) as error:
         st.error(f"Lecture impossible : {error}")
@@ -495,12 +566,20 @@ def main() -> None:
     if only_diff:
         view = view[view["different_section"]]
     if only_manual:
-        view = view[(view["source"] == SOURCE_MANUAL) | view["left_uuid"].isin(confirmed) | view["right_uuid"].isin(confirmed)]
-    if order != NATURAL_ORDER:
+        view = view[view["source"].isin(MANUAL_SOURCES) | view["left_uuid"].isin(confirmed) | view["right_uuid"].isin(confirmed)]
+    if min_level:
+        wanted = view["reasons"].apply(lambda value: any(reason in value.split(SEPARATOR) for reason in reasons))
+        view = view[(view["level"] >= min_level) & wanted]
+    if order == LEVEL_ORDER:
+        view = view.sort_values("level", ascending=False, kind="stable")
+    elif order != NATURAL_ORDER:
         view = view.sort_values("score", ascending=order == "score croissant", kind="stable", na_position="last")
 
     # Retour à la première page quand la sélection change.
-    selection = (alignment_path.name, tuple(kinds), section, query, low, high, only_diff, only_manual, order, page_size)
+    selection = (
+        alignment_path.name, tuple(kinds), section, query, low, high, only_diff, only_manual, order, page_size,
+        min_level, tuple(reasons), proposal_low, margin,
+    )
     if st.session_state.get("_selection") != selection:
         st.session_state["_selection"] = selection
         st.session_state.page = 0
@@ -509,7 +588,7 @@ def main() -> None:
     st.sidebar.download_button(
         f"Exporter en CSV ({len(view):,} lignes)".replace(",", " "),
         # Généré au clic seulement : lignes affichées, dans l'ordre affiché.
-        lambda: export_csv([alignment.joined[index] for index in view.index], matching, excel).encode(export_encoding(excel)),
+        lambda: export_csv([alignment.joined[index] for index in view.index], matching, excel, alignment.reviews).encode(export_encoding(excel)),
         file_name=f"{pair_name}.jointure.csv",
         mime="text/csv",
         icon=":material/download:",

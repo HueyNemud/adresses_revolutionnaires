@@ -26,6 +26,10 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+from rapidfuzz.distance import Indel, JaroWinkler
+from rapidfuzz.process import cdist
+
 from lib.ner.corpus import CURATED_NER_SUFFIX
 from lib.ner.spans import normalize_markdown, parse_tagged_text, project_spans
 from lib.titles import title_level, title_text
@@ -169,11 +173,37 @@ def dedupe_records(records: list[Record], section_keys: dict[str, str] | None = 
     }
 
 
+def similarity_matrix(left: list[Record], right: list[Record], subj_weight: float) -> np.ndarray:
+    """Similarité de chaque entrée de gauche à chaque entrée de droite, sur
+    les champs de Dedupe : `w · JaroWinkler(subj) + (1 − w) · Indel(text)`,
+    le texte seul si l'une des deux n'a pas de SUBJ (`align_directories_nw.py`,
+    `lib/alignment_review.py`)."""
+    left_fields, right_fields = dedupe_records(left), dedupe_records(right)
+    left_values = [left_fields[record.uuid] for record in left]
+    right_values = [right_fields[record.uuid] for record in right]
+
+    def matrix(name: str, scorer) -> np.ndarray:
+        return cdist(
+            [values[name] or "" for values in left_values],
+            [values[name] or "" for values in right_values],
+            scorer=scorer.normalized_similarity,
+            dtype=np.float32,
+            workers=-1,
+        )
+
+    text = matrix("text", Indel)
+    subj = matrix("subj", JaroWinkler)
+    both = np.outer([bool(values["subj"]) for values in left_values], [bool(values["subj"]) for values in right_values])
+    return np.where(both, subj_weight * subj + (1 - subj_weight) * text, text)
+
+
 # ----------------------------------------------------------------------
 # Correspondances (CSV `annuaires/alignements/…`)
 # ----------------------------------------------------------------------
 SOURCE_DEDUPE = "dedupe"
 SOURCE_MANUAL = "manuel"
+SOURCE_MANUAL_UNCERTAIN = "manuel-incertain"  # paire du patch marquée `certitude=incertaine`
+SOURCE_PROPOSAL = "proposition"  # paire non retenue proposée à la relecture (`lib/alignment_review.py`), jamais un lien
 SOURCE_NW = "nw"  # `align_directories_nw.py` : alignement ordonné
 SOURCE_NW_CONTEXT = "nw-contexte"  # idem, décidée par le pair-HMM entre deux ancres
 SOURCE_NW_RESIDUAL = "nw-residuel"  # idem, passe résiduelle (inversions locales)

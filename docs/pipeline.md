@@ -501,7 +501,10 @@ dans [`alignement_ordonne.md`](alignement_ordonne.md). En bref :
 2. Needleman-Wunsch sur les entrées de chaque segment ; ses paires de
    similarité ≥ 0,9 sont des **ancres** ;
 3. passe résiduelle (affectation optimale, similarité ≥ 0,85) sur les
-   entrées hors des paires NW, pour les inversions locales ;
+   entrées hors des paires NW, pour les inversions locales. Sur le gold des
+   inversions 1807/1808, cette règle est précise (≈ 93 %) et ce qu'elle
+   manque ne se départage pas automatiquement : les cas douteux vont à la
+   relecture (ci-dessous), pas à une règle plus fine ;
 4. entre deux ancres consécutives, un **pair-HMM** (`lib/pair_hmm.py`) garde
    les paires de probabilité a posteriori > 0,5 : une paire de similarité
    moyenne encadrée par des paires sûres peut être retenue. Les émissions
@@ -528,7 +531,7 @@ correspondance.
 |---|---|
 | `left_file`, `left_uuid`, `right_uuid`, `right_file` | identification des deux entrées |
 | `score` | score de la méthode (vide pour une paire saisie à la main) |
-| `source` | `dedupe`, `manuel`, `nw`, `nw-contexte` ou `nw-residuel` |
+| `source` | `dedupe`, `manuel`, `manuel-incertain` (patch, `certitude=incertaine`), `nw`, `nw-contexte` ou `nw-residuel` |
 | `left_section`, `right_section` | titres des rubriques, pour la relecture |
 | `left_tagged_text`, `right_tagged_text` | textes balisés, pour la relecture |
 
@@ -542,7 +545,14 @@ réappliqué après chaque exécution de Dedupe.
 - **Une ligne = une décision :** `left_uuid` + `right_uuid` → ces deux
   entrées se correspondent ; un seul uuid → cette entrée n'a pas de
   correspondance. Colonnes : `left_file, left_uuid, right_uuid, right_file,
-  left_section, right_section, left_tagged_text, right_tagged_text, note`.
+  left_section, right_section, left_tagged_text, right_tagged_text, note,
+  certitude`.
+- **Décision incertaine :** `certitude = incertaine` quand la relecture n'a
+  pas permis de trancher (homonymes, graphies trop éloignées). La paire est
+  appliquée avec la source `manuel-incertain`, visible dans l'export
+  (`certitude = incertaine`) ; l'utilisateur des données choisit de s'en
+  servir ou non. Colonne facultative : un patch sans elle reste valide ;
+  toute autre valeur est une erreur.
 - **Le patch gagne :** tout lien automatique qui touche un uuid du patch est
   écarté, puis les paires du patch sont ajoutées (`source = manuel`).
   Valider une paire correcte la protège des relances (son score est gardé).
@@ -575,12 +585,22 @@ final.
   correspondantes (paires dont les rubriques ne se correspondent pas selon
   la correspondance des rubriques), corrections manuelles ; tri par score
   pour relire les cas limites.
+- **Relecture** (`lib/alignment_review.py`, voir ci-dessous) : chaque
+  correspondance porte un niveau d'incertitude et ses motifs ; les
+  **propositions** (deux entrées sans correspondance, chacune la plus proche
+  de l'autre, dans la zone grise de similarité) occupent une ligne sur fond
+  jaune. Le filtre *Niveau d'incertitude minimal* ne garde que les lignes à
+  relire, le tri *niveau d'incertitude décroissant* les place en tête ; le
+  seuil bas des propositions et l'écart « homonyme proche » se règlent dans
+  la barre latérale.
 - **Encarts :** lignes orphelines des deux patchs, bilan par rubrique,
   correspondance des rubriques.
 - **Copie pour les patchs :** le bouton `uuid` d'une entrée ou d'un bandeau
   de rubrique copie son uuid ; le bouton `copier` d'une ligne copie une
-  ligne de patch prête à coller (la paire, ou l'entrée seule) ; `en-tête du
-  patch` copie l'en-tête pour créer le fichier.
+  ligne de patch prête à coller (la paire, ou l'entrée seule) ; le bouton
+  `incertaine` d'une paire ou d'une proposition copie la même ligne avec
+  `certitude=incertaine` ; `en-tête du patch` copie l'en-tête pour créer le
+  fichier.
 - **Export CSV :** le bouton *Exporter en CSV* de la barre latérale
   télécharge les lignes affichées (filtres et tri appliqués) au format de
   `tools/export_alignment.py` (ci-dessous) ; la case *Pour un tableur en
@@ -613,14 +633,66 @@ par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
 
 | Colonne | Contenu |
 |---|---|
-| `statut` | `apparié`, `gauche seulement` ou `droite seulement` |
-| `score`, `methode` | Score et source du lien (`dedupe`, `nw`, `nw-contexte`, `nw-residuel`, `manuel`) ; vides sans correspondance |
+| `statut` | `apparié`, `gauche seulement`, `droite seulement` ou `proposition` (seulement avec `--propositions` ou depuis le viewer) |
+| `score`, `methode` | Score et source du lien (`dedupe`, `nw`, `nw-contexte`, `nw-residuel`, `manuel`, `manuel-incertain`, `proposition`) ; vides sans correspondance |
+| `certitude` | Pour une paire : `relue` (patch), `incertaine` (patch, `certitude=incertaine`) ou `automatique` |
+| `niveau_incertitude` | Pour une paire automatique ou une proposition : 0 sûre, 1 à relire, 2 très incertaine (vide pour une paire relue) |
+| `motifs_relecture` | Motifs de ce niveau (`contexte incertain`, `homonyme proche`, `proposition`), séparés par « \| » |
 | `rubriques_correspondantes` | Pour une paire : `oui` si les rubriques des deux entrées se correspondent (correspondance des rubriques et son patch), sinon `non` — à vérifier en priorité |
 | `gauche_…`, `droite_…` | Pour chaque côté : `volume`, `page`, `rubrique` (titre lisible), `texte` (sans Markdown), `sujet` / `description` / `adresse` (texte des empans SUBJ / DESC / ADDR, plusieurs empans d'une classe séparés par « \| »), `texte_balise` (`tagged_text` d'origine), `uuid` |
 
 `--excel` écrit avec le séparateur `;` et en UTF-8 avec BOM, qu'un tableur
 réglé en français ouvre directement ; sans l'option, CSV standard (`,`,
-UTF-8).
+UTF-8). `--propositions` ajoute les propositions à relire ; `--ecart`
+règle l'écart « homonyme proche ».
+
+### Relecture ciblée : motifs et niveau d'incertitude
+
+L'alignement automatique n'est pas modifié : `lib/alignment_review.py`
+signale seulement, après coup, les décisions qu'une relecture humaine peut
+corriger, avec un motif explicite (même principe que `ner_suspect` pour la
+NER). Calcul par segment, avec la similarité de la méthode ordonnée :
+
+| Motif | Concerne | Règle |
+|---|---|---|
+| `contexte incertain` | paire `nw-contexte` | probabilité a posteriori < 0,9 |
+| `homonyme proche` | paire `nw`, `nw-residuel` ou `dedupe` | une autre entrée du segment, d'un côté ou de l'autre, est à moins de 0,05 de similarité (`--ecart`) |
+| `proposition` | deux entrées sans correspondance | chacune est la plus proche de l'autre dans le segment, similarité dans [τ ; θr[ (seuils de Needleman-Wunsch et de la passe résiduelle) ; jamais une entrée déclarée seule au patch |
+
+Le **niveau d'incertitude** est ordinal (pour trier, ce n'est pas une
+probabilité) : 0 sans motif ; 1 un motif ; 2 une proposition, plusieurs
+motifs ou une probabilité de contexte < 0,7. Aucun paramètre n'est appris
+sur un volume. Sur 1807/1808 : 445 lignes à relire (258 de niveau 1, 187 de
+niveau 2) pour 14 491 paires. Les décisions vont au patch des entrées ; les
+conventions de relecture sont dans
+[`guide_relecture_alignement.md`](guide_relecture_alignement.md).
+
+### Gold des inversions et audit de la relecture
+
+```bash
+uv run tools/sample_alignment_gold.py annuaires/<g> annuaires/<d> [--per-stratum 4]   # une fois par paire
+uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.csv
+```
+
+- `tools/sample_alignment_gold.py` tire des paires candidates
+  « inversion » (entrées laissées seules par Needleman-Wunsch, qui croisent
+  au moins une paire ordonnée ; meilleure partenaire croisée de chaque
+  entrée de gauche), stratifiées par déplacement × similarité, avec leur
+  poids. On les étiquette à la main dans `meme_entree` : `OUI`, `NON` ou
+  `INCERTAIN`, selon le guide de relecture. Un fichier existant n'est
+  jamais écrasé sans `--force`.
+- `tools/audit_alignment_review.py` en tire `rapports/audit_alignement/<g>__<d>.md` :
+  précision et gain plafond de la règle de la passe résiduelle, devenir de
+  chaque paire du gold selon la relecture (retenue avec ou sans motif,
+  proposée, ni l'une ni l'autre), part de OUI par niveau, charge de
+  relecture. Le gold ne contenant que des inversions, le motif `contexte
+  incertain` n'y est pas évalué.
+- **Pour une nouvelle paire d'annuaires**, les seuils ne sont pas à
+  reprendre de 1807/1808 les yeux fermés : tirer un petit gold
+  (`--per-stratum 4`, ≈ 100 paires), l'étiqueter, lancer l'audit, et
+  n'ajuster τ, θr ou `--ecart` que si le rapport l'exige (part de OUI qui ne
+  baisse plus avec le niveau, règle imprécise, motifs qui n'attrapent pas
+  les erreurs).
 
 ## Audit du CRF : `audit_crf_features.py`
 
@@ -678,8 +750,9 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 | `data/alignement/<g>__<d>.training.json` | `align_directories.py --label` | Paires étiquetées pour Dedupe (versionné) |
 | `data/alignement/<g>__<d>.sections.csv` | édition manuelle | Patch des rubriques (versionné) |
 | `data/alignement/<g>__<d>.patch.csv` | édition manuelle | Patch des entrées (versionné) |
+| `data/alignement/<g>__<d>.gold-inversions.csv` | `tools/sample_alignment_gold.py` + étiquetage manuel | Gold des inversions (versionné) |
 | `data/ner/gold.ls.json`, `data/ner/train.ls.json` | `sample_ner_gold.py` + Label Studio, `build_ner_training.py` | Gold d'évaluation et jeu d'entraînement NER (versionnés) |
-| `rapports/audit_crf/`, `rapports/audit_ner/` | audits | Rapports Markdown et tables |
+| `rapports/audit_crf/`, `rapports/audit_ner/`, `rapports/audit_alignement/` | audits | Rapports Markdown et tables |
 
 ## Code partagé (`lib/`)
 
@@ -695,6 +768,7 @@ racine du dépôt ; ceux de `tools/` ajoutent la racine à `sys.path`.
 | `lib/alignment.py` | Chargement des volumes, champs comparés, lecture et écriture des correspondances |
 | `lib/alignment_patch.py` | Patch des entrées |
 | `lib/alignment_export.py` | Jointure dans l'ordre naturel (viewer) et export CSV lisible |
+| `lib/alignment_review.py` | Motifs de relecture, niveau d'incertitude et propositions |
 | `lib/section_alignment.py` | Correspondance des rubriques et son patch |
 | `lib/sequence.py` | Needleman-Wunsch |
 | `lib/pair_hmm.py` | Pair-HMM de la méthode ordonnée |

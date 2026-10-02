@@ -13,6 +13,12 @@ Le patch gagne : tout lien Dedupe qui touche un uuid du patch est écarté,
 puis les paires du patch sont ajoutées (source `manuel`). Valider une paire
 trouvée par Dedupe la protège des relances.
 
+La colonne facultative `certitude` vaut `incertaine` quand la relecture n'a
+pas permis de trancher (homonymes, graphies trop éloignées…) : la paire est
+appliquée, mais avec la source `manuel-incertain`, qui reste visible dans
+l'export ; pour un uuid seul, « probablement sans correspondance »
+(appliqué comme les autres). Un patch sans cette colonne reste valide.
+
 Rubrique et texte balisé sont recopiés dans le patch pour la relecture et
 pour le **réancrage** : si une étape amont re-segmente une entrée, son uuid
 change ; on cherche alors l'entrée unique de même texte normalisé dans la
@@ -26,10 +32,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 
-from lib.alignment import SOURCE_MANUAL, Link, Record, clean_text, clean_title, display_text
+from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title, display_text
 from lib.ner.spans import normalize_markdown, parse_tagged_text
 
 SIDES = ("left", "right")
+UNCERTAIN = "incertaine"
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,7 @@ class PatchEntry:
     left_tagged_text: str = ""
     right_tagged_text: str = ""
     note: str = ""
+    certitude: str = ""  # vide : décision sûre ; UNCERTAIN : relecture sans conclusion ferme
 
     def uuids(self) -> list[tuple[str, str]]:
         """(côté, uuid) renseignés."""
@@ -51,6 +59,10 @@ class PatchEntry:
     @property
     def is_pair(self) -> bool:
         return bool(self.left_uuid and self.right_uuid)
+
+    @property
+    def is_uncertain(self) -> bool:
+        return self.certitude.lower() == UNCERTAIN
 
 
 PATCH_FIELDS = [f.name for f in fields(PatchEntry)]
@@ -98,9 +110,15 @@ def write_patch(path: Path, entries: list[PatchEntry]) -> None:
 
 
 def validate(entries: list[PatchEntry]) -> None:
-    """Lève ValueError si une ligne n'a aucun uuid ou si un uuid apparaît
-    dans plusieurs lignes (numéros de ligne du CSV, en-tête = 1)."""
+    """Lève ValueError si une ligne n'a aucun uuid, si sa `certitude` n'est
+    ni vide ni `incertaine`, ou si un uuid apparaît dans plusieurs lignes
+    (numéros de ligne du CSV, en-tête = 1)."""
     problems = [f"ligne {number} : aucun uuid" for number, entry in enumerate(entries, start=2) if not entry.uuids()]
+    problems += [
+        f"ligne {number} : certitude « {entry.certitude} » (attendu : vide ou « {UNCERTAIN} »)"
+        for number, entry in enumerate(entries, start=2)
+        if entry.certitude and not entry.is_uncertain
+    ]
     seen: dict[tuple[str, str], list[int]] = defaultdict(list)
     for number, entry in enumerate(entries, start=2):
         for key in entry.uuids():
@@ -117,10 +135,10 @@ def validate(entries: list[PatchEntry]) -> None:
 # ----------------------------------------------------------------------
 # Construction
 # ----------------------------------------------------------------------
-def entry_from_records(left: Record | None, right: Record | None, note: str = "") -> PatchEntry:
+def entry_from_records(left: Record | None, right: Record | None, note: str = "", certitude: str = "") -> PatchEntry:
     """Ligne de patch pour une paire (deux entrées) ou une entrée sans
     correspondance (l'autre à None), avec l'instantané texte + rubrique."""
-    values = {"note": note}
+    values = {"note": note, "certitude": certitude}
     for side, record in (("left", left), ("right", right)):
         if record is not None:
             values |= {
@@ -202,13 +220,19 @@ def updated_patch(entries: list[PatchEntry], resolution: Resolution) -> list[Pat
 # ----------------------------------------------------------------------
 def apply_patch(links: list[Link], entries: list[PatchEntry]) -> tuple[list[Link], PatchStats]:
     """Liens Dedupe + patch (voir la docstring du module). Une paire validée
-    telle que Dedupe l'avait trouvée garde son score."""
+    telle que Dedupe l'avait trouvée garde son score ; une paire marquée
+    incertaine prend la source `manuel-incertain`."""
     stats = PatchStats()
     patched_left = {entry.left_uuid for entry in entries if entry.left_uuid}
     patched_right = {entry.right_uuid for entry in entries if entry.right_uuid}
     scores = {(link.left_uuid, link.right_uuid): link.score for link in links}
     manual = [
-        Link(entry.left_uuid, entry.right_uuid, scores.get((entry.left_uuid, entry.right_uuid)), SOURCE_MANUAL)
+        Link(
+            entry.left_uuid,
+            entry.right_uuid,
+            scores.get((entry.left_uuid, entry.right_uuid)),
+            SOURCE_MANUAL_UNCERTAIN if entry.is_uncertain else SOURCE_MANUAL,
+        )
         for entry in entries
         if entry.is_pair
     ]

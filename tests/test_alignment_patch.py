@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lib.alignment import SOURCE_DEDUPE, SOURCE_MANUAL, Link, Record, clean_text, clean_title
+from lib.alignment import SOURCE_DEDUPE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title
 from lib.titles import title_text
 from lib.alignment_patch import (
     PatchEntry,
@@ -49,6 +49,11 @@ class ValidateTests(unittest.TestCase):
     def test_same_uuid_on_both_sides_is_not_a_conflict(self):
         validate([PatchEntry(left_uuid="a"), PatchEntry(right_uuid="a")])
 
+    def test_certitude_is_empty_or_uncertain(self):
+        validate([PatchEntry(left_uuid="a", right_uuid="x", certitude="incertaine"), PatchEntry(left_uuid="b", certitude="Incertaine")])
+        with self.assertRaisesRegex(ValueError, "ligne 2 : certitude « peut-être »"):
+            validate([PatchEntry(left_uuid="a", certitude="peut-être")])
+
 
 class ApplyPatchTests(unittest.TestCase):
     LINKS = [Link("a", "x", 0.9), Link("b", "y", 0.8), Link("c", "z", 0.7)]
@@ -62,6 +67,11 @@ class ApplyPatchTests(unittest.TestCase):
         links, stats = apply_patch(self.LINKS, [PatchEntry(right_uuid="z")])
         self.assertEqual(links, self.LINKS[:2])
         self.assertEqual((stats.overridden, stats.unmatched_right), (1, 1))
+
+    def test_uncertain_pair_has_its_own_source(self):
+        links, stats = apply_patch(self.LINKS, [PatchEntry(left_uuid="b", right_uuid="y", certitude="incertaine")])
+        self.assertIn(Link("b", "y", 0.8, SOURCE_MANUAL_UNCERTAIN), links)
+        self.assertEqual(stats.manual_pairs, 1)
 
     def test_validated_pair_keeps_its_score(self):
         links, stats = apply_patch(self.LINKS, [PatchEntry(left_uuid="b", right_uuid="y")])
@@ -124,6 +134,14 @@ class EditingTests(unittest.TestCase):
             write_patch(path, entries)
             self.assertEqual(read_patch(path), entries)
             self.assertEqual(read_patch(Path(tmp) / "absent.csv"), [])
+
+    def test_patch_without_certitude_column_is_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ancien.patch.csv"
+            path.write_text("left_uuid,right_uuid,note\na,x,vu\n", encoding="utf-8")
+            self.assertEqual(read_patch(path), [PatchEntry(left_uuid="a", right_uuid="x", note="vu")])
+        entry = entry_from_records(record("a", "Dupont"), record("x", "Dupont"), certitude="incertaine")
+        self.assertTrue(entry.is_uncertain)
 
 
 if __name__ == "__main__":
