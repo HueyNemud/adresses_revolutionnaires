@@ -38,7 +38,7 @@ flowchart TD
     B -->|"2 · annotate_lines_crf.py<br/>(annotation interactive, CRF)"| C["Lignes annotées"]
     C -->|"3 · export_lines_csv.py<br/>+ curation manuelle"| D["CSV des lignes"]
     D -->|"4 · build_entity_tree.py"| E["Entités + arbre des titres<br/><code>….merged.csv</code>"]
-    E -->|"5 · infer_gliner.py<br/>+ relecture"| F["Empans SUBJ / DESC / ADDR<br/><code>….merged.ner.curated.csv</code>"]
+    E -->|"5 · infer_gliner.py<br/>+ relecture"| F["Empans SUBJ / DESC / ADDR<br/><code>….merged.ner.csv</code>"]
     F -->|"6 · align_directories.py (Dedupe)<br/>ou align_directories_nw.py (ordre)"| G["Correspondances entre deux éditions<br/><code>annuaires/alignements/</code>"]
 
     style E fill:#dfe,stroke:#393
@@ -50,11 +50,21 @@ Chaque étape est un script autonome en ligne de commande ; le nom de sa
 sortie découle par défaut de celui de son entrée, et les fichiers
 s'accumulent à côté de leur entrée dans `annuaires/<volume>/<plage>/`.
 
+Les corrections humaines (classes et texte des lignes, empans NER,
+correspondances) se font directement dans les CSV produits, en marquant
+`corrige = oui` ; chaque script les capture dans un patch versionné
+(`data/curation/`, `data/alignement/`) et les réapplique quand on le relance,
+et s'arrête sans rien écrire si une correction ne s'applique plus (voir
+[`docs/guide_curation.md`](docs/guide_curation.md)).
+
 ## Documentation
 
 - [`docs/pipeline.md`](docs/pipeline.md) — **documentation détaillée** :
   organisation des fichiers, chaque étape (entrées, sorties, options,
   schémas), audits, formats et code partagé ;
+- [`docs/guide_curation.md`](docs/guide_curation.md) — **guide de la
+  curation** : corriger les lignes, le NER et l'alignement à la main sans
+  perdre ses corrections quand on relance la chaîne (exemples) ;
 - [`docs/guide_annotation_ner.md`](docs/guide_annotation_ner.md) —
   conventions d'annotation des empans `SUBJ` / `DESC` / `ADDR` ;
 - [`docs/alignement_ordonne.md`](docs/alignement_ordonne.md) — méthode de
@@ -74,8 +84,8 @@ uv run extract_chandra_lines.py $P.ocr.json --notables -o $P.ocr.lines.json
 uv run annotate_lines_crf.py $P.ocr.lines.json -o $P.ocr.lines.annotated.json \
     --session $P.ocr.lines.crf-session.json
 uv run export_lines_csv.py $P.ocr.lines.annotated.json -o $P.ocr.lines.annotated.csv
-# … curation manuelle → $P.ocr.lines.annotated.curated.csv
-uv run build_entity_tree.py $P.ocr.lines.annotated.curated.csv
+# … curation manuelle dans $P.ocr.lines.annotated.csv (corrige = oui), puis relancer l'export
+uv run build_entity_tree.py $P.ocr.lines.annotated.csv
 
 # Étape 5 : segmentation NER, puis exploration du résultat
 uv run infer_gliner.py <…>.merged.csv --model models/<nom>.gliner-model

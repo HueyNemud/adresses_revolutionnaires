@@ -3,7 +3,7 @@
 
 Un annuaire `annuaires/<volume>/` est découpé en plages de pages traitées
 séparément (`<volume>/<première>-<dernière>/`). On lit, dans chaque plage, son
-propre `<volume>.<plage>….merged.ner.curated.csv` et on concatène les plages
+propre `<volume>.<plage>….merged.ner.csv` et on concatène les plages
 dans l'ordre des pages, pour comparer des annuaires entiers.
 
 Chaque ENTRY devient un `Record` décrit par trois champs de comparaison :
@@ -30,7 +30,7 @@ import numpy as np
 from rapidfuzz.distance import Indel, JaroWinkler
 from rapidfuzz.process import cdist
 
-from lib.ner.corpus import CURATED_NER_SUFFIX
+from lib.ner.corpus import NER_SUFFIX
 from lib.ner.spans import normalize_markdown, parse_tagged_text, project_spans
 from lib.titles import title_level, title_text
 
@@ -60,11 +60,12 @@ def range_dirs(volume_dir: Path) -> list[Path]:
     return sorted(ranges, key=lambda path: int(RANGE_PATTERN.match(path.name).group(1)))
 
 
-def curated_csv(range_dir: Path) -> Path:
-    """Le CSV NER corrigé propre à la plage (nommé d'après le volume et la plage)."""
-    path = range_dir / f"{range_dir.parent.name}.{range_dir.name}{CURATED_NER_SUFFIX}"
+def ner_csv(range_dir: Path) -> Path:
+    """Le CSV NER (corrigé à la main, lib/curation.py) propre à la plage,
+    nommé d'après le volume et la plage."""
+    path = range_dir / f"{range_dir.parent.name}.{range_dir.name}{NER_SUFFIX}"
     if not path.exists():
-        raise FileNotFoundError(f"CSV NER corrigé introuvable : {path}")
+        raise FileNotFoundError(f"CSV NER introuvable : {path}")
     return path
 
 
@@ -150,7 +151,7 @@ def load_volume(volume_dir: Path) -> list[Record]:
         raise FileNotFoundError(f"Aucun dossier de plage (`<début>-<fin>`) dans {volume_dir}")
     records: list[Record] = []
     for range_dir in ranges:
-        records += load_document(curated_csv(range_dir), start=len(records))
+        records += load_document(ner_csv(range_dir), start=len(records))
     duplicates = len(records) - len({record.uuid for record in records})
     if duplicates:
         warnings.warn(f"{volume_dir.name} : {duplicates} uuid en double, seule la dernière occurrence est comparée")

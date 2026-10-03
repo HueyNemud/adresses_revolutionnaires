@@ -1,6 +1,6 @@
 """Audit des performances du CRF de classification de lignes et de la
 pertinence de ses features, sur les silver datasets
-(`*.ocr.lines.annotated.curated.csv`, colonne `prediction_curated`).
+(`*.ocr.lines.annotated.csv`, colonne `classe`).
 
 Produit, dans un dossier de sortie :
   - `rapport.md` : rapport d'analyse commenté, avec recommandations ;
@@ -470,7 +470,7 @@ def corpus_section(report: Report, documents: Sequence[SilverDocument], out: Pat
         "## 1. Données",
         f"{len(documents)} documents ({len({d.volume for d in documents})} volumes), {labeled} lignes non vides labellisées. "
         "Les observations (texte, bloc OCR, page) sont relues dans le JSON `*.ocr.lines.json` vu par "
-        "l'annotateur ; la vérité vient de la colonne `prediction_curated`, alignée par `uid`.",
+        "l'annotateur ; la vérité vient de la colonne `classe` du CSV corrigé, alignée par `uid`.",
         md_table(["Document", "Pages", "Lignes lab.", "Labels humains (orig.)", "Classes corrigées", "Textes corrigés", "dont marqueur « # »", "Non alignées"], rows),
         md_table(["Classe", "Lignes", "Part"], [[c, total[c], f"{total[c] / labeled:.2%}"] for c in CLASSES if total[c]]),
         "**Nature du silver dataset — à garder en tête pour lire tout le rapport.** "
@@ -956,7 +956,7 @@ def select_groups(ctx: Context, ablation_verdicts: dict, candidate_verdicts: dic
 # ----------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit du CRF de lignes et de ses features sur les silver datasets.")
-    parser.add_argument("csv_files", nargs="*", type=Path, help="CSV curés (défaut : tous les *.ocr.lines.annotated.curated.csv sous --root).")
+    parser.add_argument("csv_files", nargs="*", type=Path, help="CSV curés (défaut : tous les *.ocr.lines.annotated.csv sous --root).")
     parser.add_argument("--root", type=Path, default=Path("annuaires"), help="Dossier où chercher les CSV curés (défaut : annuaires).")
     parser.add_argument("-o", "--output-dir", type=Path, default=Path("rapports/audit_crf"), help="Dossier du rapport (défaut : rapports/audit_crf).")
     parser.add_argument("--folds", type=int, default=5, help="Plis de pages contiguës par document (défaut : 5).")
@@ -1164,7 +1164,7 @@ def main() -> None:
             [
                 "- **Observations** : lignes non vides du JSON `*.ocr.lines.json` (celui qu'a vu l'annotateur), features "
                 "recalculées avec `lib.crf.features` — strictement celles de production pour la configuration "
-                "`production`. La vérité (`prediction_curated`) est alignée par `uid` puis par (page, texte) ; les "
+                "`production`. La vérité (`classe`) est alignée par `uid` puis par (page, texte) ; les "
                 "lignes non alignées restent dans la séquence observée mais ne sont ni apprises ni évaluées.",
                 "- **Protocoles** : *intra-document* = K plis de pages contiguës par document, chacun prédit par un "
                 "modèle entraîné sur les autres plis du même document ; *inter-volumes* = chaque volume prédit par un "

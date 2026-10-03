@@ -8,6 +8,9 @@ Documents associés :
 
 - [`guide_annotation_ner.md`](guide_annotation_ner.md) — conventions
   d'annotation des empans `SUBJ` / `DESC` / `ADDR` (étape 5) ;
+- [`guide_curation.md`](guide_curation.md) — guide pratique de la curation
+  (corriger les lignes, le NER et l'alignement sans perdre ses corrections,
+  avec exemples) ;
 - [`alignement_ordonne.md`](alignement_ordonne.md) — méthode et
   formalisation de l'alignement ordonné (Needleman-Wunsch + pair-HMM,
   étape 6).
@@ -15,6 +18,7 @@ Documents associés :
 ## Sommaire
 
 - [Organisation des fichiers](#organisation-des-fichiers)
+- [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)
 - [Étape 1 — Extraction des lignes](#étape-1--extraction-des-lignes--extract_chandra_linespy)
 - [Étape 2 — Annotation interactive des lignes](#étape-2--annotation-interactive-des-lignes--annotate_lines_crfpy)
 - [Étape 3 — Aplatissement en CSV et curation](#étape-3--aplatissement-en-csv-et-curation--export_lines_csvpy)
@@ -43,14 +47,15 @@ annuaires/
 │   │   ├── ….ocr.lines.json                                   étape 1
 │   │   ├── ….ocr.lines.crf-session.json                       étape 2 (session)
 │   │   ├── ….ocr.lines.annotated.json                         étape 2
-│   │   ├── ….ocr.lines.annotated.csv                          étape 3
-│   │   ├── ….ocr.lines.annotated.curated.csv                  étape 3 (curation)
-│   │   ├── ….ocr.lines.annotated.curated.merged.csv           étape 4
-│   │   ├── ….ocr.lines.annotated.curated.merged.report.txt    étape 4
-│   │   ├── ….ocr.lines.annotated.curated.merged.ner.csv       étape 5
-│   │   └── ….ocr.lines.annotated.curated.merged.ner.curated.csv  étape 5 (relecture)
+│   │   ├── ….ocr.lines.annotated.csv                          étape 3 (corrigé à la main)
+│   │   ├── ….ocr.lines.annotated.merged.csv                   étape 4
+│   │   ├── ….ocr.lines.annotated.merged.report.txt            étape 4
+│   │   └── ….ocr.lines.annotated.merged.ner.csv               étape 5 (corrigé à la main)
 │   └── 188-194/
 └── alignements/                              sorties de l'étape 6
+data/curation/                                corrections humaines (versionnées)
+├── 1808_AD75-PER292.7-186.lignes.patch.csv   étape 3
+└── 1808_AD75-PER292.7-186.ner.patch.csv      étape 5
 ```
 
 Une plage s'extrait de la sortie OCR complète avec `jq`, par exemple :
@@ -69,8 +74,9 @@ uv run extract_chandra_lines.py $P.ocr.json --notables -o $P.ocr.lines.json
 uv run annotate_lines_crf.py $P.ocr.lines.json -o $P.ocr.lines.annotated.json \
     --session $P.ocr.lines.crf-session.json
 uv run export_lines_csv.py $P.ocr.lines.annotated.json -o $P.ocr.lines.annotated.csv
-# curation manuelle : $P.ocr.lines.annotated.curated.csv (colonne prediction_curated)
-uv run build_entity_tree.py $P.ocr.lines.annotated.curated.csv
+# curation manuelle dans $P.ocr.lines.annotated.csv (lignes marquées corrige = oui),
+# puis relancer export_lines_csv.py : les corrections sont capturées et réappliquées
+uv run build_entity_tree.py $P.ocr.lines.annotated.csv
 ```
 
 ```mermaid
@@ -79,18 +85,104 @@ flowchart TD
     A -->|"1 · extract_chandra_lines.py --notables"| B["Lignes Markdown par bloc<br/><code>….ocr.lines.json</code>"]
     B -->|"2 · annotate_lines_crf.py<br/>(annotation interactive, CRF)"| C["Lignes annotées<br/><code>….ocr.lines.annotated.json</code>"]
     C -->|"3 · export_lines_csv.py"| D["Une ligne CSV par ligne Markdown<br/><code>….ocr.lines.annotated.csv</code>"]
-    D -.->|"curation manuelle<br/>(colonne prediction_curated)"| E["<code>….annotated.curated.csv</code>"]
-    E -->|"4 · build_entity_tree.py"| F["Entités + titre parent<br/><code>….curated.merged.csv</code><br/>+ <code>.report.txt</code>"]
+    D -.->|"curation manuelle<br/>(corrige = oui)"| D
+    D -->|"4 · build_entity_tree.py"| F["Entités + titre parent<br/><code>….annotated.merged.csv</code><br/>+ <code>.report.txt</code>"]
     F -->|"5 · infer_gliner.py<br/>(modèle GLiNER)"| G["Empans NER<br/><code>….merged.ner.csv</code>"]
-    G -.->|"relecture des entrées suspectes"| H["<code>….merged.ner.curated.csv</code>"]
-    H -->|"6 · align_directories.py (Dedupe)<br/>ou align_directories_nw.py (ordre)<br/>deux volumes complets"| I["Correspondances<br/><code>annuaires/alignements/…</code>"]
+    G -.->|"relecture des entrées suspectes<br/>(corrige = oui)"| G
+    G -->|"6 · align_directories.py (Dedupe)<br/>ou align_directories_nw.py (ordre)<br/>deux volumes complets"| I["Correspondances<br/><code>annuaires/alignements/…</code>"]
 
     style F fill:#dfe,stroke:#393
-    style H fill:#dfe,stroke:#393
+    style G fill:#dfe,stroke:#393
     style I fill:#dfe,stroke:#393
 ```
 
 En pointillés, les interventions manuelles ; en vert, les livrables.
+
+## Corrections humaines rejouables : `lib/curation.py`
+
+Version vulgarisée, avec exemples : [`guide_curation.md`](guide_curation.md).
+
+Trois étapes demandent une curation humaine : les classes et le texte des
+lignes (étape 3), les empans NER et le rattachement des entrées à leur
+rubrique (étape 5), les correspondances entre éditions (étape 6). Toutes
+suivent le même protocole, pour qu'on puisse relancer toute la chaîne depuis
+l'OCR (CRF amélioré, nouveau modèle NER…) sans perdre ce travail.
+
+| Étape | Clé stable | Champs éditables | Patch versionné |
+|---|---|---|---|
+| 3 · lignes | `cle` (hash du texte OCR) | `classe`, `markdown` (+ lignes ajoutées, `SUPPRIMÉE`) | `data/curation/<document>.lignes.patch.csv` |
+| 5 · NER | `uuid` d'entité | `tagged_text`, `parent_uuid` | `data/curation/<document>.ner.patch.csv` |
+| 6 · alignement | uuid gauche / droit | paire, sans correspondance, `certitude` | `data/alignement/<g>__<d>.patch.csv`, `.sections.csv` |
+
+Pour les étapes 3 et 5, le CSV de sortie est **à la fois la sortie machine
+et le fichier qu'on corrige** (Excel, OpenRefine : la curation des lignes a
+besoin du contexte de tout le document). Deux colonnes s'y ajoutent :
+
+- `corrige` : à mettre à `oui` sur chaque ligne corrigée, ou **validée telle
+  quelle** (confirmer une prédiction est aussi une décision humaine) ; elle
+  sert aussi de filtre ;
+- `empreinte` : hash des champs éditables tels que la machine les a écrits
+  (ne pas y toucher).
+
+À chaque exécution, le script de l'étape enchaîne trois temps, et **réussit
+entièrement ou n'écrit rien** :
+
+1. **capture** : si sa sortie existe déjà, ses lignes `corrige = oui`
+   réécrivent le patch versionné (une correction retirée se voit au
+   `git diff` ; git sert de copie de sécurité) ;
+2. **génération** de la nouvelle sortie machine ;
+3. **application** du patch, qui gagne sur la machine.
+
+Le script **panique** (s'arrête, liste les lignes en cause, n'écrit rien)
+dès que le résultat ne serait pas prévisible :
+
+- une ligne modifiée (empreinte qui ne correspond plus) **sans**
+  `corrige = oui` : oubli, ou altération par le tableur (date, espaces) ;
+- une correction qui ne s'applique plus mécaniquement : clé disparue (texte
+  OCR changé), texte d'entité modifié en amont depuis la correction NER,
+  titre parent disparu ;
+- une ligne machine effacée ou déplacée dans le fichier (étape 3).
+
+`--force` résout la panique en prenant la **nouvelle sortie machine** pour
+ces lignes (et retire les corrections inapplicables du patch). C'est aussi
+le moyen d'annuler une correction : vider `corrige`, relancer avec `--force`.
+`--sans-capture` ignore le fichier existant et repart du patch versionné
+(par exemple après un `git pull` qui l'a modifié). `--patch` change son
+chemin.
+
+Étape 3, opérations sur les lignes :
+
+- **supprimer** : donner la classe `SUPPRIMÉE` (ignorée par l'étape 4) ;
+- **ajouter** ou **dupliquer** : insérer une ligne sans clé (ou copier une
+  ligne) ; elle reçoit la clé `<clé de base>+n`, et le patch retient la clé
+  de la ligne qui la précède (`apres`) pour la réinsérer à sa place ;
+- **déplacer** (ordre de lecture de l'OCR à corriger) : `SUPPRIMÉE` sur
+  l'originale et une copie sans clé à la bonne place ; l'ordre des lignes
+  machine reste celui de l'OCR.
+
+La **clé** `cle` d'une ligne est calculée une fois à l'extraction (étape 1) :
+hash du texte OCR normalisé, suffixé `~n` pour la n-ième occurrence d'un
+même texte (lignes vides, titres répétés). Elle ne dépend ni de la page ni
+du découpage en blocs : ajouter des pages au PDF ou une re-segmentation de
+l'OCR ne la change pas, au contraire de l'`uid` (`page.bloc.ligne`), gardé
+pour l'ordre de lecture. L'`uuid` d'une entité (étape 4) dérive de la clé de
+sa ligne racine : il est donc stable lui aussi.
+
+Les patchs d'alignement (étape 6) ne sont pas capturés depuis un CSV : on
+les édite à la main depuis le viewer. Ils suivent sinon les mêmes règles :
+le patch gagne, une ligne orpheline (uuid disparu, sans réancrage possible)
+fait paniquer `align_directories.py`, `align_directories_nw.py` et
+`tools/export_alignment.py`, et `--force` l'ignore.
+
+Les patchs vivent dans `data/`, versionné avec le code. Les commits de
+données restent séparés de ceux du code (préfixe `données:`), et les scripts
+ne commitent jamais eux-mêmes.
+
+`tools/migrer_curation.py` a converti une fois les anciens fichiers
+(`*.annotated.curated.csv` avec `prediction_curated`, `*.ner.curated.csv`,
+uuid fondés sur les `uid`) vers ce protocole ; il garde la trace de la
+méthode (rapprochement par `uid` puis par texte, lignes déplacées converties
+en suppression + ajout) et ne sert plus ensuite.
 
 ## Étape 1 — Extraction des lignes : `extract_chandra_lines.py`
 
@@ -105,7 +197,10 @@ uv run extract_chandra_lines.py <plage>.ocr.json --notables -o <plage>.ocr.lines
   `html` par page, blocs repérés par `data-block-id`).
 - **Sortie :** une copie du JSON où chaque page reçoit une liste
   `data_blocks`, chacun portant sa liste de `lines` (`uid`, `line_index`,
-  `markdown`). Défaut : `<entrée>.chandra.json`.
+  `markdown`, `cle`). Défaut : `<entrée>.chandra.json`.
+- **`cle`** : clé stable de la ligne (hash du texte OCR, voir
+  [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)),
+  recopiée par toutes les étapes suivantes.
 - **`--notables`** : exporte chaque cellule de tableau comme une ligne
   séparée, sans syntaxe Markdown de tableau.
 - Ce schéma (pages → `data_blocks` → `lines`) est le **contrat partagé** des
@@ -179,16 +274,20 @@ Convertit le JSON, annoté ou non, en CSV : une ligne Markdown par ligne.
 uv run export_lines_csv.py <plage>.ocr.lines.annotated.json -o <plage>.ocr.lines.annotated.csv
 ```
 
-- **Colonnes :** `uid`, `page_index`, `chunk_index`, `data_block_index`,
-  `line_index`, `data_block_bbox`, `data_block_label`, `markdown`,
-  `prediction`, `provenance`, `probability`, `timestamp` (`CSV_FIELDS`).
-- Sur le JSON brut de l'étape 1, les colonnes de prédiction sont vides :
-  pratique pour inspecter l'extraction.
-- **Curation :** le CSV est relu et corrigé à la main dans
-  `<plage>.ocr.lines.annotated.curated.csv`, avec une colonne
-  `prediction_curated` (classe vérifiée). Le texte peut aussi y être corrigé,
-  notamment les marqueurs de titre `#`. Ces fichiers servent de référence à
-  l'audit du CRF.
+- **Colonnes :** `cle`, `uid`, `page_index`, `chunk_index`,
+  `data_block_index`, `line_index`, `data_block_bbox`, `data_block_label`,
+  `markdown`, `classe`, `corrige`, `provenance`, `probability`, `timestamp`,
+  `empreinte` (`CSV_FIELDS`). `classe` est la prédiction de l'annotateur
+  (`prediction` dans le JSON).
+- Sur le JSON brut de l'étape 1, `classe` est vide et aucun patch n'est lu
+  ni écrit : pratique pour inspecter l'extraction.
+- **Curation :** on corrige directement ce CSV (classe, texte, notamment les
+  marqueurs de titre `#`) en marquant `corrige = oui`, puis on relance le
+  script, qui capture les corrections dans
+  `data/curation/<document>.lignes.patch.csv` et les réapplique (voir
+  [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)).
+  Un nouvel export (CRF amélioré) garde ainsi les corrections et met à jour
+  les autres lignes. Ces fichiers servent de référence à l'audit du CRF.
 
 ## Étape 4 — Entités et arbre des titres : `build_entity_tree.py`
 
@@ -197,12 +296,12 @@ de lignes, rattache chaque ligne produite à son titre parent et écrit un
 rapport.
 
 ```bash
-uv run build_entity_tree.py <plage>.ocr.lines.annotated.curated.csv
+uv run build_entity_tree.py <plage>.ocr.lines.annotated.csv
 ```
 
-- **Entrée :** un CSV de l'étape 3. La classe est lue dans
-  `prediction_curated` par défaut (`--class-column prediction` pour un CSV
-  non curé).
+- **Entrée :** un CSV de l'étape 3. La classe est lue dans `classe`
+  (`--class-column`) ; les lignes `SUPPRIMÉE` sont ignorées, et les colonnes
+  `corrige` / `empreinte` ne sont pas recopiées.
 - **Sorties :**
   - `<entrée>.merged.csv` — une ligne par entité : `ENTRY`, `TITLE` ou
     `OUT OF SCOPE` (toute classe inconnue est recopiée telle quelle), avec
@@ -241,10 +340,12 @@ flowchart LR
 
 ### Identifiants et hiérarchie
 
-- **`uuid`** est déterministe : uuid5 du nom du document et des `uid` des
-  lignes qui composent l'entité (suffixe `#n` si deux entités ont la même
-  composition), jamais de son texte. Il survit aux corrections de texte et
-  ne change que si l'entité est recomposée.
+- **`uuid`** est déterministe : uuid5 du nom du document et de la clé `cle`
+  de la **ligne racine** de l'entité (`--key-column`), jamais de son texte ni
+  de sa page. Il survit aux corrections de texte, à la re-segmentation de
+  l'OCR et au rattachement ou détachement de lignes de continuation. La
+  colonne `cle` d'une entité garde sa composition en clair (clés de ses
+  lignes, séparées par des virgules).
 - **`parent_uuid`** : le niveau d'un titre est son nombre de `#` (un titre
   sans `#` prend le niveau le plus profond et est signalé). Le parent d'un
   `TITLE` est le dernier titre précédent de niveau strictement inférieur ;
@@ -271,7 +372,7 @@ Deux jeux de données versionnés, aux rôles séparés :
 | Rôle | **évaluer** (`audit_ner.py`) | **entraîner** (`tools/train_gliner.py`) |
 | Taille | 600 entrées | ~15 000 entrées |
 | Origine | tiré une fois (`tools/sample_ner_gold.py`), relu entrée par entrée dans Label Studio | construit par `tools/build_ner_training.py` à partir des CSV NER de `annuaires/` |
-| Qualité | vérité terrain | sortie du modèle, corrigée là où un `*.ner.curated.csv` existe |
+| Qualité | vérité terrain | sortie du modèle, corrigée là où une ligne porte `corrige = oui` |
 
 Les textes du gold sont toujours exclus de l'entraînement (comparaison sur le
 texte normalisé, pas sur l'`uid`).
@@ -299,8 +400,14 @@ uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model
 
   Ces motifs sont structurels et ne dépendent d'aucun lexique propre aux
   volumes.
-- La relecture produit `<…>.merged.ner.curated.csv`, entrée de l'étape 6 et
-  de la construction du jeu d'entraînement.
+- **Relecture :** on corrige directement ce CSV (`tagged_text`, et
+  `parent_uuid` pour rattacher une entrée à une autre rubrique) en marquant
+  `corrige = oui` ; à la prochaine inférence, les corrections sont capturées
+  dans `data/curation/<document>.ner.patch.csv` (avant le chargement du
+  modèle) et réappliquées par `uuid` (voir
+  [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)).
+  Ce CSV est l'entrée de l'étape 6 et de la construction du jeu
+  d'entraînement.
 
 ### Explorer un volume : `tools/display_directory.py`
 
@@ -308,8 +415,8 @@ uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model
 uv run streamlit run tools/display_directory.py
 ```
 
-Visualiseur d'un CSV NER (`*.merged.ner.csv` ou `*.merged.ner.curated.csv`,
-choisi dans `annuaires/` ou téléversé) :
+Visualiseur d'un CSV NER (`*.merged.ner.csv`, choisi dans `annuaires/` ou
+téléversé) :
 
 - **Contexte :** empans colorés par classe ; chaque entrée est replacée dans
   sa rubrique (chemin des titres), avec un bandeau à chaque changement de
@@ -364,8 +471,8 @@ uv run audit_ner.py --split dev --predictions autre=sortie.ner.csv
 - **Sortie :** `rapports/audit_ner/rapport.md` et `erreurs.csv`.
 - Une entrée de la strate « courant » pèse environ 1,5 point sur le split
   `dev` : comparer aussi les nombres bruts d'erreurs.
-- Les `*.ner.curated.csv` ne sont que partiellement relus : ce ne sont pas
-  des vérités terrain.
+- Les CSV NER ne sont que partiellement relus (`corrige = oui`) : ce ne sont
+  pas des vérités terrain.
 
 ## Étape 6 — Alignement de deux éditions
 
@@ -418,8 +525,8 @@ relances.
 
 `lib/alignment.py` lit un dossier de volume en entier : ses sous-dossiers de
 plages triés par première page, chacun par son propre
-`<volume>.<plage>.ocr.lines.annotated.curated.merged.ner.curated.csv`
-(`CURATED_NER_SUFFIX` ; un fichier manquant est une erreur). Seules les
+`<volume>.<plage>.ocr.lines.annotated.merged.ner.csv`
+(`NER_SUFFIX` ; un fichier manquant est une erreur). Seules les
 ENTRY sont alignées. Pour chacune :
 
 - **rubrique** : titre ancêtre de niveau 2, à défaut de niveau 1, selon
@@ -452,7 +559,8 @@ Le patch gagne : ses rubriques sont retirées de l'alignement automatique.
 Si un uuid disparaît (re-segmentation amont), la ligne est réancrée sur la
 rubrique de même titre nettoyé, unique dans l'annuaire, et le patch est
 réécrit par les scripts d'alignement ; faute de candidat unique, la ligne
-est **orpheline** : signalée, conservée, non appliquée.
+est **orpheline** : conservée, non appliquée, et les scripts paniquent
+(`--force` pour l'ignorer).
 
 ### Méthode Dedupe : `align_directories.py`
 
@@ -636,7 +744,7 @@ uv run tools/export_alignment.py annuaires/alignements/<g>__<d>.nw.csv [--excel]
 ```
 
 Produit, pour les utilisateurs des données (historiens), la jointure des
-deux `*.ner.curated.csv` alignés : **une ligne par correspondance ou par
+deux volumes alignés (leurs `*.merged.ner.csv`) : **une ligne par correspondance ou par
 entrée sans correspondance**, dans l'ordre naturel du viewer
 (`lib/alignment_export.py`, partagé avec lui). L'entrée est une sortie
 d'alignement (`*.dedupe.csv`, `*.nw.csv` ou le CSV final) ; comme dans le
@@ -716,12 +824,12 @@ uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.
 ## Audit du CRF : `audit_crf_features.py`
 
 Mesure la performance du CRF de l'étape 2 et l'apport de chacune de ses
-features, contre les CSV curés `*.ocr.lines.annotated.curated.csv`
-(colonne `prediction_curated`).
+features, contre les CSV corrigés à la main `*.ocr.lines.annotated.csv`
+(colonne `classe`, lignes `SUPPRIMÉE` exclues).
 
 ```bash
-uv run audit_crf_features.py                 # tous les CSV curés sous annuaires/
-uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
+uv run audit_crf_features.py                 # tous les *.ocr.lines.annotated.csv sous annuaires/
+uv run audit_crf_features.py a.ocr.lines.annotated.csv b.ocr.lines.annotated.csv -o rapports/mon_audit
 ```
 
 - **Entrées :** les CSV curés et, à côté de chacun, le
@@ -731,8 +839,8 @@ uv run audit_crf_features.py a.curated.csv b.curated.csv -o rapports/mon_audit
   (marqueurs `#`), calculer les features sur le CSV curé ferait fuiter les
   étiquettes.
 - **Référence « silver » :** les classes curées ne diffèrent des prédictions
-  d'origine que sur ~0,2 % des lignes ; les scores absolus sont donc
-  optimistes.
+  d'origine (relues dans `<nom>.ocr.lines.annotated.json`) que sur ~0,2 %
+  des lignes ; les scores absolus sont donc optimistes.
 - **Sortie :** `rapports/audit_crf/` par défaut — `rapport.md` (résumé,
   recommandations, analyses), tables CSV et `resume.json`.
 - **Contenu :** performances par classe et par entité (règles de l'étape 4)
@@ -754,14 +862,13 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 
 | Fichier | Produit par | Contenu |
 |---|---|---|
-| `….ocr.lines.json` | `extract_chandra_lines.py` | Pages → blocs → lignes Markdown (`uid`, `line_index`, `markdown`) |
+| `….ocr.lines.json` | `extract_chandra_lines.py` | Pages → blocs → lignes Markdown (`uid`, `line_index`, `markdown`, `cle`) |
 | `….ocr.lines.annotated.json` / `.crf-session.json` | `annotate_lines_crf.py` | Classe, provenance, probabilité de chaque ligne ; session reprenable |
-| `….ocr.lines.annotated.csv` | `export_lines_csv.py` | Une ligne CSV par ligne Markdown |
-| `….annotated.curated.csv` | curation manuelle | Le même, avec `prediction_curated` |
+| `….ocr.lines.annotated.csv` | `export_lines_csv.py` + curation manuelle | Une ligne CSV par ligne Markdown, corrigée à la main (`corrige = oui`) |
 | `….merged.csv` | `build_entity_tree.py` | Une ligne par entité (`ENTRY`, `TITLE`, `OUT OF SCOPE`) avec `uuid`, `parent_uuid`, texte fusionné et provenance |
 | `….merged.report.txt` | `build_entity_tree.py` | Comptages, arbre des titres, cas à vérifier |
-| `….merged.ner.csv` | `infer_gliner.py` | Le CSV d'entités avec `tagged_text`, comptes d'empans, `ner_confidence`, `ner_suspect` |
-| `….merged.ner.curated.csv` | relecture manuelle | Le même, corrigé |
+| `….merged.ner.csv` | `infer_gliner.py` + relecture manuelle | Le CSV d'entités avec `tagged_text`, comptes d'empans, `ner_confidence`, `ner_suspect`, corrigé à la main (`corrige = oui`) |
+| `data/curation/<document>.lignes.patch.csv`, `.ner.patch.csv` | capture automatique (étapes 3 et 5) | Corrections humaines des lignes et du NER (versionnées) |
 | `annuaires/alignements/<g>__<d>.dedupe.csv` | `align_directories.py` | Correspondances brutes de Dedupe |
 | `annuaires/alignements/<g>__<d>.csv` | `align_directories.py` | Correspondances finales (Dedupe + patch) |
 | `annuaires/alignements/<g>__<d>.nw.csv` | `align_directories_nw.py` | Correspondances de la méthode ordonnée |
@@ -781,6 +888,7 @@ racine du dépôt ; ceux de `tools/` ajoutent la racine à `sys.path`.
 | Module | Rôle |
 |---|---|
 | `lib/chandra_document.py` | Schéma pages → `data_blocks` → `lines`, validation et parcours (`iter_line_locations`) |
+| `lib/curation.py` | Protocole des corrections humaines rejouables : clés de ligne, empreintes, capture, application, panique (`CurationConflict`), écriture atomique des CSV |
 | `lib/crf/` | Cœur du CRF : `features.py` (groupes de features), `model.py` (entraînement, marginales), `active_learning.py` (moteur de l'annotateur), `silver.py` et `evaluation.py` (audit) |
 | `lib/titles.py` | Niveau et texte lisible des titres |
 | `lib/ner/` | `spans.py` (empans, `tagged_text`, Label Studio, normalisation Markdown), `html.py` (rendu des empans pour les viewers), `shapes.py` (formes typographiques), `corpus.py` (lecture des CSV NER), `metrics.py`, `suspicion.py` (motifs de relecture), `gliner.py` (chargement et prédiction) |

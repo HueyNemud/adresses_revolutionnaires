@@ -33,6 +33,18 @@ pas les codes courts SUBJ/DESC/ADDR : la correspondance est lue dans
 Le modèle voit le texte normalisé (emphase Markdown retirée) ; les empans
 sont ramenés sur le texte d'origine de la colonne pour `tagged_text`.
 
+Corrections humaines
+--------------------
+Le CSV produit est aussi le fichier qu'on corrige à la main (`tagged_text`,
+`parent_uuid` : rattachement d'une entrée à sa rubrique). Il suit le
+protocole de `lib/curation.py` : les lignes `corrige = oui` du CSV existant
+sont capturées (avant de charger le modèle) dans
+`data/curation/<document>.ner.patch.csv` (versionné), puis réappliquées sur
+la nouvelle inférence, par `uuid` d'entité. Une correction dont l'entité a
+disparu, dont le texte a changé en amont (le `tagged_text` débalisé ne
+redonne plus le texte) ou dont le titre parent n'existe plus fait paniquer
+(`--force` : l'abandonner).
+
 Inférence
 ---------
 Par lots (`lib.ner.gliner.predict_spans`) : un lot qui échoue est retenté
@@ -55,8 +67,22 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from build_entity_tree import ROOT_UUID
+from lib.curation import (
+    CORRECTED_COLUMN,
+    FINGERPRINT_COLUMN,
+    Check,
+    Curation,
+    CurationConflict,
+    Step,
+    is_corrected,
+    patch_path,
+    print_conflict,
+    print_report,
+    write_csv,
+)
 from lib.ner.gliner import NerConfig, load_model, predict_spans
-from lib.ner.spans import LABELS, normalize_markdown, render_tagged_text, unproject_spans
+from lib.ner.spans import LABELS, normalize_markdown, parse_tagged_text, render_tagged_text, unproject_spans
 from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, confidence, suspicion_reasons
 
 console = Console()
@@ -68,7 +94,43 @@ DEFAULT_BATCH_SIZE = 16
 DEFAULT_THRESHOLD = 0.5
 
 COUNT_COLUMN_FOR_LABEL = {"SUBJ": "subject_count", "DESC": "description_count", "ADDR": "address_count"}
-NEW_COLUMNS = ["tagged_text", *COUNT_COLUMN_FOR_LABEL.values(), "ner_confidence", "ner_suspect"]
+NEW_COLUMNS = ["tagged_text", *COUNT_COLUMN_FOR_LABEL.values(), "ner_confidence", "ner_suspect", CORRECTED_COLUMN]
+
+NER_STEP = Step("ner", "uuid", ("tagged_text", "parent_uuid"), context=("uid",))
+
+
+def correction_check(rows: list[dict[str, str]], entity_column: str, text_column: str) -> Check:
+    """Une correction NER ne s'applique que si son balisage redonne le texte
+    actuel de l'entité et si son titre parent existe encore."""
+    titles = {row["uuid"] for row in rows if row.get(entity_column) == "TITLE"} | {ROOT_UUID}
+
+    def check(correction: dict[str, str], row: dict[str, str]) -> str | None:
+        tagged = correction.get("tagged_text", "")
+        if tagged:
+            try:
+                text, _ = parse_tagged_text(tagged)
+            except ValueError as error:
+                return f"balisage invalide ({error})"
+            if text != row.get(text_column, "").strip():
+                return "texte de l'entité modifié en amont depuis la correction"
+        parent = correction.get("parent_uuid", "")
+        if parent not in titles:
+            return f"titre parent {parent!r} introuvable"
+        return None
+
+    return check
+
+
+def recount(row: dict[str, str]) -> None:
+    """Comptes d'empans d'une ligne corrigée, d'après son `tagged_text`."""
+    if not row.get("tagged_text"):
+        for column in COUNT_COLUMN_FOR_LABEL.values():
+            row[column] = ""
+        return
+    _, spans = parse_tagged_text(row["tagged_text"])
+    counts = Counter(span.label for span in spans)
+    for label in LABELS:
+        row[COUNT_COLUMN_FOR_LABEL[label]] = str(counts[label])
 
 
 # --------------------------------------------------------------------------
@@ -191,6 +253,22 @@ def parse_args() -> argparse.Namespace:
         help=f"Score minimal d'empan sous lequel une entrée est signalée « score bas » (défaut : {DEFAULT_MIN_SCORE}).",
     )
     parser.add_argument(
+        "--patch",
+        type=Path,
+        default=None,
+        help="Patch des corrections (défaut : data/curation/<document>.ner.patch.csv).",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Reprend la sortie machine pour les lignes modifiées sans « corrige = oui » et abandonne les corrections inapplicables.",
+    )
+    parser.add_argument(
+        "--sans-capture",
+        action="store_true",
+        help="Ignore le CSV existant et repart du patch versionné.",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier).",
@@ -198,11 +276,31 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def write_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+def apply_corrections(
+    curation: Curation, rows: list[dict[str, str]], entity_column: str, text_column: str
+) -> list[dict[str, str]]:
+    """Réapplique le patch (lève CurationConflict) et recompte les empans
+    des lignes corrigées."""
+    rows = curation.apply(rows, check=correction_check(rows, entity_column, text_column))
+    for row in rows:
+        if is_corrected(row):
+            recount(row)
+    return rows
+
+
+def write_output(
+    curation: Curation, rows: list[dict[str, str]], output_path: Path, fieldnames: list[str], args: argparse.Namespace
+) -> None:
+    """Corrections réappliquées puis écriture ; en cas de panique, rien
+    n'est écrit et le script s'arrête."""
+    try:
+        rows = apply_corrections(curation, rows, args.entity_column, args.text_column)
+    except CurationConflict as conflict:
+        print_conflict(console, conflict)
+        raise SystemExit(1)
+    curation.save_patch()
+    write_csv(output_path, fieldnames, rows)
+    print_report(console, curation)
 
 
 def main() -> None:
@@ -216,11 +314,21 @@ def main() -> None:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
     output_path = args.output or args.input_csv.with_suffix(".ner.csv")
+    try:
+        curation = Curation(
+            NER_STEP, output_path, args.patch or patch_path(output_path, NER_STEP.name),
+            force=args.force, capture=not args.sans_capture,
+        )
+    except CurationConflict as conflict:
+        print_conflict(console, conflict)
+        raise SystemExit(1)
 
     console.print(f"Lecture de [yellow]{args.input_csv.name}[/yellow]...")
     try:
         fieldnames, rows = load_rows(args.input_csv)
         output_fieldnames = insert_columns_after(fieldnames, args.entity_column, NEW_COLUMNS)
+        if FINGERPRINT_COLUMN not in output_fieldnames:
+            output_fieldnames.append(FINGERPRINT_COLUMN)
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
@@ -233,8 +341,8 @@ def main() -> None:
     if empty_text_indices:
         console.print(f"[yellow]{len(empty_text_indices)} ligne(s) '{args.entry_value}' au texte vide, ignorée(s).[/yellow]")
     if not indices:
-        console.print("[yellow]Aucune ligne à traiter — écriture du fichier inchangé.[/yellow]")
-        write_rows(output_path, output_fieldnames, rows)
+        console.print("[yellow]Aucune ligne à traiter.[/yellow]")
+        write_output(curation, rows, output_path, output_fieldnames, args)
         return
 
     console.print(f"Chargement du modèle [cyan]{args.model}[/cyan]...")
@@ -282,7 +390,7 @@ def main() -> None:
         if args.verbose:
             console.print(f"[green]✓[/green] ligne {row_index}  {row['tagged_text']}")
 
-    write_rows(output_path, output_fieldnames, rows)
+    write_output(curation, rows, output_path, output_fieldnames, args)
 
     processed = len(indices) - len(errors)
     console.print(f"\n[bold green]✅ Inférence terminée :[/bold green] [yellow]{output_path}[/yellow] ({processed}/{len(indices)} lignes traitées)")

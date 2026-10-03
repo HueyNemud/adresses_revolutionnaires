@@ -12,48 +12,85 @@ from build_entity_tree import (
     process_csv,
 )
 
-FIELDS = ["uid", "markdown", "prediction_curated"]
+FIELDS = ["cle", "uid", "markdown", "classe", "corrige", "empreinte"]
 ROWS = [
     ("1.1.0", "Dupont, rue A, 1.", "B-ENTRY"),
     ("1.1.1", "suite", "I-ENTRY"),
     ("1.1.2", "Boulanger, rue B, 2.", "B-ENTRY"),
-    ("1.1.2", "Boulanger (Ve.), rue C, 3.", "B-ENTRY"),  # ligne dupliquée à la curation
+    ("1.1.2", "Boulanger (Ve.), rue C, 3.", "B-ENTRY", "k1.1.2+1"),  # ligne dupliquée à la curation
 ]
 
 
-def merge(directory: Path, rows=ROWS) -> list[dict[str, str]]:
-    source = directory / "Vol.1-9.ocr.lines.annotated.curated.csv"
+def with_keys(rows) -> list[tuple[str, ...]]:
+    """(cle, uid, texte, classe, corrige, empreinte) ; clé `k<uid>` par défaut."""
+    return [(row[3] if len(row) > 3 else f"k{row[0]}", *row[:3], "", "") for row in rows]
+
+
+def write_source(source: Path, rows) -> None:
     with source.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(FIELDS)
-        writer.writerows(rows)
+        writer.writerows(with_keys(rows))
+
+
+def merge(directory: Path, rows=ROWS) -> list[dict[str, str]]:
+    source = directory / "Vol.1-9.ocr.lines.annotated.csv"
+    write_source(source, rows)
     output = directory / "out.csv"
-    process_csv(source, output, "prediction_curated", "uid")
+    process_csv(source, output, "classe", "uid")
     with output.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
 
 class EntityIdTests(unittest.TestCase):
     def test_document_name(self):
-        self.assertEqual(document_name(Path("1808_AD75-PER292.6-185.ocr.lines.annotated.curated.csv")), "1808_AD75-PER292.6-185")
+        self.assertEqual(document_name(Path("1808_AD75-PER292.6-185.ocr.lines.annotated.csv")), "1808_AD75-PER292.6-185")
         self.assertEqual(document_name(Path("autre.csv")), "autre")
 
     def test_ids_are_stable_unique_and_independent_of_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             first = merge(Path(tmp))
             second = merge(Path(tmp))
-            edited = merge(Path(tmp), [(uid, text.replace("rue", "R."), label) for uid, text, label in ROWS])
+            edited = merge(Path(tmp), [(uid, text.replace("rue", "R."), label, *rest) for uid, text, label, *rest in ROWS])
         ids = [row["uuid"] for row in first]
         self.assertEqual(len(ids), 3)
         self.assertEqual(len(set(ids)), 3)
         self.assertEqual(ids, [row["uuid"] for row in second])
         self.assertEqual(ids, [row["uuid"] for row in edited])
 
-    def test_document_distinguishes_identical_uids(self):
-        a, b = [{"uid": "1.1.0"}], [{"uid": "1.1.0"}]
-        assign_entity_ids(a, "vol-A", "uid")
-        assign_entity_ids(b, "vol-B", "uid")
+    def test_document_distinguishes_identical_keys(self):
+        a, b = [{"cle": "abc"}], [{"cle": "abc"}]
+        assign_entity_ids(a, "vol-A", "cle")
+        assign_entity_ids(b, "vol-B", "cle")
         self.assertNotEqual(a[0]["uuid"], b[0]["uuid"])
+
+    def test_id_depends_on_root_line_only(self):
+        """Détacher une continuation ne change pas l'identité de l'entrée ;
+        les uid (page, bloc) n'interviennent pas."""
+        detached = [ROWS[0], ("1.1.1", "suite", "OUT OF SCOPE"), *ROWS[2:]]
+        renumbered = [(f"9.{uid}", text, label, *rest) for uid, text, label, *rest in ROWS]
+        with tempfile.TemporaryDirectory() as tmp:
+            first = merge(Path(tmp))
+            other = merge(Path(tmp), detached)
+            moved = merge(Path(tmp), renumbered)
+        self.assertEqual(first[0]["uuid"], other[0]["uuid"])
+        self.assertEqual(first[0]["cle"], "k1.1.0,k1.1.1")
+        self.assertEqual(other[0]["cle"], "k1.1.0")
+        self.assertNotEqual([row["uuid"] for row in first], [row["uuid"] for row in moved])
+
+    def test_deleted_lines_are_skipped_and_curation_columns_dropped(self):
+        rows = [*ROWS[:2], ("1.1.2", "Boulanger, rue B, 2.", "SUPPRIMÉE")]
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "Vol.1-9.ocr.lines.annotated.csv"
+            write_source(source, rows)
+            report = process_csv(source, Path(tmp) / "out.csv", "classe", "uid")
+            with (Path(tmp) / "out.csv").open(encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle)
+                out = list(reader)
+        self.assertEqual(report.rows_deleted, 1)
+        self.assertEqual(len(out), 1)
+        self.assertNotIn("corrige", reader.fieldnames)
+        self.assertNotIn("empreinte", reader.fieldnames)
 
 
 class AlphaSortKeyTests(unittest.TestCase):
@@ -73,11 +110,8 @@ class AlphaSortKeyTests(unittest.TestCase):
         ]
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.csv"
-            with source.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.writer(handle)
-                writer.writerow(FIELDS)
-                writer.writerows(rows)
-            report = process_csv(source, Path(tmp) / "out.csv", "prediction_curated", "uid")
+            write_source(source, rows)
+            report = process_csv(source, Path(tmp) / "out.csv", "classe", "uid")
         self.assertEqual([uid for uid, *_ in report.alpha_violations], ["1.1.2"])
 
 
@@ -129,11 +163,8 @@ class TitleTreeReportTests(unittest.TestCase):
         ]
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.csv"
-            with source.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.writer(handle)
-                writer.writerow(FIELDS)
-                writer.writerows(rows)
-            report = process_csv(source, Path(tmp) / "out.csv", "prediction_curated", "uid")
+            write_source(source, rows)
+            report = process_csv(source, Path(tmp) / "out.csv", "classe", "uid")
         self.assertEqual(
             format_title_tree(report),
             [

@@ -51,7 +51,7 @@ class JsonToCsvTests(unittest.TestCase):
 
     def export_rows(self) -> list[dict[str, str]]:
         csv_path = Path(self.temporary_directory.name) / "output.csv"
-        process_json_to_csv(self.json_path, csv_path)
+        process_json_to_csv(self.json_path, csv_path, Path(self.temporary_directory.name) / "patch.csv")
         with csv_path.open(encoding="utf-8", newline="") as output_file:
             return list(csv.DictReader(output_file))
 
@@ -64,10 +64,10 @@ class JsonToCsvTests(unittest.TestCase):
         self.assertEqual(rows[0]["markdown"], "## TITRE")
         self.assertEqual(rows[0]["data_block_index"], "1")
         self.assertEqual(rows[0]["chunk_index"], "0")
-        self.assertEqual(rows[0]["prediction"], "")
+        self.assertEqual(rows[0]["classe"], "")
 
         self.assertEqual(rows[1]["markdown"], "Dupont, rue A.")
-        self.assertEqual(rows[1]["prediction"], "ENTRY_BEGIN")
+        self.assertEqual(rows[1]["classe"], "ENTRY_BEGIN")
         self.assertEqual(rows[1]["provenance"], "human")
         self.assertEqual(rows[1]["probability"], "1.0")
         self.assertEqual(rows[1]["timestamp"], "2026-09-08 10:00:00")

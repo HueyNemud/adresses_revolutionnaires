@@ -1,6 +1,6 @@
 """Visualiseur Streamlit du résultat final d'un annuaire : le CSV NER
-(`*.merged.ner.csv` d'`infer_gliner.py`, ou sa version corrigée
-`*.merged.ner.curated.csv`).
+(`*.merged.ner.csv` d'`infer_gliner.py`, corrigé à la main en place,
+lib/curation.py).
 
     uv run streamlit run tools/display_directory.py
 
@@ -38,7 +38,7 @@ from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, suspicion_reasons
 from lib.titles import title_level as lib_title_level, title_text
 
 ANNUAIRES_DIR = Path("annuaires")
-NER_SUFFIXES = (".merged.ner.csv", ".merged.ner.curated.csv")
+NER_SUFFIX = ".merged.ner.csv"
 PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
 FILE_ORDER = "ordre du fichier"
 SORT_OPTIONS = [FILE_ORDER, "confiance croissante", "page", "signature"]
@@ -163,15 +163,14 @@ def text_mask(df: pd.DataFrame, query: str, columns: list[str], regex: bool) -> 
 def choose_file() -> tuple[str, pd.DataFrame] | None:
     source = st.sidebar.radio("Source", ["annuaires/", "téléverser"], horizontal=True, label_visibility="collapsed")
     if source == "annuaires/":
-        paths = sorted(p for p in ANNUAIRES_DIR.glob("**/*.csv") if p.name.endswith(NER_SUFFIXES))
+        paths = sorted(p for p in ANNUAIRES_DIR.glob("**/*.csv") if p.name.endswith(NER_SUFFIX))
         if not paths:
-            st.sidebar.warning(f"Aucun fichier `*.merged.ner.csv` ni `*.merged.ner.curated.csv` sous `{ANNUAIRES_DIR}/`.")
+            st.sidebar.warning(f"Aucun fichier `*.merged.ner.csv` sous `{ANNUAIRES_DIR}/`.")
             return None
         path = st.sidebar.selectbox(
             "Fichier NER",
             paths,
             format_func=lambda p: str(p.relative_to(ANNUAIRES_DIR)),
-            index=next((i for i, p in enumerate(paths) if p.name.endswith(".ner.curated.csv")), 0),
         )
         return path.name, load_path(str(path), path.stat().st_mtime)
     uploaded = st.sidebar.file_uploader("CSV NER", type=["csv"])
@@ -375,7 +374,7 @@ def main() -> None:
     chosen = choose_file()
     if chosen is None:
         st.title("Annuaire — résultat NER")
-        st.info("Choisissez un fichier `*.merged.ner.csv` ou `*.merged.ner.curated.csv` dans la barre latérale.")
+        st.info("Choisissez un fichier `*.merged.ner.csv` dans la barre latérale.")
         return
     name, df = chosen
     st.title(name)

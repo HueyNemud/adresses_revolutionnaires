@@ -23,16 +23,18 @@ Rubrique et texte balisé sont recopiés dans le patch pour la relecture et
 pour le **réancrage** : si une étape amont re-segmente une entrée, son uuid
 change ; on cherche alors l'entrée unique de même texte normalisé dans la
 même rubrique. Faute de candidat unique, la ligne est **orpheline** :
-signalée, jamais appliquée.
+jamais appliquée, et les scripts qui produisent un alignement paniquent
+(`--force` pour l'ignorer), comme pour les autres étapes curées
+(lib/curation.py).
 """
 
 import csv
-import os
 from collections import defaultdict
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 
 from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title, display_text
+from lib.curation import write_csv
 from lib.ner.spans import normalize_markdown, parse_tagged_text
 
 SIDES = ("left", "right")
@@ -98,15 +100,8 @@ def read_patch(path: Path) -> list[PatchEntry]:
 
 
 def write_patch(path: Path, entries: list[PatchEntry]) -> None:
-    """Écriture atomique (fichier temporaire puis renommage)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    with temporary.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=PATCH_FIELDS)
-        writer.writeheader()
-        for entry in entries:
-            writer.writerow({name: getattr(entry, name) for name in PATCH_FIELDS})
-    os.replace(temporary, path)
+    """Écriture atomique (lib/curation.py)."""
+    write_csv(path, PATCH_FIELDS, (asdict(entry) for entry in entries))
 
 
 def validate(entries: list[PatchEntry]) -> None:

@@ -16,6 +16,9 @@ from bs4 import BeautifulSoup, Tag
 from markdownify import markdownify
 from rich.console import Console
 
+from lib.chandra_document import iter_line_locations
+from lib.curation import line_keys
+
 console = Console()
 
 BBox = tuple[float, float, float, float]
@@ -204,6 +207,15 @@ def _line_record(
     }
 
 
+def assign_line_keys(pages: list[dict[str, Any]]) -> None:
+    """Ajoute à chaque ligne sa clé stable `cle` (lib/curation.py : hash du
+    texte OCR, indépendant de la page et du bloc), recopiée telle quelle par
+    les étapes suivantes jusqu'au CSV corrigé à la main."""
+    lines = [location.line for location in iter_line_locations(pages)]
+    for line, key in zip(lines, line_keys(line["markdown"] for line in lines)):
+        line["cle"] = key
+
+
 def data_block_lines(block: DataBlock, no_tables: bool = False) -> Iterator[str]:
     """Yield Markdown lines or, with no-tables, table cells, for one data block."""
     if no_tables:
@@ -253,6 +265,7 @@ def process_json_to_json(
         output_pages.append(output_page)
         block_count += len(block_records)
         line_count += sum(len(record["lines"]) for record in block_records)
+    assign_line_keys(output_pages)
 
     Path(output_path).write_text(
         json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8"

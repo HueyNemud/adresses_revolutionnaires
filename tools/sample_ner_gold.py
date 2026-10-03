@@ -10,8 +10,8 @@ les uid ne sont pas comparables d'un fichier à l'autre).
 Plan de sondage stratifié, chaque entrée dans une seule strate (par ordre
 de priorité) :
 
-- `désaccord` : le curateur a corrigé la sortie du modèle (cas difficiles
-  connus) ;
+- `désaccord` : le curateur a corrigé (ou validé) la sortie du modèle,
+  `corrige = oui` (cas difficiles connus) ;
 - `signature rare` : suite de classes autre que SUBJ,ADDR / SUBJ,DESC,ADDR ;
 - `forme rare` : forme typographique (`lib.ner.shapes.coarse_shape`) vue
   moins de `--rare-shape` fois ;
@@ -50,7 +50,7 @@ from rich.table import Table
 
 from lib.ner.corpus import Entry, iter_corpus, ls_texts
 from lib.ner.shapes import shape_profile
-from lib.ner.spans import canonical_spans, ls_result, normalize_markdown, signature
+from lib.ner.spans import ls_result, normalize_markdown, signature
 
 console = Console()
 
@@ -78,9 +78,9 @@ def pre_annotation(entry: Entry) -> list:
 
 
 def stratum(entry: Entry, shape_counts: Counter, rare_shape: int, pre_signature: str) -> str:
-    raw, curated = entry.annotations.get("ner"), entry.annotations.get("ner_curated")
-    corrected = raw is not None and curated is not None and canonical_spans(entry.text, raw) != canonical_spans(entry.text, curated)
-    if corrected:
+    # Entrée corrigée à la main (`corrige = oui`) : la sortie du modèle n'est
+    # plus conservée à côté, on ne peut plus tester le désaccord lui-même.
+    if entry.annotations.get("ner_curated") is not None:
         return "désaccord"
     if pre_signature not in COMMON_SIGNATURES:
         return "signature rare"

@@ -1,9 +1,9 @@
 """Construit un jeu d'entraînement NER (SUBJ/DESC/ADDR) au format Label
 Studio attendu par `tools/train_gliner.py`.
 
-Source : les ENTRY de `annuaires/` avec leur annotation NER, corrigée à la
-main (`*.ner.curated.csv`) ou, à défaut, brute (`*.ner.csv`), ramenée sur
-le texte normalisé. Ces CSV doivent venir du modèle courant
+Source : les ENTRY de `annuaires/` avec leur annotation NER (`*.ner.csv`,
+où les lignes corrigées à la main portent `corrige = oui`), ramenée sur le
+texte normalisé. Ces CSV doivent venir du modèle courant
 (`infer_gliner.py`) et suivre `docs/guide_annotation_ner.md` : un modèle
 réapprend les écarts de convention de ses données.
 

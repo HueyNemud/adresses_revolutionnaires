@@ -18,6 +18,10 @@ par ligne :
 - OUT OF SCOPE (et toute classe non reconnue) : jamais fusionnée, recopiée
   telle quelle.
 
+Les lignes de classe `SUPPRIMÉE` (supprimées à la main, voir
+lib/curation.py) sont ignorées ; les colonnes de curation des lignes
+(`corrige`, `empreinte`) ne sont pas recopiées.
+
 Règles de fusion :
 - I-ENTRY se fusionne (avec un espace) à la ligne ENTRY/SUB-ENTRY la plus
   proche qui la précède, quitte à « remonter » au-delà de lignes
@@ -43,13 +47,16 @@ l'ordre alphabétique (réinitialisé à chaque nouveau TITLE).
 Identifiant d'entité (`uuid`)
 -----------------------------
 Déterministe (`uuid5`) : il dépend du nom du document (nom du fichier
-d'entrée avant `.ocr`, ex. « 1808_AD75-PER292.6-185 ») et des `uid` des
-lignes qui composent l'entité, jamais de son texte. Il est donc identique
-d'une exécution à l'autre et survit aux corrections de texte ; il change
-seulement si la composition de l'entité change (autres lignes fusionnées),
-ce qui en fait une autre entité. Si plusieurs entités ont la même
-composition (ligne dupliquée à la curation), la deuxième reçoit le suffixe
-`#2`, la troisième `#3`, etc., dans l'ordre du fichier.
+d'entrée avant `.ocr`, ex. « 1808_AD75-PER292.6-185 ») et de la clé `cle`
+de la **ligne racine** de l'entité (celle qui l'ouvre ; voir
+lib/curation.py : hash du texte OCR, qui ne dépend ni de la page ni du
+découpage en blocs). Il est donc identique d'une exécution à l'autre,
+survit aux corrections de texte, à la re-segmentation de l'OCR et au
+rattachement ou détachement de lignes de continuation. La colonne `cle`
+d'une entité garde la composition en clair (clés de ses lignes, séparées
+par des virgules). Si deux entités ont la même racine (cas qui ne se
+produit pas avec des clés uniques), la deuxième reçoit le suffixe `#2`,
+etc., dans l'ordre du fichier.
 
 Titre parent (`parent_uuid`)
 ----------------------------
@@ -75,6 +82,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from lib.curation import CORRECTED_COLUMN, DELETED_CLASS, FINGERPRINT_COLUMN, document_name
 from lib.titles import title_level
 
 console = Console()
@@ -113,6 +121,7 @@ class MergeReport:
     """Compteurs et listes de problèmes accumulés pendant la fusion."""
 
     rows_read: int = 0
+    rows_deleted: int = 0
     rows_written: int = 0
     final_entries: int = 0
     final_titles: int = 0
@@ -148,17 +157,13 @@ def alpha_sort_key(text: str) -> str:
     return "".join(words[:ALPHA_KEY_WORDS])[:ALPHA_KEY_LENGTH]
 
 
-def document_name(path: Path) -> str:
-    """« 1808_AD75-PER292.6-185.ocr.lines.annotated.curated.csv » →
-    « 1808_AD75-PER292.6-185 » (même nom à toutes les étapes du pipeline)."""
-    return path.name.split(".ocr", 1)[0] if ".ocr" in path.name else path.stem
-
-
-def assign_entity_ids(entities: list[dict[str, str]], document: str, uid_col: str) -> None:
-    """Identifiant déterministe de chaque entité (voir la docstring du module)."""
+def assign_entity_ids(entities: list[dict[str, str]], document: str, key_col: str) -> None:
+    """Identifiant déterministe de chaque entité, d'après la clé de sa ligne
+    racine (voir la docstring du module)."""
     occurrences: Counter[str] = Counter()
     for entity in entities:
-        key = f"{document}#{entity.get(uid_col, '')}"
+        root = entity.get(key_col, "").split(",", 1)[0]
+        key = f"{document}#{root}"
         occurrences[key] += 1
         name = key if occurrences[key] == 1 else f"{key}#{occurrences[key]}"
         entity["uuid"] = str(uuid.uuid5(ENTITY_ID_NAMESPACE, name))
@@ -235,8 +240,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--class-column",
         type=str,
-        default="prediction_curated",
-        help="Nom de la colonne contenant la classe prédite (défaut : 'prediction_curated').",
+        default="classe",
+        help="Nom de la colonne contenant la classe des lignes (défaut : 'classe').",
+    )
+    parser.add_argument(
+        "--key-column",
+        type=str,
+        default="cle",
+        help="Nom de la colonne de clé stable des lignes, qui fonde l'uuid (défaut : 'cle').",
     )
     parser.add_argument(
         "--uid-column",
@@ -252,6 +263,7 @@ def process_csv(
     output_path: Path,
     class_col: str,
     uid_col: str,
+    key_col: str = "cle",
 ) -> MergeReport:
     """Lit le CSV, fusionne les entités ENTRY/TITLE, les rattache à leur
     titre parent, exporte le résultat et retourne le rapport d'analyse
@@ -263,11 +275,18 @@ def process_csv(
         if not reader.fieldnames:
             raise ValueError("Le fichier CSV d'entrée est vide ou invalide.")
 
-        input_fieldnames = list(reader.fieldnames)
+        input_fieldnames = [
+            col for col in reader.fieldnames if col not in (CORRECTED_COLUMN, FINGERPRINT_COLUMN)
+        ]
 
         if class_col not in input_fieldnames:
             raise ValueError(
                 f"La colonne de classe '{class_col}' est introuvable dans le CSV."
+            )
+        if key_col not in input_fieldnames:
+            raise ValueError(
+                f"La colonne de clé '{key_col}' est introuvable dans le CSV "
+                "(CSV antérieur à la clé stable : réexportez-le avec export_lines_csv.py)."
             )
         if "markdown" not in input_fieldnames:
             console.print(
@@ -317,6 +336,10 @@ def process_csv(
         for row in reader:
             report.rows_read += 1
             pred = row.get(class_col, "").strip()
+            if pred == DELETED_CLASS:
+                report.rows_deleted += 1
+                continue
+            row = {col: row.get(col, "") for col in input_fieldnames}
             row_id = identifier(row)
 
             if pred == LABEL_BEGIN_ENTRY:
@@ -365,7 +388,7 @@ def process_csv(
                 out_row["entity"] = LABEL_OOS
                 all_entities.append(out_row)
 
-    assign_entity_ids(all_entities, document_name(input_path), uid_col)
+    assign_entity_ids(all_entities, document_name(input_path), key_col)
     assign_parent_ids(all_entities)
     with output_path.open("w", encoding="utf-8", newline="") as f_out:
         writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
@@ -431,6 +454,7 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
         "",
         "== Comptages ==",
         f"Lignes lues                         : {report.rows_read}",
+        f"Lignes supprimées ({DELETED_CLASS})      : {report.rows_deleted}",
         f"Lignes écrites                      : {report.rows_written}",
         f"Entités finales ENTRY                : {report.final_entries}",
         f"Entités finales TITLE                : {report.final_titles}",
@@ -518,7 +542,7 @@ def main() -> None:
 
     try:
         report = process_csv(
-            args.input_csv, output_path, args.class_column, args.uid_column
+            args.input_csv, output_path, args.class_column, args.uid_column, args.key_column
         )
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur lors du traitement :[/bold red] {error}")

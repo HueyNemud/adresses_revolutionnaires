@@ -1,11 +1,10 @@
 """Lecture des entrées ENTRY des CSV fusionnés et de leurs annotations NER.
 
 Pour chaque document `annuaires/<volume>/<plage>/<doc>.….merged.csv`, on
-lit, quand ils existent, les deux fichiers NER voisins :
-
-- `….merged.ner.csv` (source `ner`) : sortie brute de `infer_gliner.py` ;
-- `….merged.ner.curated.csv` (source `ner_curated`) : la même, corrigée à la
-  main.
+lit, s'il existe, le fichier NER voisin `….merged.ner.csv` : sortie de
+`infer_gliner.py`, où les lignes corrigées à la main portent `corrige = oui`
+(lib/curation.py). Chaque entrée reçoit l'annotation de source `ner` ; une
+entrée corrigée reçoit aussi la source `ner_curated` (mêmes empans).
 
 Tout est ramené sur le **texte normalisé** (`normalize_markdown` : emphase
 Markdown retirée), qui est le texte de référence des annotations gold. Une
@@ -23,12 +22,12 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from lib.curation import is_corrected
 from lib.ner.shapes import coarse_shape
 from lib.ner.spans import NormalizedText, Span, normalize_markdown, parse_tagged_text, project_spans
 
-MERGED_SUFFIX = ".ocr.lines.annotated.curated.merged.csv"
-RAW_NER_SUFFIX = ".ocr.lines.annotated.curated.merged.ner.csv"
-CURATED_NER_SUFFIX = ".ocr.lines.annotated.curated.merged.ner.curated.csv"
+MERGED_SUFFIX = ".ocr.lines.annotated.merged.csv"
+NER_SUFFIX = ".ocr.lines.annotated.merged.ner.csv"
 
 
 @dataclass
@@ -52,7 +51,7 @@ class Entry:
 
 
 def document_names(merged_path: Path) -> tuple[str, str]:
-    """« 1808_AD75-PER292.6-185.ocr.lines.annotated.curated.merged.csv »
+    """« 1808_AD75-PER292.6-185.ocr.lines.annotated.merged.csv »
     → (« 1808_AD75-PER292.6-185 », « 1808_AD75-PER292 »)."""
     name = merged_path.name.removesuffix(MERGED_SUFFIX)
     return name, name.split(".", 1)[0]
@@ -79,15 +78,11 @@ def _read_rows(path: Path) -> list[dict[str, str]]:
 
 def load_document(merged_path: Path) -> list[Entry]:
     document, volume = document_names(merged_path)
-    base = str(merged_path).removesuffix(MERGED_SUFFIX)
-    sources = {
-        "ner": Path(base + RAW_NER_SUFFIX),
-        "ner_curated": Path(base + CURATED_NER_SUFFIX),
-    }
+    ner_path = Path(str(merged_path).removesuffix(MERGED_SUFFIX) + NER_SUFFIX)
+    ner_rows = [row for row in _read_rows(ner_path) if row.get("entity") == "ENTRY"] if ner_path.exists() else []
     tagged_by_source = {
-        name: {row["uid"]: row.get("tagged_text", "") for row in _read_rows(path) if row.get("entity") == "ENTRY"}
-        for name, path in sources.items()
-        if path.exists()
+        "ner": {row["uid"]: row.get("tagged_text", "") for row in ner_rows},
+        "ner_curated": {row["uid"]: row.get("tagged_text", "") for row in ner_rows if is_corrected(row)},
     }
 
     entries = []

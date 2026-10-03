@@ -21,21 +21,22 @@ seuil se corrige dans un **patch** versionné et édité à la main,
 Le patch gagne : ses rubriques sont retirées de l'alignement automatique.
 Les titres recopiés servent à la relecture et au **réancrage** : si un uuid
 disparaît (re-segmentation amont), on cherche la rubrique de même clé,
-unique dans l'annuaire ; faute de quoi la ligne est orpheline (signalée,
-non appliquée).
+unique dans l'annuaire ; faute de quoi la ligne est orpheline (non
+appliquée ; les scripts d'alignement paniquent, sauf `--force` :
+lib/curation.py).
 """
 
 import csv
 import json
-import os
 from collections import defaultdict
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 
 from rapidfuzz.distance import JaroWinkler
 from rapidfuzz.process import cdist
 
 from lib.alignment import SOURCE_MANUAL, Link, Record, clean_title
+from lib.curation import write_csv
 from lib.sequence import needleman_wunsch
 
 SOURCE_AUTO = "auto"
@@ -98,15 +99,8 @@ def read_section_patch(path: Path) -> list[SectionPatchEntry]:
 
 
 def write_section_patch(path: Path, entries: list[SectionPatchEntry]) -> None:
-    """Écriture atomique (fichier temporaire puis renommage)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    with temporary.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=SECTION_PATCH_FIELDS)
-        writer.writeheader()
-        for entry in entries:
-            writer.writerow({name: getattr(entry, name) for name in SECTION_PATCH_FIELDS})
-    os.replace(temporary, path)
+    """Écriture atomique (lib/curation.py)."""
+    write_csv(path, SECTION_PATCH_FIELDS, (asdict(entry) for entry in entries))
 
 
 def validate_section_patch(entries: list[SectionPatchEntry]) -> None:
@@ -281,6 +275,15 @@ def load_section_alignment(
     if rewrite and alignment.resolution.reanchored:
         write_section_patch(patch_path, updated_section_patch(entries, alignment.resolution))
     return alignment
+
+
+def section_orphans(alignment: SectionAlignment) -> list[str]:
+    """Lignes orphelines du patch des rubriques, lisibles (lib/curation.py :
+    elles font paniquer les scripts, sauf --force)."""
+    return [
+        " ↔ ".join(filter(None, (f"{entry.left_uuid} {entry.left_title}".strip(), f"{entry.right_uuid} {entry.right_title}".strip())))
+        for entry in alignment.resolution.orphans
+    ]
 
 
 def corresponding(alignment: SectionAlignment) -> set[tuple[str, str]]:

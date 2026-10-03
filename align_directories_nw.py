@@ -83,8 +83,10 @@ from lib.section_alignment import (
     SectionAlignment,
     align_sections,
     load_section_alignment,
+    section_orphans,
     segments,
 )
+from lib.curation import CurationConflict, print_conflict, refuse_orphans
 from lib.sequence import needleman_wunsch
 
 console = Console()
@@ -178,6 +180,11 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=defaults.subj_weight,
         help=f"Poids du SUBJ (Jaro-Winkler) face au texte complet (Indel) (défaut : {defaults.subj_weight}).",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore les lignes orphelines du patch des rubriques (sinon : arrêt sans rien écrire).",
     )
     return parser.parse_args()
 
@@ -422,6 +429,11 @@ def main() -> None:
         sections = load_section_alignment(left_list, right_list, section_patch, params.section_threshold)
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
+        sys.exit(1)
+    try:
+        refuse_orphans(section_orphans(sections), args.force, "ligne orpheline du patch des rubriques")
+    except CurationConflict as conflict:
+        print_conflict(console, conflict)
         sys.exit(1)
     console.print("Alignement…")
     result = align(left_list, right_list, params, sections)

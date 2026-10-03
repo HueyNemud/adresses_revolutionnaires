@@ -1,6 +1,6 @@
 """Chargement des « silver datasets » : CSV d'annotations CRF vérifiées et
-corrigées à la main (`*.ocr.lines.annotated.curated.csv`, colonne
-`prediction_curated`).
+corrigées à la main (`*.ocr.lines.annotated.csv`, colonne `classe` ; les
+lignes de classe `SUPPRIMÉE` sont ignorées).
 
 Observations et vérité viennent de deux fichiers distincts :
 
@@ -10,27 +10,35 @@ Observations et vérité viennent de deux fichiers distincts :
   (ajout / retrait de marqueurs de titre « # », ponctuation, ordre de
   quelques lignes) : calculer les features sur le texte curé ferait fuiter
   la vérité dans les features (« # » ajouté sur les titres) ;
-- la **vérité** (`prediction_curated`) est alignée sur ces lignes par `uid`,
+- la **vérité** (`classe`) est alignée sur ces lignes par `uid`,
   puis, pour les lignes restantes, par (page, texte) unique. Une ligne du
   JSON sans correspondant fiable reste sans label : elle fait partie de la
   séquence observée mais n'est ni apprise ni évaluée.
 
 Si le JSON est absent, le texte du CSV curé est utilisé à défaut, et le
 document est signalé (`observations_from_curated_text`).
+
+La classe d'origine (sortie de l'annotateur, pour mesurer ce que la curation
+a changé) est relue dans `<nom>.ocr.lines.annotated.json` ; à défaut, c'est
+la classe du CSV pour une ligne non corrigée (`corrige` vide : elle est
+restée celle de la machine), inconnue pour une ligne corrigée.
 """
 
 import csv
+import json
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from lib.chandra_document import iter_line_locations
 from lib.crf.active_learning import SourceLine, context_from_records, load_json_lines
 from lib.crf.features import SequenceContext
 from lib.crf.labels import CLASSES
+from lib.curation import DELETED_CLASS, is_corrected
 
-SILVER_GLOB = "*.ocr.lines.annotated.curated.csv"
-GOLD_COLUMN = "prediction_curated"
+SILVER_GLOB = "*.ocr.lines.annotated.csv"
+GOLD_COLUMN = "classe"
 
 
 @dataclass(frozen=True)
@@ -85,7 +93,7 @@ class SilverDocument:
 def document_names(csv_path: Path) -> tuple[str, str]:
     """(nom du document, nom du volume) déduits du nom de fichier.
 
-    « 1808_AD75-PER292.6-185.ocr.lines.annotated.curated.csv »
+    « 1808_AD75-PER292.6-185.ocr.lines.annotated.csv »
     → (« 1808_AD75-PER292.6-185 », « 1808_AD75-PER292 »).
     """
     name = csv_path.name.removesuffix(SILVER_GLOB.lstrip("*"))
@@ -131,9 +139,24 @@ def _records_from_curated_rows(rows: list[dict[str, str]]) -> list[SourceLine]:
     return records
 
 
+def _machine_annotations(json_path: Path) -> dict[str, tuple[str, str]] | None:
+    """uid → (classe, provenance) écrites par l'annotateur ; None sans JSON."""
+    if not json_path.exists():
+        return None
+    document = json.loads(json_path.read_text(encoding="utf-8"))
+    return {
+        str(location.line.get("uid", "")): (location.line.get("prediction", ""), location.line.get("provenance", ""))
+        for location in iter_line_locations(document)
+    }
+
+
 def load_silver_document(csv_path: Path) -> SilverDocument:
     with csv_path.open(encoding="utf-8", newline="") as handle:
-        rows = [row for row in csv.DictReader(handle) if (row.get("markdown") or "").strip()]
+        rows = [
+            row
+            for row in csv.DictReader(handle)
+            if (row.get("markdown") or "").strip() and (row.get(GOLD_COLUMN) or "").strip() != DELETED_CLASS
+        ]
     if rows and GOLD_COLUMN not in rows[0]:
         raise ValueError(f"{csv_path} : colonne '{GOLD_COLUMN}' absente.")
     for row in rows:
@@ -175,7 +198,14 @@ def load_silver_document(csv_path: Path) -> SilverDocument:
                 matched_by_text += 1
 
     gold = [row[GOLD_COLUMN].strip() if row else None for row in matched]
-    original_prediction = [(row.get("prediction") or "").strip() if row else "" for row in matched]
+    machine = _machine_annotations(csv_path.with_name(f"{name}.ocr.lines.annotated.json"))
+
+    def original(row: dict[str, str]) -> str:
+        if machine is not None:
+            return (machine.get(row.get("uid", ""), ("", ""))[0] or "").strip()
+        return "" if is_corrected(row) else row[GOLD_COLUMN].strip()
+
+    original_prediction = [original(row) if row else "" for row in matched]
     original_provenance = [(row.get("provenance") or "").strip() if row else "" for row in matched]
     pairs = [(record, row) for record, row in zip(records, matched) if row is not None]
     stats = CurationStats(
@@ -191,8 +221,7 @@ def load_silver_document(csv_path: Path) -> SilverDocument:
             for record, row in pairs
         ),
         label_changed_vs_original=sum(
-            (row.get("prediction") or "").strip() != row[GOLD_COLUMN].strip()
-            for _, row in pairs
+            original(row) != row[GOLD_COLUMN].strip() for _, row in pairs
         ),
         original_model_lines=sum(row.get("provenance") == "model" for _, row in pairs),
         original_human_lines=sum(row.get("provenance") == "human" for _, row in pairs),

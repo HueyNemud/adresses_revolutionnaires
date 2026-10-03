@@ -24,11 +24,11 @@ from lib.crf.features import PRODUCTION_GROUPS
 from lib.crf.labels import CLASSES
 from lib.crf.silver import document_names, load_silver_document
 
-FIELDS = ["uid", "page_index", "chunk_index", "data_block_index", "line_index", "data_block_bbox", "data_block_label", "markdown", "prediction_curated", "prediction", "provenance"]
+FIELDS = ["uid", "page_index", "chunk_index", "data_block_index", "line_index", "data_block_bbox", "data_block_label", "markdown", "classe", "provenance"]
 
 
 def write_volume(folder: Path, name: str, pages: int, edit_first_title: bool = False) -> Path:
-    """Écrit un couple (<nom>.ocr.lines.json, <nom>.ocr.lines.annotated.curated.csv)."""
+    """Écrit un couple (<nom>.ocr.lines.json, <nom>.ocr.lines.annotated.csv)."""
     document, rows = [], []
     for page in range(pages):
         lines = [("# TITRE", "B-TITLE"), ("Dupont, rue A, 1.", "B-ENTRY"), ("rue B, 2.", "I-ENTRY"), ("Durand, rue C, 3.", "B-ENTRY"), (str(page), "OUT OF SCOPE")]
@@ -37,10 +37,10 @@ def write_volume(folder: Path, name: str, pages: int, edit_first_title: bool = F
             uid = f"{page}.1.{index}"
             block_lines.append({"uid": uid, "line_index": index, "markdown": text})
             curated_text = "## TITRE" if edit_first_title and index == 0 else text
-            rows.append({"uid": uid, "page_index": page, "chunk_index": 0, "data_block_index": 1, "line_index": index, "data_block_bbox": "[0, 0, 1, 1]", "data_block_label": "Text", "markdown": curated_text, "prediction_curated": label, "prediction": label, "provenance": "model"})
+            rows.append({"uid": uid, "page_index": page, "chunk_index": 0, "data_block_index": 1, "line_index": index, "data_block_bbox": "[0, 0, 1, 1]", "data_block_label": "Text", "markdown": curated_text, "classe": label, "provenance": "model"})
         document.append({"page_index": page, "data_blocks": [{"index": 1, "bbox": [0, 0, 1, 1], "label": "Text", "chunk_index": 0, "lines": block_lines}]})
     (folder / f"{name}.ocr.lines.json").write_text(json.dumps(document), encoding="utf-8")
-    csv_path = folder / f"{name}.ocr.lines.annotated.curated.csv"
+    csv_path = folder / f"{name}.ocr.lines.annotated.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, FIELDS)
         writer.writeheader()
@@ -51,7 +51,7 @@ def write_volume(folder: Path, name: str, pages: int, edit_first_title: bool = F
 class SilverTests(unittest.TestCase):
     def test_document_names(self):
         self.assertEqual(
-            document_names(Path("1808_AD75-PER292.6-185.ocr.lines.annotated.curated.csv")),
+            document_names(Path("1808_AD75-PER292.6-185.ocr.lines.annotated.csv")),
             ("1808_AD75-PER292.6-185", "1808_AD75-PER292"),
         )
 

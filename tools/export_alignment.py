@@ -7,7 +7,7 @@ L'entrée est une sortie d'alignement (`*.dedupe.csv`, `*.nw.csv`, ou le CSV
 final `<gauche>__<droite>.csv`) ; comme dans `tools/display_alignment.py`, la
 paire de volumes se déduit du nom de fichier, les deux annuaires sont relus
 en entier (`annuaires/<gauche>/`, `annuaires/<droite>/`, leurs
-`*.merged.ner.curated.csv`) et le patch des corrections manuelles
+`*.merged.ner.csv`) et le patch des corrections manuelles
 `data/alignement/<gauche>__<droite>.patch.csv` est appliqué en mémoire (il
 n'est jamais réécrit ici ; `--sans-patch` l'ignore).
 
@@ -47,7 +47,8 @@ from lib.alignment import load_volume, read_links
 from lib.alignment_review import DEFAULT_MARGIN, review
 from lib.alignment_export import STATUS_LABELS, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import apply_patch, read_patch, resolve, validate
-from lib.section_alignment import SECTION_PATCH_SUFFIX, load_section_alignment, restrict_to_corresponding
+from lib.curation import CurationConflict, print_conflict, refuse_orphans
+from lib.section_alignment import SECTION_PATCH_SUFFIX, load_section_alignment, restrict_to_corresponding, section_orphans
 
 ANNUAIRES_DIR = Path("annuaires")
 PATCH_DIR = Path("data/alignement")
@@ -77,6 +78,7 @@ def main() -> None:
         default=DEFAULT_MARGIN,
         help=f"Écart de similarité sous lequel une concurrente fait signaler `homonyme proche` (défaut : {DEFAULT_MARGIN}).",
     )
+    parser.add_argument("--force", action="store_true", help="Ignorer les lignes orphelines des patchs (sinon : arrêt sans rien écrire).")
     args = parser.parse_args()
 
     pair_name = pair_of(args.alignment)
@@ -100,10 +102,21 @@ def main() -> None:
             console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) réancrée(s) par le texte (patch non réécrit).[/yellow]")
         if resolution.orphans:
             console.print(f"[bold red]⚠ {len(resolution.orphans)} ligne(s) orpheline(s) du patch, non appliquée(s).[/bold red]")
+            if not args.force:
+                print_conflict(console, CurationConflict(
+                    [f"{entry.left_uuid or '—'} ↔ {entry.right_uuid or '—'}" for entry in resolution.orphans],
+                    "corrigez le patch à la main, ou relancez avec --force pour ignorer ces lignes.",
+                ))
+                sys.exit(1)
 
     sections = load_section_alignment(
         list(left.values()), list(right.values()), PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}", rewrite=False
     )
+    try:
+        refuse_orphans(section_orphans(sections), args.force, "ligne orpheline du patch des rubriques")
+    except CurationConflict as conflict:
+        print_conflict(console, conflict)
+        sys.exit(1)
     links, dropped = restrict_to_corresponding(links, left, right, sections)
     if dropped:
         console.print(f"[yellow]{len(dropped)} lien(s) entre rubriques non appariées écarté(s).[/yellow]")

@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lib.alignment import clean_title, curated_csv, dedupe_records, load_volume, range_dirs, subject_text
-from lib.ner.corpus import CURATED_NER_SUFFIX
+from lib.alignment import clean_title, ner_csv, dedupe_records, load_volume, range_dirs, subject_text
+from lib.ner.corpus import NER_SUFFIX
 
 FIELDS = ["uuid", "parent_uuid", "entity", "markdown", "tagged_text", "page_index"]
 ROOT = "00000000-0000-0000-0000-000000000000"
@@ -13,7 +13,7 @@ ROOT = "00000000-0000-0000-0000-000000000000"
 def write_range(volume: Path, pages: str, rows: list[tuple[str, ...]]) -> None:
     directory = volume / pages
     directory.mkdir(parents=True)
-    with (directory / f"{volume.name}.{pages}{CURATED_NER_SUFFIX}").open("w", encoding="utf-8", newline="") as handle:
+    with (directory / f"{volume.name}.{pages}{NER_SUFFIX}").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(FIELDS)
         writer.writerows(rows)
@@ -88,10 +88,10 @@ class LoadVolumeTests(unittest.TestCase):
         data = dedupe_records(load_volume(self.volume))
         self.assertEqual(data["e0"], {"section": None, "subj": "avant", "text": "avant, rue z."})
 
-    def test_missing_curated_csv(self):
+    def test_missing_ner_csv(self):
         (self.volume / "30-40").mkdir()
         with self.assertRaises(FileNotFoundError):
-            curated_csv(self.volume / "30-40")
+            ner_csv(self.volume / "30-40")
 
 
 if __name__ == "__main__":

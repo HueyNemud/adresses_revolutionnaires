@@ -3,7 +3,7 @@
     uv run align_directories.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292
 
 Chaque annuaire est lu en entier (`lib/alignment.py` : toutes ses plages de
-pages, dans l'ordre, depuis leurs `*.merged.ner.curated.csv`). Les ENTRY sont
+pages, dans l'ordre, depuis leurs `*.merged.ner.csv`). Les ENTRY sont
 comparées sur trois champs :
 
 - `section` : la rubrique (titre `##`, à défaut `#`) ;
@@ -67,7 +67,8 @@ from rich.console import Console
 from rich.table import Table
 
 from lib.alignment import Link, Record, dedupe_records, load_volume, read_links, write_links
-from lib.alignment_patch import PatchStats, Resolution, apply_patch, read_patch, resolve, updated_patch, validate, write_patch
+from lib.alignment_patch import PatchEntry, PatchStats, Resolution, apply_patch, read_patch, resolve, updated_patch, validate, write_patch
+from lib.curation import CurationConflict, print_conflict, refuse_orphans
 from lib.section_alignment import (
     SECTION_PATCH_SUFFIX,
     SOURCE_AUTO,
@@ -76,6 +77,7 @@ from lib.section_alignment import (
     canonical_training_text,
     load_section_alignment,
     restrict_to_corresponding,
+    section_orphans,
 )
 
 console = Console()
@@ -148,6 +150,11 @@ def parse_args() -> argparse.Namespace:
         default=0.5,
         help="Score minimal d'une correspondance retenue (défaut : 0.5).",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore les lignes orphelines des patchs (sinon : arrêt sans rien écrire).",
+    )
     return parser.parse_args()
 
 
@@ -208,17 +215,33 @@ def infer_links(
     return [Link(left_id, right_id, float(score)) for (left_id, right_id), score in links]
 
 
-def patch_links(
-    links: list[Link], patch_path: Path, left_records: dict[str, Record], right_records: dict[str, Record]
-) -> tuple[list[Link], Resolution, PatchStats]:
-    """Applique le patch ; le réécrit si des lignes ont été réancrées."""
+def resolve_patch(
+    patch_path: Path, left_records: dict[str, Record], right_records: dict[str, Record]
+) -> tuple[list[PatchEntry], Resolution]:
+    """Lit, valide (ValueError) et réancre le patch, avant tout calcul."""
     entries = read_patch(patch_path)
     validate(entries)
-    resolution = resolve(entries, left_records, right_records)
+    return entries, resolve(entries, left_records, right_records)
+
+
+def orphan_descriptions(resolution: Resolution) -> list[str]:
+    return [
+        " ↔ ".join(
+            f"{side} {getattr(entry, f'{side}_uuid')} · {getattr(entry, f'{side}_section')} · {getattr(entry, f'{side}_tagged_text')}"
+            for side in ("left", "right")
+            if getattr(entry, f"{side}_uuid")
+        )
+        for entry in resolution.orphans
+    ]
+
+
+def patch_links(
+    links: list[Link], patch_path: Path, entries: list[PatchEntry], resolution: Resolution
+) -> tuple[list[Link], PatchStats]:
+    """Applique le patch ; le réécrit si des lignes ont été réancrées."""
     if resolution.reanchored:
         write_patch(patch_path, updated_patch(entries, resolution))
-    patched, stats = apply_patch(links, resolution.entries)
-    return patched, resolution, stats
+    return apply_patch(links, resolution.entries)
 
 
 def print_patch_summary(patch_path: Path, resolution: Resolution, stats: PatchStats) -> None:
@@ -313,6 +336,17 @@ def main() -> None:
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
         sys.exit(1)
+    try:
+        entries, resolution = resolve_patch(patch_path, left_records, right_records)
+    except (OSError, csv.Error, ValueError) as error:
+        console.print(f"[bold red]Erreur dans le patch :[/bold red] {error}")
+        sys.exit(1)
+    try:
+        refuse_orphans(section_orphans(sections), args.force, "ligne orpheline du patch des rubriques")
+        refuse_orphans(orphan_descriptions(resolution), args.force, "ligne orpheline du patch")
+    except CurationConflict as conflict:
+        print_conflict(console, conflict)
+        sys.exit(1)
 
     raw_path = dedupe_path(output_path)
     if args.apply_only:
@@ -336,11 +370,7 @@ def main() -> None:
         write_links(raw_path, links, left_records, right_records)
         console.print(f"[bold green]✅ Sortie Dedupe :[/bold green] [yellow]{raw_path}[/yellow]")
 
-    try:
-        links, resolution, stats = patch_links(links, patch_path, left_records, right_records)
-    except (OSError, csv.Error, ValueError) as error:
-        console.print(f"[bold red]Erreur dans le patch :[/bold red] {error}")
-        sys.exit(1)
+    links, stats = patch_links(links, patch_path, entries, resolution)
     links, manual_dropped = restrict_to_corresponding(links, left_records, right_records, sections)
     write_links(output_path, links, left_records, right_records)
 
