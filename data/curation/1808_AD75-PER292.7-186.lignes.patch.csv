@@ -1,0 +1,434 @@
+cle,apres,uid,classe,markdown
+4c09a5f7c0f9,,6.4.0,B-TITLE,## AGENS DE CHANGE
+4a4bd1354746,,7.5.0,B-TITLE,### *Membres composant le syndicat*
+07786e201b22,,7.6.1,B-ENTRY,"Leroux,  "
+398462c69bec,,9.4.0,B-TITLE,### *Anciens greffiers des batimens.*
+f8e6a25776ae,,9.6.0,B-TITLE,## ARQUEBUSIERS ET FOURBISSEURS.
+da16ddba767e,,10.2.0,B-TITLE,## BAIGNEURS.
+5254286e22d7,,10.8.1,I-ENTRY,"Pont-Neuf, Pont-Marie."
+09d7b1cc4110,,10.11.0,B-TITLE,## BALANCIERS.
+671593abe33a,,10.18.1,I-ENTRY,"Monnaie, quai de l'Unité, 11."
+5e6390335ecc,,10.24.0,B-TITLE,## BANQUIERS.
+2f2ca3385433,,12.3.0,B-TITLE,## BATTEURS D'OR.
+07fdbd5dfd9d,,12.6.0,B-TITLE,## BIJOUTIERS ET JOAILLIERS.
+6cf25bf4fa96,,15.4.0,B-TITLE,## BOIS. (MARCHANDS DE)
+d3cd638786d6,,17.5.0,B-TITLE,### Bois des Îles.
+cf0c88eec0cf,,18.3.0,B-TITLE,## BONNETIERS.
+255e9795a41c,,20.4.0,B-TITLE,## BOTTIERS PRINCIPAUX.
+2fc0effd46ed,,20.7.0,B-TITLE,## BOUCHERS.
+0a7f9b52c38b,,23.4.0,B-TITLE,"### *Bureau du commerce de la boucherie,  "
+370c367f5e22,,23.4.1,I-TITLE,"établi à la Halle aux veaux, quai de  "
+6df7ac213aec,,23.4.2,I-TITLE,la Tournelle.*
+e1de718c65fb,,23.6.2,SUB-ENTRY,"Anbé, }"
+7ea715aa12f5,,23.6.5,SUB-ENTRY,"Frôment, } *adjoints.*  "
+60af72fb4831,,23.7.0,B-TITLE,## BOULANGERS.
+199be8fb25f5,,24.4.0,B-TITLE,### *Syndics.*
+598aac102a83,,24.6.0,B-TITLE,### *Secrétaire.*
+9e77b01c4571,,24.8.0,B-TITLE,### *Garde-Magasin.*
+497cec47c8c4,,24.10.0,B-TITLE,## BOUTONS. (FABR. ET MARCH. DE)
+8bb627242812,,25.4.0,B-TITLE,## BRASSEURS.
+9a1bd013d5e5,,25.7.0,B-TITLE,## BRETELLES. (FABR. ET MARCH. DE)
+bfcda1c842a5,,25.10.0,B-TITLE,## BRODEURS.
+d759f0dd8243,,26.4.0,B-TITLE,## BRONZES. (FABR. ET MARCH. DE)
+3820d67b29c4,,27.5.0,B-TITLE,## CANNES ET FOUETS. (FABR. ET MARCH. DE)
+ab4ac4f6445f,,27.8.0,B-TITLE,## CARCASSES. (FABRICANT DE)
+e0907f22a7bb,,27.10.0,B-TITLE,## CARTES DE GÉOGRAPHIE. (MARCH. DE)
+862d3fbe8427,,27.15.0,B-TITLE,## CHANDELIERS
+cd8d4e1201e7,,28.3.0,B-TITLE,## CHANGEURS DES MONNAIES
+696b03e9a9ad,,29.5.0,B-TITLE,## CHAPELIERS
+ff480759badb,,30.4.0,B-TITLE,## CHEVAUX. (MARCHANDS DE)
+564905af7ab7,,31.4.0,B-TITLE,## CHOCOLAT. (FABRICANS DE)
+9bab4eef088e,,31.7.0,B-TITLE,"## CIRIERS, BOUGIES. (MARCHANDS DE)"
+68c3dddf2a79,,31.10.0,B-TITLE,## COLLE-FORTE. (FABRICANS DE)
+479cb8eb703f,,32.2.0,B-TITLE,## COMESTIBLES. (MARCHANDS DE)
+b23ba1e28b8e,,32.5.0,B-TITLE,## COMMISSIONNAIRES.
+2a5a4eb6fc5a,,35.2.0,B-TITLE,## CORROYEURS.
+c7e6385531de,,35.4.0,B-TITLE,## COULEURS ET VERNIS. (FAB. ET MARCH. DE)
+a398e055800c,,36.3.0,B-TITLE,## COURTIERS DE COMMERCE.
+08f1909d3275,,37.4.0,B-TITLE,### *Syndicat.*
+be69d27dcc71,,37.6.0,B-TITLE,### *Adjoint au syndic.*
+b57a60146c31,,37.7.0,B-ENTRY,Benard.  
+08415b51b4b1,,37.8.0,B-TITLE,## COUTELIERS.
+c1a58ffdd417,,37.10.11,I-ENTRY,"Saints-Pères , 47.  "
+a382886ba157,,38.15.0,B-TITLE,### *Marchands de Métaux.*
+e70b77bc34b8,,39.3.0,B-TITLE,### *Chaudronniers principaux.*
+60986955c580,,40.4.0,B-TITLE,## DISTILLATEURS.
+0bf73e9d68b1,,40.6.0,I-ENTRY,"C. F. M. Farina, à Cologne, rue Neuve-Saint-Eustache, 32.  "
+a942947a8482,,41.4.0,B-TITLE,## DRAPS. (MARCHANDS DE)
+6ce99b1eb263,,42.3.27,I-ENTRY,"Deux-Ecus, 15.  "
+a2f6653ae896,,43.2.0,B-TITLE,## EAU-DE-VIE. (MARCHANDS D')
+ba339eb38872,,43.5.0,B-TITLE,## EAU-FORTE ET ACIDES MINÉRAUX. (FAB. ET MARCH D')
+2834d49b6167,,43.8.0,B-TITLE,## EAUX MINÉRALES. (MARCHANDS D')
+9889ccdf6229,,43.11.0,B-TITLE,## ÉBÉNISTES.
+542a7fa3d9e0,,44.4.0,B-TITLE,## ENCRE. (FABR. ET MARCH. D')
+908709b896a2,,44.7.0,B-TITLE,## ENTREPRENEURS DE BATIMENS.
+ff29fc86d836,,47.5.0,B-TITLE,### *Toiseurs et Vérificateurs de Bâtimens.*
+ed9b96a701c9,,48.5.0,B-TITLE,## ÉPICIERS.
+48ff28806f24,,55.4.0,B-TITLE,## ESTAMPES. (MARCHANDS D')
+15ca5dd01143,,56.5.0,B-TITLE,## ÉVENTAILLISTES.
+c25b95944f7a,,56.8.0,B-TITLE,## FACTEURS AUX HALLES.
+e3bbb6af9a3c,,56.9.0,B-TITLE,### *Facteurs aux Farines.*
+d4edc84132ed,,56.12.0,B-TITLE,### *Facteurs aux grains.*
+eb9ac8e4315a,,57.3.0,B-TITLE,### *Factrices à la Marée.*
+67e8be232f78,,57.5.0,B-TITLE,### *Facteurs d'Huîtres.*
+bfd097dd1b6d,,57.8.0,B-TITLE,### *Facteurs à la halle au Beurre et aux Œufs.*
+426f2591ee91,,57.10.0,B-TITLE,### *Facteurs à la Vallée.*
+a07f27f71fcb,,57.12.0,B-TITLE,## FACTEURS D'INSTRUMENS ET LUTHIERS.
+8661884e4cda,,58.4.0,B-TITLE,## FAIENCIERS.
+e1763a463059,,59.5.0,B-TITLE,## FER. (MARCHANDS DE)
+67602bff6e9c,,60.4.0,B-TITLE,## FILATURES DE COTON.
+883a43000cf0,,60.7.0,B-TITLE,## FLEURISTES ET PLUMASSIERS.
+c4ff6e5c242c,,61.5.0,B-TITLE,## FONDEURS.
+8e681dd0274c,,61.6.12,I-ENTRY,"Monceau-St.-Gervais, 13.  "
+ac3bc435daa2,,62.2.0,B-ENTRY,"Launay, *fabr. et Md. de fer coul, rue Hauteville*, 29.  "
+419af753046b,,62.2.1,B-ENTRY,"Lefvre, *rue Quincampoix*, 27.  "
+01c6fe80bdb6,,62.2.3,B-ENTRY,"Le Mic, *rue de la Vieille-Monnaie*, 17.  "
+7f5fde5d1331,,62.2.10,B-ENTRY,"Phlup, *rue Aumaire*, 7.  "
+1aa70472b186,,62.3.1,B-ENTRY,"Prophte-Aimable, *r. du Cur-Volant*, 7.  "
+44445a9b06fa,,62.3.10,B-ENTRY,"Vachat, *en mtal, pompier-fontainier, rue Pagevin*, 14.  "
+bf25877b9601,,62.3.12,B-ENTRY,"Verbericq, *acheveur, r. d'Angonime*, 30.  "
+95972fcc35e5,,62.4.0,B-TITLE,## FONDEURS EN CARACTÈRES D'IMPRIMERIE.
+0298526aa947,,62.5.5,B-ENTRY,"Hy et Gando, *graveur, rue des Maons-Sorbonne*, 21.  "
+da0d103f1428,,62.5.6,B-ENTRY,"Gill, *rue St.-Jean-de-Beauvais*, 18.  "
+2bc75721a715,,62.6.2,B-ENTRY,"Milly, *rue des Postes*, 34.  "
+b38b2a239a5d,,62.6.3,B-ENTRY,"Maill, *rue du Cimelire-St.-Andr*, 7.  "
+ac012870f528,,62.6.5,B-ENTRY,"Mercklein, (Auguste) *rue de l'Ecole-de-Mdecine*, 11.  "
+a85b46c89b49,,62.6.6,B-ENTRY,"Vernange, *rue Poupe*, 16.  "
+bcca71a3636c,,62.6.7,B-ENTRY,"Vibert, *rue Maon*, 10."
+4446e073c1d1,,62.7.0,B-TITLE,## FONTAINIERS.
+8ce5f8e42fdf,,62.8.0,B-ENTRY,"Clment, *Md. de fontaines de grs, rue du Monceau*, 3.  "
+016eeac158ca,,62.9.0,I-ENTRY,"*les magasins de fontaines  filtre-charbon par brevet d'invention, rue de Beaune*, 2."
+629275d72dee,,62.10.0,B-TITLE,## FORGES. (MAITRES DE)
+09ea006028f1,,62.11.0,B-ENTRY,"Carillion-Destilliers, *propritaire dans le dpartement du Cher, rue Basse-du-Rempart*, 8.  "
+1e2409f8962c,,62.11.1,B-ENTRY,"Chaillou frres, *propritaire  Sauvage, dpartement de la Nivre, et  Beaumont-Laferrre, rue Sainte-Appoline*, 8.  "
+2092ff08e7da,,62.11.2,B-ENTRY,"Desimiane, (Mad.) *propritaire, dpartement de la Haute-Marne, rue du Faub.-Saint-Honor*, 85.  "
+7d9af4afc2aa,,62.11.3,B-ENTRY,"Dubourg, (Mad.) *propritaire, dpartement de la Nivre, place Vendme*, 20.  "
+8d0a66c42550,,62.11.4,B-ENTRY,"Falatieu, (Jos.) *propritaire de la manufacture de fer-blanc, des tireries et forges,  Bains, dpartement des*"
+e2f062e86b42,,62.12.0,I-ENTRY,"*Vosges; pied--terre rue des Bourdonnais*, 17.  "
+e1531aafc0e4,,62.12.1,B-ENTRY,"Le Vacher - Dusouzel, *propritaire  Nevers, dpartement de la Nivre, rue de Mnars*, 12.  "
+9e1c6ccf781e,,62.12.2,B-ENTRY,"Marquette - Floury, *propritaire, dpartement de la Haute-Marne; pied--terre chez M. Halotel, rue de Touron*, 4.  "
+4247d82813e3,,62.12.3,B-ENTRY,"Michel frres, *rue du Lyce*, 4.  "
+57f188ede552,,62.12.4,B-ENTRY,"Molera-de-Riaucourt, *propritaire, dpartement de la Haute-Marne, rue Christine*, 4.  "
+fb67417205ee,,62.12.5,B-ENTRY,"Moreau, Thomas - Desneux et comp. *rue Saint-Antoine*, 177.  "
+6793538c1680,,62.12.6,B-ENTRY,"Robin, *propritaire, dpartement de la*"
+b1c8763e1e9c,,63.4.0,B-TITLE,## FOURREURS.
+95a02d1bc040,,63.7.0,B-TITLE,## FRIPIERS ET TAILLEURS.
+8baaf5af3d77,,64.4.0,B-TITLE,"## GALONNIERS, PASSEMENTIERS ET FRANGERS."
+5a7cf43fff07,,65.4.0,B-TITLE,## GANTIERS ET CULOTTIERS.
+fd561b4e66e5,,66.3.0,B-TITLE,## GAZE. (FABRICANS DE)
+7a224e9e79f9,,66.5.0,B-TITLE,## GLACES. (MANUFACTURE DE)
+f1b222adbfec,,66.7.0,B-TITLE,## GRAVEURS.
+9e27c2eb33c9,,69.3.32,I-ENTRY,"St.-Jacques, 36.  "
+95ffd40fbea4,,69.4.40,B-TITLE,### *Planeurs en cuivre pour les Graveurs. *
+878c5fd67142,,69.5.0,B-TITLE,## HORLOGERS.
+b8eb5353cd21,,71.5.0,B-TITLE,## HOTELS GARNIS.
+1cc79cddf79a,,75.4.0,B-TITLE,## HUILES. (MARCHANDS D')
+ca323d9b68da,,75.7.0,B-TITLE,## IMPRIMEURS.
+8461e713f97e,,76.3.0,B-TITLE,## IMPRIMEURS EN TAILLE-DOUCE.
+52b364f7791f,,77.4.0,B-TITLE,## INSTITUTEURS ET INSTITUTRICES TENANT MAISON D'ÉDUCATION.
+5fd351ef31a1,,77.5.0,B-TITLE,### LYCÉE IMPÉRIAL
+33445c179eb3,,77.7.0,B-TITLE,#### Conseil d'administration.
+87340eecf30e,,77.9.0,B-TITLE,### LYCÉE NAPOLÉON.
+33445c179eb3~2,,77.11.0,B-TITLE,#### Conseil d'administration.
+1c1947316beb,,77.13.0,B-TITLE,### LYCÉE BONAPARTE.
+33445c179eb3~3,,77.15.0,B-TITLE,#### Conseil d'administration.
+92ae5ca024be,,77.17.0,B-TITLE,### LYCÉE CHARLEMAGNE.
+33445c179eb3~4,,77.19.0,B-TITLE,#### Conseil d'administration.
+73784fd67daf,,77.21.0,B-TITLE,"### ÉCOLE IMPÉRIALE POLYTECHNIQUE,"
+e00ef7b51ba4,,78.2.0,B-TITLE,### DIRECTEURS D'ÉCOLES SECONDAIRES.
+c1abfb3c9685,,78.4.0,B-TITLE,### INSTITUTEURS PARTICULIERS.
+1765792ffa27,,79.4.0,B-TITLE,#### *Sourds-Muets.*
+acace2413d03,,79.6.0,B-TITLE,#### *Musée des Aveugles.*
+389dbb54ebf0,,79.7.1,SUB-ENTRY,"Les Aveugles y apprennent lecture, écriture, etc., etc. imprimerie, tissanderie, passementerie, fabrique de tricot, etc."
+5042884d688d,,79.8.0,B-TITLE,### INSTITUTRICES POUR LES DEMOISELLES.
+500a1f087ee2,,79.9.0,OUT OF SCOPE,*Mesdames*
+a0e330d4805e,,81.2.0,B-TITLE,"## JARDINIERS-FLEURISTES, PÉPINIÉRISTES,  "
+2ec5a899902c,,81.2.1,B-TITLE,## MARCHANDS D'ARBRES.
+36fbb78a590d,,82.2.0,B-TITLE,## JOUETS D'ENFANS. (MARCH. EN GROS DE)
+0051174e807e,,82.5.0,B-TITLE,## LAINES. (MARCHANDS DE)
+88c88675fb01,,82.7.0,B-TITLE,"### *Marchands de laines, dits de fer en meubles.*"
+85a5685401e0,,82.10.0,B-TITLE,### *Marchands de laines filées.*
+b124e11df924,,82.12.0,B-TITLE,## LAMPISTES.
+3087d122faef,,83.4.0,B-TITLE,## LAPIDAIRE.
+bc366a1e9267,,83.7.0,B-TITLE,## LIBRAIRES.
+115eedf6c011,,86.4.0,B-TITLE,"## LIMONADIERS, CAFÉS."
+f0d731803703,,88.6.0,B-TITLE,## LINGERS.
+833302e45168,,91.4.0,B-TITLE,## MARBRIERS.
+c72e40b32d72,,91.7.0,B-TITLE,## MASQUES. (FABRICANS DE)
+630156045751,,92.2.0,B-TITLE,## MATHÉMATIQUES ET PHYSIQUE. (FABR. D'INSTR. DE)
+2095767cd875,,92.4.0,B-TITLE,## MÉCANICIENS ET MACHINISTES.
+1e02c22a3a70,,94.4.27,I-ENTRY,"Faubourg-Saint-Martin, 51.  "
+a2c6c7b658f1,,98.4.0,B-TITLE,## MIROITIERS.
+ab5ec5e81fec,,98.7.0,B-TITLE,## MODES. (MARCHANDS DE)
+b21d864c69f0,,99.3.0,B-TITLE,## MOUSSELINES. (MARCHANDS DE)
+5c3c415c4870,,100.4.0,B-TITLE,## MUSIQUE. (MARCHANDS DE)
+9ebd415939a8,,100.7.0,B-TITLE,"## NATURALISTES, ou FABRICANS ET MARCHANDS D'OBJETS RELATIFS A L'HISTOIRE NATURELLE."
+259d2e6e437f,,101.5.0,B-TITLE,## NÉGOCIANS.
+0f73f340b99d,,103.3.57,I-ENTRY,"Vieilles-Etuves, 16."
+cc1db495c2b4,,108.4.0,B-TITLE,## OPTICIENS ET LUNETIERS.
+3de23c633480,,108.7.0,B-TITLE,## ORFÈVRES.
+9728848c0930,,111.4.0,B-TITLE,### *Essayeurs du Commerce.*
+565d09f08a7c,,111.6.0,SUPPRIMÉE,#### PAPETIERS.
+8e59efc4f4ba,,111.7.0,SUPPRIMÉE,"Auzou, (Ch.-Marie) rue d'Anjou, 19.  "
+5d1d4a0022b3,,111.7.1,SUPPRIMÉE,"Auzou, rue de la Verrerie, 101.  "
+13a5bba89073,,111.7.2,SUPPRIMÉE,"Badet, *et cartier*, rue Helvétius, 37.  "
+1f329dc513a1,,111.7.3,SUPPRIMÉE,"Beaurain, rue de la Ferronnerie, 2.  "
+33191e12c4ca,,111.7.4,SUPPRIMÉE,"Bechard, (Mad.) rue Thiroux, 5.  "
+6d3b972651ca,,111.7.5,SUPPRIMÉE,"Bedel, rue Vivienne, 5.  "
+725fb25ca16e,,111.7.6,SUPPRIMÉE,"Bertaux, rue St.-Jacques.  "
+c735a2819929,,111.7.7,SUPPRIMÉE,"Bessard, rue de Condé, 10.  "
+e425003d51b5,,111.7.8,SUPPRIMÉE,"Bessnier, rue St.-André-des-Arts, 26."
+104d254fd2d0,,111.8.0,B-TITLE,### *Fabricans de Plaqué et Doublé d'or et d'argent.*
+05b4b9583134+1,05b4b9583134,111.10.0,B-TITLE,## PAPETIERS.
+05b4b9583134+2,05b4b9583134+1,111.11.0,B-ENTRY,"Auzou, (Ch.-Marie) rue d'Anjou, 19.  "
+05b4b9583134+3,05b4b9583134+2,111.11.1,B-ENTRY,"Auzou, rue de la Verrerie, 101.  "
+05b4b9583134+4,05b4b9583134+3,111.11.2,B-ENTRY,"Badet, *et cartier*, rue Helvétius, 37.  "
+05b4b9583134+5,05b4b9583134+4,111.11.3,B-ENTRY,"Beaurain, rue de la Ferronnerie, 2.  "
+05b4b9583134+6,05b4b9583134+5,111.11.4,B-ENTRY,"Bechard, (Mad.) rue Thiroux, 5.  "
+05b4b9583134+7,05b4b9583134+6,111.11.5,B-ENTRY,"Bedel, rue Vivienne, 5.  "
+05b4b9583134+8,05b4b9583134+7,111.11.6,B-ENTRY,"Bertaux, rue St.-Jacques.  "
+05b4b9583134+9,05b4b9583134+8,111.11.7,B-ENTRY,"Bessard, rue de Condé, 10.  "
+05b4b9583134+10,05b4b9583134+9,111.11.8,B-ENTRY,"Bessnier, rue St.-André-des-Arts, 26."
+05b4b9583134+11,05b4b9583134+10,111.12.0,B-ENTRY,"Blanché, rue de Cléry, 42."
+05b4b9583134+12,05b4b9583134+11,111.12.1,B-ENTRY,"Blanché (Mad.) rue des Deux-Ponts, 17."
+05b4b9583134+13,05b4b9583134+12,111.12.2,B-ENTRY,"Boischard, *en gros*, rue des Grands Augustins, 7."
+05b4b9583134+14,05b4b9583134+13,111.12.3,B-ENTRY,"Bougron, rue Montmartre, 128.  "
+05b4b9583134+15,05b4b9583134+14,111.12.4,B-ENTRY,"Boulanger, rue aux Ours, 8."
+05b4b9583134+16,05b4b9583134+15,111.12.5,B-ENTRY,"Boulanger, rue St.-Benoit, 19."
+05b4b9583134+17,05b4b9583134+16,111.12.5,B-ENTRY,"Boulanger, (Ve.) rue Vivivenne, 22."
+8b93ad398b2b,,113.3.0,B-TITLE,## PAPIERS PEINTS. (FABR. ET MARCH. DE)
+2ccf2fb9a636,,113.4.0,B-TITLE,### *Fabricans de Papiers peints.*
+635ca85f972f,,114.2.42,I-ENTRY,"29; et rue de Bellefond, 11.  "
+15d6fa890d2b,,114.4.0,B-TITLE,### *Marchands de Papiers peints.*
+eac05196a407,,114.6.0,B-TITLE,## PARAPLUIES ET PARASOLS. (FABR. DE.)
+ecc235082e74,,114.9.0,B-TITLE,## PARFUMEURS.
+2b1ff10526c1,,116.4.0,B-TITLE,## PATISSIERS PRINCIPAUX.
+168448d45029,,116.7.0,B-TITLE,## PEAUSSIERS ET FABRICANS DE MAROQUIN.
+a381b20db7e7,,116.10.0,B-TITLE,## PEINTRES. (ARTISTES-)
+b289d93fae45,,120.4.0,B-TITLE,## PEINTRES EN BATIMENS ET VOITURES.
+778fa4a05556,,122.4.0,B-TITLE,## PERLES. (FABRICANS ET MARCHANDS DE)
+d528d6d567eb,,122.7.0,B-TITLE,## PHARMACIENS.
+dc47307d674e,,124.10.0,B-TITLE,### *Veuves de Pharmaciens.*
+8e811446b93f,,124.14.0,B-TITLE,## PLOMBIERS.
+1e9339676251,,124.57.0,B-TITLE,## PORCELAINE. (FABRICANS ET MARCHANDS DE)
+12dda82d2ede,,125.4.0,B-TITLE,## POTIERS D'ÉTAIN.
+69c14a5d4883,,125.7.0,B-TITLE,## POTIERS DE TERRE.
+8cb278b3e074,,125.8.0,B-TITLE,### *Fabricans.*
+4c7fe5c527cd,,125.10.0,B-TITLE,### *Marchands.*
+137d02b25d12,,125.13.0,B-TITLE,## QUINCAILLIERS.
+ca3799b8ff86,,127.1.0,SUPPRIMÉE,248
+8b0cc76a8759,,127.2.0,SUPPRIMÉE,"Teinturiers, Tireurs d'or. - PARIS."
+8146980277c5,,127.3.0,SUPPRIMÉE,"Beauvisage, rue Meslée, 60.  "
+a900858f22d3,,127.3.1,SUPPRIMÉE,"Belin, rue St.-Martin, 196.  "
+250da62f8921,,127.3.2,SUPPRIMÉE,"Berger, rue St.-Christophe, 8.  "
+f30318310989,,127.3.3,SUPPRIMÉE,"Berthier, rue du Mail, 8.  "
+cc8471438a9f,,127.3.4,SUPPRIMÉE,"Bonnand, rue St.-Germain-l'Auxerrois, 70.  "
+413299487bfc,,127.3.5,SUPPRIMÉE,"Bonnefoy, rue du Cadran, 21.  "
+45c904adbf63,,127.3.6,SUPPRIMÉE,"Bonnetan, rue St.-Sauveur, 19.  "
+ee962e6b9de4,,127.3.7,SUPPRIMÉE,"Bouchonnier, rue Quincampoix, 15.  "
+595c058ef6b5,,127.3.8,SUPPRIMÉE,"Bougonnier, rue des Filles-Dieu, 15.  "
+aab8da1ac3f1,,127.3.9,SUPPRIMÉE,"Bouillery, rue des Francs-Bourgeois, 19,  "
+9e0520fa3082,,127.3.10,SUPPRIMÉE,au Marais.  
+ef7df1dd6324,,127.3.11,SUPPRIMÉE,"Bourgoat, rue des Rats, 4.  "
+5eed54e77658,,127.3.12,SUPPRIMÉE,"Bouvier, rue Quincampoix, 63, passage  "
+a2258fa3d1a3,,127.3.13,SUPPRIMÉE,Beaultort.  
+aaf7969577d7,,127.3.14,SUPPRIMÉE,"Cahagne, rue Troussevache, 26.  "
+d6c22fa5ca5e,,127.3.15,SUPPRIMÉE,"Carré, (Ve.) rue de la Héraumerie, 3.  "
+2fde205d873d,,127.3.16,SUPPRIMÉE,"Caumont, rue de Richelieu, 2.  "
+df53538479a0,,127.3.17,SUPPRIMÉE,"Chapé, *calandreur*, rue du Hasard, 4.  "
+1dfc1b88e0ed,,127.3.18,SUPPRIMÉE,"Chaumet, rue de la Planche, 18.  "
+827745d895dd,,127.3.19,SUPPRIMÉE,"Climat, r. de la Vieille-Pl.-aux-Veaux, 10.  "
+01ed4f2c059a,,127.3.20,SUPPRIMÉE,"Déséiné, rue Neuve-St.-Eustache, 48.  "
+c55a6fee4f8b,,127.3.21,SUPPRIMÉE,"Desroziets, *de gazes*, rue Thévenot, 2.  "
+59c1cd4a9741,,127.3.22,SUPPRIMÉE,"Doinel, rue des Prouvaires, 7.  "
+c2433ec0dac4,,127.3.23,SUPPRIMÉE,"Dumas, *manuf. de teinture*, rue des  "
+e34ddba23e38,,127.3.24,SUPPRIMÉE,"Gobelins, 3 et 5.  "
+507c008b4c89,,127.3.25,SUPPRIMÉE,"Duplex, *prop. de l'essence vestimen-  "
+69b937c904cf,,127.3.26,SUPPRIMÉE,"tale*, rue St.-Martin, 110.  "
+5d4512281be1,,127.3.27,SUPPRIMÉE,"Dupuis, rue de la Madelaine, 10.  "
+833031bf9ce5,,127.3.28,SUPPRIMÉE,"Durand, rue Troussevache, 14.  "
+530f811dd660,,127.3.29,SUPPRIMÉE,"Evrard, (Joseph) *en soie*, Marché-Neuf.  "
+a232e56aa060,,127.3.30,SUPPRIMÉE,"Felison, rue Troussevache, 6.  "
+06edad6424b7,,127.3.31,SUPPRIMÉE,"Ferlier, *fabr. de teinture*, rue d'A-  "
+4d5f6948c921,,127.3.32,SUPPRIMÉE,"boukir, 55.  "
+1a26ca730e4a,,127.3.33,SUPPRIMÉE,"Fortier, rue Aumaire, 24.  "
+9383414e7bca,,127.3.34,SUPPRIMÉE,"Foubert, rue de Massillon.  "
+f3b40560eacf,,127.3.35,SUPPRIMÉE,"Gaillard, rue d'Enfer, 13.  "
+37787bcea67f,,127.3.36,SUPPRIMÉE,"Gallety, quai de la Librière, 2.  "
+dfa694abbae2,,127.3.37,SUPPRIMÉE,"Gallot, rue du Bacq, 38.  "
+849b234cad7d,,127.3.38,SUPPRIMÉE,"Ginette, place Maubert, 42.  "
+b9592af7a09a,,127.3.39,SUPPRIMÉE,"Gonin, place Fénélon, 3.  "
+65f58b602965,,127.3.40,SUPPRIMÉE,"Guillemot, *en laine*, r. des Lombards, 19.  "
+474ed8ee2369,,127.3.41,SUPPRIMÉE,"Henry, rue de Verneuil, 22.  "
+e40257413e2b,,127.3.42,SUPPRIMÉE,"Hnault, *en chapeaux*, rue des Mènes-  "
+805bfb783448,,127.3.43,SUPPRIMÉE,"triers, 6.  "
+5d67e053aff7,,127.3.44,SUPPRIMÉE,"Jobard, *en chapeaux*, place Maubert, 7.  "
+b09449f1692e,,127.3.45,SUPPRIMÉE,"Joigny, rue St.-Denis, cour Batave, 15.  "
+5af03fbdf9f2,,127.3.46,SUPPRIMÉE,"Jolly neveu, rue de la Vannerie, 17.  "
+36770505f591,,127.3.47,SUPPRIMÉE,"Lacroix, *en chapeaux*, cul-de-sac d'Am-  "
+779326db743f,,127.3.48,SUPPRIMÉE,"boise, place Maubert, 1.  "
+08282389c63e,,127.3.49,SUPPRIMÉE,"Lainé, *calandreur*, rue du Cimetiére-St-  "
+1f42e24bb9b5,,127.3.50,SUPPRIMÉE,"Nicolas, 22.  "
+dbc19c6c4e47,,127.3.51,SUPPRIMÉE,"Lanau, rue de Tracy, 9."
+748d5dc14227,,127.4.0,SUPPRIMÉE,"Langlois, rue Quincampoix, 66.  "
+b51819587c61,,127.4.1,SUPPRIMÉE,"Langlois fils, *et imprimeur sur toiles*,  "
+f706ff356758,,127.4.2,SUPPRIMÉE,"rue de Condé, 10.  "
+d816e943fb38,,127.4.3,SUPPRIMÉE,"Leclerc, rue des Gravilliers, 23.  "
+93f0684b6a69,,127.4.4,SUPPRIMÉE,"Leroux, rue Pagevin, 20.  "
+baa3d6fb068b,,127.4.5,SUPPRIMÉE,"Lietard, passage des Petits-Pères, 6.  "
+e7d805ef499e,,127.4.6,SUPPRIMÉE,"Machault et comp., *manufact. à Passy*,  "
+d21ce3a9676d,,127.4.7,SUPPRIMÉE,*où ils teignent et apprêtent les draps*  
+51c19add14e6,,127.4.8,SUPPRIMÉE,"*et autres étoffes de laine, reteignent*  "
+8ab694a39ae1,,127.4.9,SUPPRIMÉE,"*et remettennent à neuf les vieux draps, et*  "
+8a9fb5c26b2f,,127.4.10,SUPPRIMÉE,*ceux dont la couleur est piquée ou*  
+cd6f3ed81502,,127.4.11,SUPPRIMÉE,"*passée; rue d'Orléans-St.-Honoré, 12;*  "
+920f42af5984,,127.4.12,SUPPRIMÉE,"*et rue de Richelieu, 44.*  "
+7cf6dd18dc62,,127.4.13,SUPPRIMÉE,"Mansuy, rue de Jouy, 15.  "
+fdf3f045937b,,127.4.14,SUPPRIMÉE,"Maréchal, rue des Vieilles-Garnisons, 10.  "
+e3ca15c2affb,,127.4.15,SUPPRIMÉE,"Margotin, rue de la Cossonnerie, 12.  "
+671885b81093,,127.4.16,SUPPRIMÉE,"Marie, foire du Caire, 11.  "
+c185b630a76b,,127.4.17,SUPPRIMÉE,"Mariette, rue des Bourdonnais, 11.  "
+b782cf5c2bae,,127.4.18,SUPPRIMÉE,"Marion, *calandreur*, rue Trainée, 3.  "
+bdcd9f09714a,,127.4.19,SUPPRIMÉE,"Marsilly, rue Traversière-St.-Honoré, 8.  "
+2ab880a6eba8,,127.4.20,SUPPRIMÉE,"Martigny aîné, rue de la Verrerie, 81.  "
+8723a6c30d25,,127.4.21,SUPPRIMÉE,"Martigny jeune, rue de la Mortellerie, 85.  "
+8392d231274f,,127.4.22,SUPPRIMÉE,"Martigny, rue Aumaire, 10.  "
+db83e7652fca,,127.4.23,SUPPRIMÉE,"Mignan, (Ve.) rue Favart, 8.  "
+e0c6665603fc,,127.4.24,SUPPRIMÉE,"Mignot, rue de Seine, 55.  "
+1fcd9f993944,,127.4.25,SUPPRIMÉE,"Morlet, rue d'Orléans-St.-Honoré, 8.  "
+30c7c24e6b72,,127.4.26,SUPPRIMÉE,"Ossude, rue de Grénelle-S.-Germain, 47.  "
+e8b39ec27daf,,127.4.27,SUPPRIMÉE,"Petit, rue du Caire, 32.  "
+fdbb1f7d1d80,,127.4.28,SUPPRIMÉE,"Petit, rue de Beaune, 10.  "
+9646c2cc8cf2,,127.4.29,SUPPRIMÉE,"Peuncher, rue de la Réunion, 35.  "
+a175814ecdec,,127.4.30,SUPPRIMÉE,"Pinelle fils, rue du Mouton, 9.  "
+6f21f9eba226,,127.4.31,SUPPRIMÉE,"Renouf, *calandreur*, rue Gérard-Beau-  "
+f7580bcfc0af,,127.4.32,SUPPRIMÉE,"quet, 5.  "
+23f4d6b23668,,127.4.33,SUPPRIMÉE,"Rivorard, rue Saint-Germain-l'Auxer-  "
+19c3f98d9e3d,,127.4.34,SUPPRIMÉE,"rois, 20.  "
+cf678fb938d3,,127.4.35,SUPPRIMÉE,"Roussel, *calandreur*, rue de la Calan-  "
+b212fe0d68ad,,127.4.36,SUPPRIMÉE,"dre, 48.  "
+2c973d7fd1a8,,127.4.37,SUPPRIMÉE,"Salingre, rue des Trois-Portes, 13.  "
+d9b72758bd04,,127.4.38,SUPPRIMÉE,"Servant, rue des Vieux-Augustins, 42.  "
+c275e93f662c,,127.4.39,SUPPRIMÉE,"Tamissier, (Ve.) rue des Bourdonnais, 5.  "
+249c10c0892b,,127.4.40,SUPPRIMÉE,"Tamissier, (Ve.) rue de la Tannerie, 28.  "
+88b4325818eb,,127.4.41,SUPPRIMÉE,"Taupin, rue St.-Germain-l'Auxerrois, 19.  "
+adda95649efc,,127.4.42,SUPPRIMÉE,"Thomas, rue des Lavandières, 5.  "
+0b072dd8df84,,127.4.43,SUPPRIMÉE,"Tierlin, rue Boutibourg, 19.  "
+9afa68aa35f1,,127.4.44,SUPPRIMÉE,"Truffaut, rue Favart, 1.  "
+0a1e86f43626,,127.4.45,SUPPRIMÉE,"Varé et Auchois le jeune, rue de la  "
+4cb2c426e3be,,127.4.46,SUPPRIMÉE,Bucherie.  
+d92db9ba88c1,,127.4.47,SUPPRIMÉE,"Vanban, rue du Doyenné, 2.  "
+6b63d7877536,,127.4.48,SUPPRIMÉE,"Vérité fils et comp., *manuf. de teinture*,  "
+7fad70ecf945,,127.4.49,SUPPRIMÉE,"rue des Gobelins, 19.  "
+2a87390b0b34,,127.4.50,SUPPRIMÉE,"Vivant, rue d'Enfer, 19.  "
+92305de001e0,,127.4.51,SUPPRIMÉE,"Vouanier, rue de Tracy, 8."
+84da5b1273d1,,127.5.0,SUPPRIMÉE,TIREURS D'OR.
+4137fc7bc061,,127.6.0,SUPPRIMÉE,"Durret (A.-F.) et compagnie, rue Saint-  "
+02effe69476f,,127.6.1,SUPPRIMÉE,"Denis, 277.  "
+746d2bda27b4,,127.6.2,SUPPRIMÉE,"Genin, rue St.-Denis, 281."
+3cdbc21ded76,,127.7.0,SUPPRIMÉE,"Larcher, rue St.-Denis, 217.  "
+b899beadc331,,127.7.1,SUPPRIMÉE,"Tochon, rue du Four-St.-Germain, 5."
+d175aa79ae50,,128.1.0,SUPPRIMÉE,Toiles. (Marchands de) - PARIS.
+ee44c6bcc4e0,,128.2.0,SUPPRIMÉE,249
+56d8f94f3080,,128.3.0,SUPPRIMÉE,TOILES (MARCHANDS DE)
+c67a7eeb209f,,128.4.0,SUPPRIMÉE,"Aubineau (E.) et Pluchart, (A.) et mousselines, etc., pass. des Petits-Pères, 9.  "
+6a69cec8017e,,128.4.1,SUPPRIMÉE,"Bacquet, en gros, rue Montmartre, 15.  "
+a73dfc2305ac,,128.4.2,SUPPRIMÉE,"Baron, (Ve.) rue du Faub.-S.-Antoine, 3.  "
+12b0d2608111,,128.4.3,SUPPRIMÉE,"Belcour, et mousselines, rue Quincampoix, 32.  "
+4f98d5cfe8e3,,128.4.4,SUPPRIMÉE,"Besnard l'aîné, en gros, rue des Deux-Boules, 2.  "
+d1a02b82f2f2,,128.4.5,SUPPRIMÉE,"Bevy, de coton, cloître Ste.-Opportune, 3.  "
+b3e66193b09f,,128.4.6,SUPPRIMÉE,"Bigot, en gros, r. Aubry-le-Boucher, 45.  "
+78afa40a15f6,,128.4.7,SUPPRIMÉE,"Bouvier, rue du Four-St.-Germain, 35.  "
+5900bfa5468c,,128.4.8,SUPPRIMÉE,"Briant, en gros, rue des Lavandières, 24.  "
+b826d0c6cf79,,128.4.9,SUPPRIMÉE,"Brouhaud (Adrien) et comp., rue des Lavandières, 22.  "
+f47e7dedca0d,,128.4.10,SUPPRIMÉE,"Brugière, rue Quincampoix, 12.  "
+a9fa3bc34eae,,128.4.11,SUPPRIMÉE,"Bunel, en gros, rue St.-Honoré, 83 bis.  "
+3744b179c606,,128.4.12,SUPPRIMÉE,"Caille, rue Vivienne, 11.  "
+ff0d176202f8,,128.4.13,SUPPRIMÉE,"Calenge, en gros, rue des Fossés-Montmartre, 12.  "
+0a72359985b2,,128.4.14,SUPPRIMÉE,"Chatain-Chéron, en gros, rue Thibautodé, 12.  "
+61296b178e62,,128.4.15,SUPPRIMÉE,"Clairin des Lauriers, en gros, rue Quincampoix, 4.  "
+995b1266d56e,,128.4.16,SUPPRIMÉE,"Crochard, (J.-R.) rue de Richelieu, 82; et rue Feydeau, 34.  "
+66ae241bb354,,128.4.17,SUPPRIMÉE,"Crussière, rue St.-Antoine, 182.  "
+cfb237607234,,128.4.18,SUPPRIMÉE,"Datté, et mousselines, rue de Sèvres, 2.  "
+64365a221bf8,,128.4.19,SUPPRIMÉE,"David, en gros, rue des Mauvaises-Paroles, 18; et rue du Plat-d'Etain, 6.  "
+815555130d38,,128.4.20,SUPPRIMÉE,"Delaribadière, (Mlle.) place Maubert, 3.  "
+aafa528065ab,,128.4.21,SUPPRIMÉE,"Delattre, toutes sortes de toiles et linge de table, rue des Jeûneurs, 13.  "
+b93b98e3fc19,,128.4.22,SUPPRIMÉE,"Demonceaux, en gros, rue S.-Honoré, 14.  "
+110355bcfc56,,128.4.23,SUPPRIMÉE,"Deschamps, rue de la Barillerie, 31.  "
+be9af36c1d67,,128.4.24,SUPPRIMÉE,"Desmares, en gros, rue des Bourdonnais, 19.  "
+da2c8a678cc6,,128.4.25,SUPPRIMÉE,"Duhamel, (Jacques) en gros, rue des Bourdonnais, 9.  "
+34698a259511,,128.4.26,SUPPRIMÉE,"Favotte-Albinet, rue des Bourdonnais, 1.  "
+7105453ae90f,,128.4.27,SUPPRIMÉE,"Flahaut, (Ve.) blanches de Hollande, en gros, rue des Déchargeurs, 9.  "
+506455a16bf1,,128.4.28,SUPPRIMÉE,"Gaugnier-Lacoche, en gros, cloître St.-Honoré, 3.  "
+6fd09cf8aa24,,128.4.29,SUPPRIMÉE,"Harsen et Leligois, en gros, et mouchoirs, rue du Chevalier-du-Guet, 3.  "
+e029d90c9137,,128.4.30,SUPPRIMÉE,"Hayet, (Mad.) rue St.-Denis, 70.  "
+408ff8abf36c,,128.4.31,SUPPRIMÉE,"Houppin, rue de la Cossonnerie, 27.  "
+054e6effaac9,,128.4.32,SUPPRIMÉE,"Jacquet neveu et comp., en gros, rue des Mauvaises-Paroles, 19.  "
+c4afd3f1a1dd,,128.4.33,SUPPRIMÉE,"Kugel, fines et linge de table, rue Traversière-St.-Honoré, 15.  "
+4bacb53d8dc1,,128.4.34,SUPPRIMÉE,"Ladrée, toiles et mousselines, rue Saint-Paul, 37.  "
+527a332ba222,,128.4.35,SUPPRIMÉE,"La Lanne, (Ve. P.) en gros, rue des Mauvaises-Paroles, 17.  "
+2912f9f48398,,128.4.36,SUPPRIMÉE,"Lehæuf, rue de la Ferronnerie, 33.  "
+b5a78b97fffe,,128.4.37,SUPPRIMÉE,"Le Chatellier, en gros, rue Française, 6.  "
+5ec3f5313283,,128.4.38,SUPPRIMÉE,"Ledoux, et magasin de rouennerie, pointe St.-Eustache, 6.  "
+f760c2b2f89c,,128.4.39,SUPPRIMÉE,Leligois. Voyez Harsen et Leligois.  
+fbf05f18c837,,128.4.40,SUPPRIMÉE,"Le Long jeune, en gros, rue des Déchargeurs, 6.  "
+aa0762479c5c,,128.4.41,SUPPRIMÉE,"Lemperiere, fabr. de toiles à coller les papiers de tentures et décors; dépôt de toiles de Fécamp, dites Guibert et de coutils d'Evreux, rue des Fossés-St.-Germain-l'Auxerrois, 8.  "
+8ce58a1d4205,,128.4.42,SUPPRIMÉE,"Limbourg, en gros, rue S.-Antoine, 230.  "
+bc9b29922734,,128.4.43,SUPPRIMÉE,"Loth, place de la pointe S.-Eustache, 2.  "
+930140bfa475,,128.4.44,SUPPRIMÉE,"Macret, (F.) et mousselines, rue des Bourdonnais, 9.  "
+f38c0744f69c~2,,128.4.45,SUPPRIMÉE,"Martin, rue Montmartre, 112.  "
+ccc802dfbf65,,128.4.46,SUPPRIMÉE,"Menu (L.-P.) l'aîné, en gros, rue Quincampoix, 43.  "
+bd3db1f65746,,128.4.47,SUPPRIMÉE,"Oudot fils, rue St.-Jacques, 184.  "
+a2cf1a4beb03,,128.4.48,SUPPRIMÉE,"Pecorel, rue des Fourreurs, 14.  "
+fa5e5edd87d5,,128.4.49,SUPPRIMÉE,"Petibon, (G.) en gros, rue des Peux-Boules, 12.  "
+ab81926bafc0,,128.4.50,SUPPRIMÉE,"Pichard, rue N.-des-Petits-Champs, 38.  "
+27da567829f0,,128.4.51,SUPPRIMÉE,"Pieron-Lebæuf, et mousselines, dentelles en gros, rue St.-Martin, cloître Saint-Médéric, 8.  "
+103b04b27c2f,,128.4.52,SUPPRIMÉE,"Pierron, rue St.-Martin, 91.  "
+fc79b36837cc,,128.4.53,SUPPRIMÉE,"Pottée, en gros, rue des Fourreurs, 22.  "
+291949074be1,,128.4.54,SUPPRIMÉE,"Poulliaude, en gros, rue des Mauvaises-Paroles, 21.  "
+65ad63f2ef28,,128.4.55,SUPPRIMÉE,"Robert, en gros, rue de Richelieu, 65.  "
+f037eb80656f,,128.4.56,SUPPRIMÉE,"Rodolphe, rue Thibautodé, 12.  "
+f013c1ad486f,,128.4.57,SUPPRIMÉE,"Rodolphe, (Mlle.) et mousselines, rue St.-Martin, 214.  "
+f3b173790813,,128.4.58,SUPPRIMÉE,"Roussel jeune, rue des Fourreurs, 10.  "
+6ecd37a1eb6d,,128.4.59,SUPPRIMÉE,"Schmidt, et dentelles, rue Croix-des-Fetits-Champs, 30.  "
+19f1c46fb3f4,,128.4.60,SUPPRIMÉE,"Serror, rue Michel-Lepelletier, 28.  "
+bccfbe33da75,,128.4.61,SUPPRIMÉE,"Tardieu, en gros, r. des Bourdonnais, 17.  "
+a5be90284323,,128.4.62,SUPPRIMÉE,"Valpinçon, en gros, cloître St.-Méry, 63; et rue des Lavandières, 31.  "
+e99d3fed0b7e,,128.4.63,SUPPRIMÉE,"Vestu, cloître St.-Honoré, 13.  "
+46ec7219144c,,128.4.64,SUPPRIMÉE,"Viard, de coton en gros, rue de l'Arbre-Sec, 50.  "
+09646ac2126a,,128.4.65,SUPPRIMÉE,"Vibert, rue Quincampoix, 8."
+f2cb7f68e063,,128.5.0,SUPPRIMÉE,17.
+fe34152e7cd8,,129.3.0,B-TITLE,## RAFFINEURS DE SUCRE.
+e2fa45ed4836,,129.6.0,B-TITLE,## RECEVEURS DE RENTES ET BUREAUX DE CORRESPONDANCE ET D'AGENCE.
+739d93ee2c74,,131.4.0,B-TITLE,## RELIEURS.
+a2602c274cbe,,131.7.0,B-TITLE,"## RESTAURATEURS, *voyez* TRAITEURS."
+039d00a89ba4,,131.8.0,B-TITLE,## ROUGE. (FABRICANS DE)
+d156fa6ff226,,132.2.0,B-TITLE,## ROULAGE. (ENTREPRENEURS DE)
+087bc63aa87f,,132.5.0,B-TITLE,## RUBANS. (FABRICANS ET MARCHANDS DE)
+4e8518253269,,133.3.0,B-TITLE,## SALPÊTRIERS.
+4fc16d7fb9f2,,133.5.0,B-TITLE,## SCULPTEURS. (ARTISTES-)
+2005e1f61a98,,134.4.0,B-TITLE,## SELS. (MARCHANDS DE)
+96a50a94fb15,,134.7.0,B-TITLE,## SELLIERS.
+69bc611dae77,,136.4.0,B-TITLE,## SOIERIES. (MARCHANDS DE)
+79b2ae150d11,,137.4.0,B-TITLE,## TABACS. (FABR. ET MARCH. DE)
+45c1364e30a8,,137.5.0,B-TITLE,### *Fabricans.*
+41ca2d1edf33,,137.7.0,B-TITLE,### *Débitans.*
+5bcae18a0863,,138.5.0,B-TITLE,## TABLEAUX. (MARCHANDS DE)
+7871f271d760,,139.2.0,B-TITLE,## TABLEAUX. (RESTAURATEURS DE)
+67532c91ce56,,139.5.0,B-TITLE,## TABLETIERS.
+a4eea82a1318,,140.4.0,B-TITLE,"## TANNEURS, HONGROYEURS ET MÉGISSIERS."
+50f71c35edc4,,140.8.0,B-TITLE,## TAPIS ET TAPISSERIES. (MANUFACTURES DE)
+f45d646064d6,,141.2.0,B-TITLE,## TAPISSIERS ET MARCHANDS DE MEUBLES.
+9413f398178f,,142.4.0,B-TITLE,## TEINTURIERS.
+84da5b1273d1~2,,143.5.0,B-TITLE,## TIREURS D'OR.
+56d8f94f3080~2,,144.3.0,B-TITLE,## TOILES (MARCHANDS DE)
+d3c397c36845,,145.2.0,B-TITLE,## TOILES ET TAFFETAS CIRÉS. (FABR. ET MARCH. DE)
+b1318e90a070,,145.5.0,B-TITLE,## TOILES PEINTES. (FABR. ET MARCH. DE)
+f97560339b70,,145.8.0,B-TITLE,## TRAITEURS-RESTAUREURS.
+4c771b4c27ab,,146.4.0,B-TITLE,## VERMICELLE. (FABRICANS DE)
+1ca5916e2526,,146.7.0,B-TITLE,"## VERNISSEURS, PEINTRES ET DOREURS SUR MÉTAUX."
+56d98867ec33,,146.10.0,B-TITLE,## VERRES. (MARCHANDS DE)
+fd01458c36d9,,147.4.0,B-TITLE,### *Bombeurs de verres.*
+8a6a6f44069f,,147.6.0,B-TITLE,## VINS (MARCHANDS DE)
+1b6b183294d2,,154.3.2,I-ENTRY,Faub.-Saint-Antoine.  
+b5f171879345,,158.4.0,B-TITLE,## YEUX ARTIFICIELS.
