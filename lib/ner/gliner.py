@@ -10,6 +10,7 @@ Le modèle travaille sur le texte normalisé (emphase Markdown retirée,
 de l'évaluation, et `unproject_spans` les ramène sur le texte d'origine.
 """
 
+import inspect
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -51,6 +52,14 @@ def load_model(model_dir: Path):
     return model
 
 
+def predict_entities(model, texts: Sequence[str], labels: list[str], threshold: float) -> list[list[dict]]:
+    """Entités GLiNER brutes d'un lot de textes. Un modèle relex (entités et
+    relations) renvoie par défaut un couple (entités, relations) : on ne lui
+    demande que les entités."""
+    options = {"return_relations": False} if "return_relations" in inspect.signature(model.inference).parameters else {}
+    return model.inference(list(texts), labels, threshold=threshold, **options)
+
+
 def predict_spans(
     model,
     config: NerConfig,
@@ -76,12 +85,12 @@ def predict_spans(
     for start in range(0, len(inputs), batch_size):
         chunk = inputs[start : start + batch_size]
         try:
-            predictions = model.inference(chunk, labels, threshold=threshold)
+            predictions = predict_entities(model, chunk, labels, threshold)
             results += [to_spans(text, entities) for text, entities in zip(chunk, predictions)]
         except Exception:  # Surface large et imprévisible côté torch.
             for offset, text in enumerate(chunk):
                 try:
-                    results.append(to_spans(text, model.predict_entities(text, labels, threshold=threshold)))
+                    results.append(to_spans(text, predict_entities(model, [text], labels, threshold)[0]))
                 except Exception as error:
                     results.append(None)
                     if on_error:

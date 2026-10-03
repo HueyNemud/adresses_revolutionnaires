@@ -454,6 +454,10 @@ uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model
   les empans en caractères en empans de tokens, calcule `max_width`, exclut
   à nouveau les textes du gold, valide sur un découpage **par page** et
   écrit `<modèle>/ner_config.json`.
+- Modèle de base : `knowledgator/gliner-bi-base-v2.0` (bi-encodeur). Un
+  GLiNER-relex (`--model knowledgator/gliner-relex-large-v0.5`) s'entraîne
+  et s'utilise aussi, mais n'a rien gagné à conditions égales :
+  [Expérience GLiNER-relex](experience_gliner_relex.md).
 
 ### Audit : `audit_ner.py`
 

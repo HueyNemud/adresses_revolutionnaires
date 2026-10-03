@@ -66,7 +66,7 @@ from rich.console import Console
 
 from lib.cli import APPLY_FLAG, add_apply_argument
 from lib.ner.corpus import ls_texts
-from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig
+from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig, predict_entities
 from lib.ner.spans import (
     Span,
     Token,
@@ -311,7 +311,7 @@ def evaluate(
     for example in examples:
         gold = {tuple(item) for item in example.ner}
 
-        predicted_raw = model.predict_entities(example.text, gliner_labels, threshold=threshold)
+        predicted_raw = predict_entities(model, [example.text], gliner_labels, threshold)[0]
         predicted = set()
         for pred in predicted_raw:
             span = char_span_to_word_span(example.tokens, pred["start"], pred["end"])
