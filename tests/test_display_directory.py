@@ -39,13 +39,14 @@ class DisplayDirectoryTests(unittest.TestCase):
         self.assertIn("rue &amp;amp; C", rendered)  # « &amp; » est du texte littéral dans tagged_text
         self.assertIn("balisage invalide", render_tagged_html("<SUBJ>A"))
 
-    def test_derived_columns_recompute_reasons_without_flag_columns(self):
+    def test_derived_columns(self):
         df = pd.DataFrame(
             {
                 "entity": ["TITLE", "ENTRY", "ENTRY"],
                 "markdown": ["## RUBRIQUE", "Dupont, rue A, 1.", "Durand, rue B, 2."],
                 "page_index": ["6", "6,7", "7"],
                 "tagged_text": ["", "<SUBJ>Dupont</SUBJ>, <ADDR>rue A, 1.</ADDR>", "<SUBJ>Durand</SUBJ>, rue B, 2."],
+                "ner_suspect": [None, "", "texte non couvert"],
             }
         )
         derived = add_derived_columns(df)

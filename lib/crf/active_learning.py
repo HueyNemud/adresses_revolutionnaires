@@ -50,6 +50,7 @@ class SourceLine:
     uid: str
     source_row: int
     text: str
+    cle: str = ""  # clé stable de la ligne (lib/curation.py)
     page_index: str = ""
     chunk_index: str = ""
     data_block_index: str = ""
@@ -72,6 +73,7 @@ class SourceLine:
             uid=str(location.line.get("uid", "")),
             source_row=source_row,
             text=text,
+            cle=str(location.line.get("cle", "")),
             page_index=str(location.page.get("page_index", "")),
             chunk_index=str(location.block.get("chunk_index", "")),
             data_block_index=str(location.block.get("index", "")),

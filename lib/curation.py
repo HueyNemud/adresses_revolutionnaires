@@ -48,6 +48,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from lib.cli import Writes
+
 CURATION_DIR = Path("data/curation")
 CORRECTED_COLUMN = "corrige"
 FINGERPRINT_COLUMN = "empreinte"
@@ -203,7 +205,7 @@ class Curation:
         if missing:
             raise CurationConflict(
                 [f"{self.output_path} : colonne(s) absente(s) : {', '.join(missing)}"],
-                "fichier d'un ancien format : migrez-le, ou relancez avec --sans-capture pour repartir du patch.",
+                "ce fichier n'est pas une sortie de cette étape : relancez avec --sans-capture pour repartir du patch (il sera écrasé).",
             )
         problems: list[str] = []
         all_keys = {(row.get(step.key) or "").strip() for row in rows}
@@ -358,10 +360,13 @@ class Curation:
             emit(row)
         return result
 
-    def save_patch(self) -> None:
-        """Réécrit le patch (créé seulement s'il y a des corrections)."""
+    def save_patch(self, writes: Writes | None = None) -> None:
+        """Réécrit le patch (créé seulement s'il y a des corrections), selon
+        `writes` (lib/cli.py ; défaut : écrit)."""
         if self.corrections or self.patch_file.exists():
-            write_csv(self.patch_file, self.step.patch_fields, self.corrections)
+            (writes or Writes()).add(
+                self.patch_file, lambda: write_csv(self.patch_file, self.step.patch_fields, self.corrections)
+            )
 
 
 def refuse_orphans(orphans: list[str], force: bool, what: str) -> None:

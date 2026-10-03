@@ -76,27 +76,28 @@ et s'arrête sans rien écrire si une correction ne s'applique plus (voir
 
 ## Commandes principales
 
-Toutes les commandes se lancent depuis la racine du dépôt.
+Toutes les commandes se lancent depuis la racine du dépôt. Celles qui
+écrivent des fichiers de données simulent par défaut (elles affichent ce
+qu'elles écriraient) : `--apply` écrit.
 
 ```bash
 # Étapes 1 à 4 sur une plage de pages (P = annuaires/<volume>/<plage>/<volume>.<plage>)
-uv run extract_chandra_lines.py $P.ocr.json --notables -o $P.ocr.lines.json
-uv run annotate_lines_crf.py $P.ocr.lines.json -o $P.ocr.lines.annotated.json \
-    --session $P.ocr.lines.crf-session.json
-uv run export_lines_csv.py $P.ocr.lines.annotated.json -o $P.ocr.lines.annotated.csv
+uv run extract_chandra_lines.py $P.ocr.json --apply                 # → $P.ocr.lines.json
+uv run annotate_lines_crf.py $P.ocr.lines.json --apply              # → $P.ocr.lines.annotated.json
+uv run export_lines_csv.py $P.ocr.lines.annotated.json --apply      # → $P.ocr.lines.annotated.csv
 # … curation manuelle dans $P.ocr.lines.annotated.csv (corrige = oui), puis relancer l'export
-uv run build_entity_tree.py $P.ocr.lines.annotated.csv
+uv run build_entity_tree.py $P.ocr.lines.annotated.csv --apply
 
 # Étape 5 : segmentation NER, puis exploration du résultat
-uv run infer_gliner.py <…>.merged.csv --model models/<nom>.gliner-model
+uv run infer_gliner.py <…>.merged.csv --model models/<nom>.gliner-model --apply
 uv run streamlit run tools/display_directory.py
 
 # Étape 6 : alignement de deux volumes complets, puis exploration
-uv run align_directories.py annuaires/<A> annuaires/<B>      # Dedupe
-uv run align_directories_nw.py annuaires/<A> annuaires/<B>   # ordre des entrées
+uv run align_directories.py annuaires/<A> annuaires/<B> --apply      # Dedupe
+uv run align_directories_nw.py annuaires/<A> annuaires/<B> --apply   # ordre des entrées
 uv run streamlit run tools/display_alignment.py
-uv run tools/export_alignment.py annuaires/alignements/<A>__<B>.nw.csv --excel   # jointure CSV lisible
-uv run tools/sample_alignment_gold.py annuaires/<A> annuaires/<B>   # gold d'inversions à étiqueter (une fois)
+uv run tools/export_alignment.py annuaires/alignements/<A>__<B>.nw.csv --excel --apply   # jointure CSV lisible
+uv run tools/sample_alignment_gold.py annuaires/<A> annuaires/<B> --apply   # gold d'inversions à étiqueter (une fois)
 uv run tools/audit_alignment_review.py data/alignement/<A>__<B>.gold-inversions.csv   # → rapports/audit_alignement/
 
 # Audits

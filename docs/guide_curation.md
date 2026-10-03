@@ -60,7 +60,7 @@ il s'arrête et vous explique pourquoi (voir
 ## Corriger les lignes (étape 3)
 
 **Fichier :** `annuaires/<volume>/<plage>/<…>.ocr.lines.annotated.csv`
-**Script à relancer :** `uv run export_lines_csv.py <…>.ocr.lines.annotated.json -o <…>.ocr.lines.annotated.csv`
+**Script à relancer :** `uv run export_lines_csv.py <…>.ocr.lines.annotated.json --apply` (sans `--apply` : simulation, qui montre les conflits sans rien écrire)
 **Patch :** `data/curation/<volume>.<plage>.lignes.patch.csv`
 
 On y corrige deux colonnes : `classe` (le type de ligne : `B-ENTRY`,
@@ -151,7 +151,7 @@ originales en `SUPPRIMÉE`, toutes les copies sans clé.
 ## Corriger le NER et les rubriques (étape 5)
 
 **Fichier :** `annuaires/<volume>/<plage>/<…>.ocr.lines.annotated.merged.ner.csv`
-**Script à relancer :** `uv run infer_gliner.py <…>.merged.csv --model <modèle>`
+**Script à relancer :** `uv run infer_gliner.py <…>.merged.csv --model <modèle> --apply`
 **Patch :** `data/curation/<volume>.<plage>.ner.patch.csv`
 
 Chaque ligne du fichier est une **entrée** (ou un titre). On y corrige

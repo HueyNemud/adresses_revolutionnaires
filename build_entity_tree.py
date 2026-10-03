@@ -82,10 +82,17 @@ from pathlib import Path
 
 from rich.console import Console
 
+from lib.cli import Writes, add_apply_argument
 from lib.curation import CORRECTED_COLUMN, DELETED_CLASS, FINGERPRINT_COLUMN, document_name
 from lib.titles import title_level
 
 console = Console()
+
+# Colonnes du CSV de lignes (export_lines_csv.py).
+CLASS_COLUMN = "classe"
+KEY_COLUMN = "cle"
+UID_COLUMN = "uid"
+REQUIRED_COLUMNS = (KEY_COLUMN, UID_COLUMN, "markdown", CLASS_COLUMN)
 
 LABEL_BEGIN_ENTRY = "B-ENTRY"
 LABEL_INSIDE_ENTRY = "I-ENTRY"
@@ -157,12 +164,12 @@ def alpha_sort_key(text: str) -> str:
     return "".join(words[:ALPHA_KEY_WORDS])[:ALPHA_KEY_LENGTH]
 
 
-def assign_entity_ids(entities: list[dict[str, str]], document: str, key_col: str) -> None:
+def assign_entity_ids(entities: list[dict[str, str]], document: str) -> None:
     """Identifiant déterministe de chaque entité, d'après la clé de sa ligne
     racine (voir la docstring du module)."""
     occurrences: Counter[str] = Counter()
     for entity in entities:
-        root = entity.get(key_col, "").split(",", 1)[0]
+        root = entity.get(KEY_COLUMN, "").split(",", 1)[0]
         key = f"{document}#{root}"
         occurrences[key] += 1
         name = key if occurrences[key] == 1 else f"{key}#{occurrences[key]}"
@@ -230,41 +237,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Chemin du CSV de sortie (défaut : <entrée>.merged.csv).",
     )
-    parser.add_argument(
-        "-r",
-        "--report",
-        type=Path,
-        default=None,
-        help="Chemin du rapport .txt (défaut : <sortie>.report.txt, dans le même dossier).",
-    )
-    parser.add_argument(
-        "--class-column",
-        type=str,
-        default="classe",
-        help="Nom de la colonne contenant la classe des lignes (défaut : 'classe').",
-    )
-    parser.add_argument(
-        "--key-column",
-        type=str,
-        default="cle",
-        help="Nom de la colonne de clé stable des lignes, qui fonde l'uuid (défaut : 'cle').",
-    )
-    parser.add_argument(
-        "--uid-column",
-        type=str,
-        default="uid",
-        help="Nom de la colonne identifiant chaque ligne (défaut : 'uid').",
-    )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
-def process_csv(
-    input_path: Path,
-    output_path: Path,
-    class_col: str,
-    uid_col: str,
-    key_col: str = "cle",
-) -> MergeReport:
+def process_csv(input_path: Path, output_path: Path, writes: Writes | None = None) -> MergeReport:
     """Lit le CSV, fusionne les entités ENTRY/TITLE, les rattache à leur
     titre parent, exporte le résultat et retourne le rapport d'analyse
     correspondant."""
@@ -279,23 +256,11 @@ def process_csv(
             col for col in reader.fieldnames if col not in (CORRECTED_COLUMN, FINGERPRINT_COLUMN)
         ]
 
-        if class_col not in input_fieldnames:
+        missing = [col for col in REQUIRED_COLUMNS if col not in input_fieldnames]
+        if missing:
             raise ValueError(
-                f"La colonne de classe '{class_col}' est introuvable dans le CSV."
-            )
-        if key_col not in input_fieldnames:
-            raise ValueError(
-                f"La colonne de clé '{key_col}' est introuvable dans le CSV "
-                "(CSV antérieur à la clé stable : réexportez-le avec export_lines_csv.py)."
-            )
-        if "markdown" not in input_fieldnames:
-            console.print(
-                "[yellow]Avertissement : la colonne 'markdown' n'a pas été trouvée.[/yellow]"
-            )
-        if uid_col not in input_fieldnames:
-            console.print(
-                f"[yellow]Avertissement : la colonne '{uid_col}' est introuvable ; "
-                "les identifiants du rapport utiliseront le numéro de ligne lue.[/yellow]"
+                f"Colonne(s) absente(s) : {', '.join(missing)} "
+                "(l'entrée est le CSV de lignes d'export_lines_csv.py)."
             )
 
         output_fieldnames = ["uuid", "parent_uuid"]
@@ -315,7 +280,7 @@ def process_csv(
         last_alpha_key: str | None = None
 
         def identifier(row: dict[str, str]) -> str:
-            return row.get(uid_col) or f"<ligne {report.rows_read}>"
+            return row[UID_COLUMN]
 
         def register_entry_root(row: dict[str, str]) -> None:
             nonlocal last_alpha_key
@@ -335,7 +300,7 @@ def process_csv(
 
         for row in reader:
             report.rows_read += 1
-            pred = row.get(class_col, "").strip()
+            pred = row.get(CLASS_COLUMN, "").strip()
             if pred == DELETED_CLASS:
                 report.rows_deleted += 1
                 continue
@@ -388,25 +353,29 @@ def process_csv(
                 out_row["entity"] = LABEL_OOS
                 all_entities.append(out_row)
 
-    assign_entity_ids(all_entities, document_name(input_path), key_col)
+    assign_entity_ids(all_entities, document_name(input_path))
     assign_parent_ids(all_entities)
-    with output_path.open("w", encoding="utf-8", newline="") as f_out:
-        writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
-        writer.writeheader()
-        for entity_row in all_entities:
-            writer.writerow(entity_row)
-            report.rows_written += 1
-            if entity_row.get("entity") == NORMALIZED_ENTRY:
-                report.final_entries += 1
-                report.direct_entries[entity_row["parent_uuid"]] += 1
-            elif entity_row.get("entity") == NORMALIZED_TITLE:
-                report.final_titles += 1
-                markdown = entity_row.get("markdown", "")
-                report.titles.append((entity_row["uuid"], entity_row["parent_uuid"], markdown))
-                if title_level(markdown) is None:
-                    report.unmarked_titles.append(entity_row.get(uid_col, ""))
-            else:
-                report.final_oos += 1
+    for entity_row in all_entities:
+        report.rows_written += 1
+        if entity_row.get("entity") == NORMALIZED_ENTRY:
+            report.final_entries += 1
+            report.direct_entries[entity_row["parent_uuid"]] += 1
+        elif entity_row.get("entity") == NORMALIZED_TITLE:
+            report.final_titles += 1
+            markdown = entity_row.get("markdown", "")
+            report.titles.append((entity_row["uuid"], entity_row["parent_uuid"], markdown))
+            if title_level(markdown) is None:
+                report.unmarked_titles.append(entity_row.get(UID_COLUMN, ""))
+        else:
+            report.final_oos += 1
+
+    def write() -> None:
+        with output_path.open("w", encoding="utf-8", newline="") as f_out:
+            writer = csv.DictWriter(f_out, fieldnames=output_fieldnames)
+            writer.writeheader()
+            writer.writerows(all_entities)
+
+    (writes or Writes()).add(output_path, write)
 
     return report
 
@@ -538,19 +507,16 @@ def main() -> None:
         return
 
     output_path = args.output or args.input_csv.with_suffix(".merged.csv")
-    report_path = args.report or output_path.with_suffix(".report.txt")
+    report_path = output_path.with_suffix(".report.txt")
+    writes = Writes(args.apply)
 
     try:
-        report = process_csv(
-            args.input_csv, output_path, args.class_column, args.uid_column, args.key_column
-        )
+        report = process_csv(args.input_csv, output_path, writes)
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur lors du traitement :[/bold red] {error}")
         return
 
-    report_path.write_text(
-        format_report(report, args.input_csv, output_path), encoding="utf-8"
-    )
+    writes.add(report_path, lambda: report_path.write_text(format_report(report, args.input_csv, output_path), encoding="utf-8"))
 
     problem_count = (
         len(report.orphan_subentries)
@@ -559,18 +525,12 @@ def main() -> None:
         + len(report.alpha_violations)
         + len(report.unmarked_titles)
     )
-    console.print(
-        "\n[bold green]✅ Entités et arbre des titres :[/bold green] "
-        f"[yellow]{output_path}[/yellow] "
-        f"({report.rows_read} lignes lues → {report.rows_written} lignes écrites)"
-    )
-    console.print(
-        f"[bold green]📄 Rapport :[/bold green] [yellow]{report_path}[/yellow]"
-    )
+    console.print(f"{report.rows_read} lignes lues → {report.rows_written} lignes en sortie.")
     if problem_count:
         console.print(
             f"[yellow]⚠ {problem_count} cas à vérifier (voir le rapport pour le détail).[/yellow]"
         )
+    writes.finish(console)
 
 
 if __name__ == "__main__":

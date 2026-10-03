@@ -36,6 +36,7 @@ from rapidfuzz.distance import JaroWinkler
 from rapidfuzz.process import cdist
 
 from lib.alignment import SOURCE_MANUAL, Link, Record, clean_title
+from lib.cli import Writes
 from lib.curation import write_csv
 from lib.sequence import needleman_wunsch
 
@@ -265,15 +266,20 @@ def align_sections(
 
 
 def load_section_alignment(
-    left_records: list[Record], right_records: list[Record], patch_path: Path, threshold: float = DEFAULT_THRESHOLD, rewrite: bool = True
+    left_records: list[Record],
+    right_records: list[Record],
+    patch_path: Path,
+    threshold: float = DEFAULT_THRESHOLD,
+    writes: Writes | None = None,
 ) -> SectionAlignment:
-    """Lit, valide et applique le patch (ValueError s'il est incohérent) ; le
-    réécrit si des lignes ont été réancrées (sauf `rewrite=False`)."""
+    """Lit, valide et applique le patch (ValueError s'il est incohérent). Si
+    des lignes ont été réancrées, le patch est réécrit via `writes`
+    (lib/cli.py) ; sans `writes` (lecteurs : viewer, export, audit), jamais."""
     entries = read_section_patch(patch_path)
     validate_section_patch(entries)
     alignment = align_sections(left_records, right_records, entries, threshold)
-    if rewrite and alignment.resolution.reanchored:
-        write_section_patch(patch_path, updated_section_patch(entries, alignment.resolution))
+    if writes is not None and alignment.resolution.reanchored:
+        writes.add(patch_path, lambda: write_section_patch(patch_path, updated_section_patch(entries, alignment.resolution)))
     return alignment
 
 

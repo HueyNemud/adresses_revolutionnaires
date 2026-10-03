@@ -12,10 +12,7 @@ colorés. Filtres : type de ligne, rubrique, pages, recherche, signature
 confiance. En ordre du fichier, un bandeau marque chaque changement de
 rubrique.
 
-Motifs de suspicion : colonne `ner_suspect` d'`infer_gliner.py` quand elle
-existe ; sinon (fichier plus ancien), ils sont recalculés depuis
-`tagged_text` par `lib/ner/suspicion.py`, sans le motif `score bas` faute de
-scores.
+Motifs de suspicion : colonne `ner_suspect` écrite par `infer_gliner.py`.
 
 Seule une page de la table est rendue en HTML à la fois ; le CSV et les
 colonnes dérivées sont calculés une fois par fichier (`st.cache_data`).
@@ -34,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from lib.ner.html import DEFAULT_COLORS, LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from lib.ner.spans import parse_tagged_text, signature
-from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, suspicion_reasons
+from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR
 from lib.titles import title_level as lib_title_level, title_text
 
 ANNUAIRES_DIR = Path("annuaires")
@@ -104,15 +101,6 @@ def derive_signature(tagged_text: str) -> str:
         return "(balisage invalide)"
 
 
-def derive_reasons(tagged_text: str) -> str:
-    """Motifs structurels recalculés (fichier sans colonne `ner_suspect`)."""
-    try:
-        text, spans = parse_tagged_text(tagged_text)
-    except ValueError:
-        return "balisage invalide"
-    return SEPARATOR.join(suspicion_reasons(text, spans))
-
-
 def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     for column in ("entity", "markdown", "tagged_text", "ner_suspect"):
@@ -127,9 +115,6 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     if "tagged_text" in df.columns:
         df["signature"] = ""
         df.loc[is_entry, "signature"] = df.loc[is_entry, "tagged_text"].map(derive_signature)
-        if "ner_suspect" not in df.columns:
-            df["ner_suspect"] = ""
-            df.loc[is_entry, "ner_suspect"] = df.loc[is_entry, "tagged_text"].map(derive_reasons)
     if "ner_confidence" in df.columns:
         df["ner_confidence"] = pd.to_numeric(df["ner_confidence"], errors="coerce")
     return df

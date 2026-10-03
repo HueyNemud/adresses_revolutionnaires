@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from annotate_lines_crf import load_session, load_session_state, save_session
+from annotate_lines_crf import load_session_state, save_session
 from lib.crf.active_learning import ActiveCRF, SourceLine, load_json_lines
 from lib.crf.features import extract_features, get_heuristic_label, normalize_ocr_label
 from lib.crf.labels import CLASSES, AnnotationLabel
@@ -293,13 +293,12 @@ class ActiveCRFTests(unittest.TestCase):
             session = Path(tmp_dir) / "annuaire.crf-session.json"
             save_session(session, document_hash, crf)
 
-            self.assertEqual(load_session(session, document_hash), ["B-TITLE", None])
             self.assertEqual(
                 load_session_state(session, document_hash),
                 (["B-TITLE", None], [0], {0: crf.label_timestamps[0]}),
             )
             with self.assertRaises(ValueError):
-                load_session(session, "another-document")
+                load_session_state(session, "another-document")
 
 
 if __name__ == "__main__":

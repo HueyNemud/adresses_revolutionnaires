@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from lib.alignment import SOURCE_MANUAL, Link, Record, dedupe_records
+from lib.cli import Writes
 from lib.section_alignment import (
     SOURCE_AUTO,
     SectionPatchEntry,
@@ -110,7 +111,7 @@ class AlignSectionsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "paire.sections.csv"
             write_section_patch(path, [SectionPatchEntry(left_uuid="ancien", right_uuid="d:marchands d arbres", left_title="JARDINIERS FLEURISTES")])
-            load_section_alignment(records("g", LEFT), records("d", RIGHT), path)
+            load_section_alignment(records("g", LEFT), records("d", RIGHT), path, writes=Writes())
             self.assertEqual(read_section_patch(path)[0].left_uuid, "g:jardiniers fleuristes")
 
 

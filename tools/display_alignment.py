@@ -212,7 +212,7 @@ def load_alignment(
     resolution = resolve(entries, records["left"], records["right"])
     links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
     sections = load_section_alignment(
-        list(records["left"].values()), list(records["right"].values()), Path(section_patch_path), rewrite=False
+        list(records["left"].values()), list(records["right"].values()), Path(section_patch_path)
     )
     links, dropped = restrict_to_corresponding(links, records["left"], records["right"], sections)
     declared = {uuid for entry in resolution.entries if not entry.is_pair for _, uuid in entry.uuids()}
@@ -579,7 +579,7 @@ def main() -> None:
             "ignorées ; relancer `align_directories.py`."
         )
     if alignment.reanchored:
-        st.info(f"↻ {alignment.reanchored} ligne(s) du patch réancrée(s) par le texte ; `--apply-only` réécrira le patch.")
+        st.info(f"↻ {alignment.reanchored} ligne(s) du patch réancrée(s) par le texte ; `align_directories.py --sans-dedupe --apply` réécrira le patch.")
     if alignment.orphans:
         with st.expander(f"⚠ {len(alignment.orphans)} ligne(s) orpheline(s) du patch, non appliquée(s)"):
             st.dataframe(pd.DataFrame([asdict(entry) for entry in alignment.orphans]), width="stretch")

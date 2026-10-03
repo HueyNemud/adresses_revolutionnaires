@@ -86,6 +86,7 @@ from lib.section_alignment import (
     section_orphans,
     segments,
 )
+from lib.cli import Writes, add_apply_argument
 from lib.curation import CurationConflict, print_conflict, refuse_orphans
 from lib.sequence import needleman_wunsch
 
@@ -141,12 +142,6 @@ def parse_args() -> argparse.Namespace:
         help=f"CSV des correspondances (défaut : {DEFAULT_OUTPUT_DIR}/<gauche>__<droite>{NW_SUFFIX}).",
     )
     parser.add_argument(
-        "--section-patch",
-        type=Path,
-        default=None,
-        help=f"Patch des rubriques (défaut : {DEFAULT_PATCH_DIR}/<gauche>__<droite>{SECTION_PATCH_SUFFIX}).",
-    )
-    parser.add_argument(
         "--threshold",
         type=float,
         default=defaults.threshold,
@@ -186,6 +181,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Ignore les lignes orphelines du patch des rubriques (sinon : arrêt sans rien écrire).",
     )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -413,7 +409,8 @@ def main() -> None:
 
     pair_name = f"{args.left.name}__{args.right.name}"
     output_path = args.output or DEFAULT_OUTPUT_DIR / f"{pair_name}{NW_SUFFIX}"
-    section_patch = args.section_patch or DEFAULT_PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
+    section_patch = DEFAULT_PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
+    writes = Writes(args.apply)
     params = Params(
         args.threshold, args.residual_threshold, args.section_threshold, args.subj_weight, args.anchor_threshold, not args.no_context
     )
@@ -426,7 +423,7 @@ def main() -> None:
     console.print(f"{args.left.name} : {len(left_list)} entrées ; {args.right.name} : {len(right_list)} entrées")
 
     try:
-        sections = load_section_alignment(left_list, right_list, section_patch, params.section_threshold)
+        sections = load_section_alignment(left_list, right_list, section_patch, params.section_threshold, writes)
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
         sys.exit(1)
@@ -439,13 +436,13 @@ def main() -> None:
     result = align(left_list, right_list, params, sections)
     left_records = {record.uuid: record for record in left_list}
     right_records = {record.uuid: record for record in right_list}
-    write_links(output_path, result.links, left_records, right_records)
+    writes.add(output_path, lambda: write_links(output_path, result.links, left_records, right_records))
 
-    console.print(f"\n[bold green]✅ Correspondances :[/bold green] [yellow]{output_path}[/yellow]")
     print_summary(args.left.name, args.right.name, len(left_list), len(right_list), result)
     dedupe_path = DEFAULT_OUTPUT_DIR / f"{pair_name}.dedupe.csv"
     if dedupe_path.exists():
         print_dedupe_comparison(dedupe_path, result.links, left_records, right_records)
+    writes.finish(console)
 
 
 if __name__ == "__main__":

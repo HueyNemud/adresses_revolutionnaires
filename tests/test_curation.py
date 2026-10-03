@@ -44,6 +44,7 @@ DOCUMENT = [
     page(6, [[("## PAPETIERS.", "B-TITLE")], [("Auzou, rue d'Anjou, 19.", "B-ENTRY"), ("Badet, rue Helvétius, 37.", "B-ENTRY"), ("et cartier", "B-ENTRY")]]),
     page(7, [[("---", "OUT OF SCOPE"), ("Bertaux, rue St.-Jacques.", "B-ENTRY"), ("---", "OUT OF SCOPE")]]),
 ]
+assign_line_keys(DOCUMENT)
 
 
 class LineKeyTests(unittest.TestCase):
@@ -54,18 +55,13 @@ class LineKeyTests(unittest.TestCase):
         self.assertEqual(keys[4], keys[0] + "~2")  # blancs normalisés
         self.assertEqual(line_keys(["x", "b"])[1], keys[2])
 
-    def test_extraction_and_export_agree_on_keys(self):
-        """Les clés écrites à l'extraction sont celles que l'export recalcule
-        pour un JSON plus ancien qui n'en a pas."""
-        pages = json.loads(json.dumps(DOCUMENT))
-        assign_line_keys(pages)
+    def test_export_keeps_the_keys_written_at_extraction(self):
         texts = [line["markdown"] for page_ in DOCUMENT for block in page_["data_blocks"] for line in block["lines"]]
         with tempfile.TemporaryDirectory() as tmp:
             json_path, csv_path = Path(tmp) / "doc.json", Path(tmp) / "doc.csv"
-            for document in (DOCUMENT, pages):
-                json_path.write_text(json.dumps(document), encoding="utf-8")
-                process_json_to_csv(json_path, csv_path, Path(tmp) / f"{len(document)}.patch.csv", capture=False)
-                self.assertEqual([row["cle"] for row in read_csv(csv_path)[1]], line_keys(texts))
+            json_path.write_text(json.dumps(DOCUMENT), encoding="utf-8")
+            process_json_to_csv(json_path, csv_path, Path(tmp) / "doc.patch.csv", capture=False)
+            self.assertEqual([row["cle"] for row in read_csv(csv_path)[1]], line_keys(texts))
 
     def test_fingerprint_ignores_whitespace_changes(self):
         self.assertEqual(fingerprint({"a": "x  y "}, ["a"]), fingerprint({"a": "x y"}, ["a"]))
@@ -84,6 +80,10 @@ class LinesCurationTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def export(self, document, **options) -> Curation:
+        """Exporte le document tel que l'extraction l'aurait écrit (clés
+        recalculées sur son texte : une ré-OCR change les clés)."""
+        document = json.loads(json.dumps(document))
+        assign_line_keys(document)
         json_path = self.dir / "doc.json"
         json_path.write_text(json.dumps(document), encoding="utf-8")
         return process_json_to_csv(json_path, self.csv, self.patch, **options)
@@ -242,7 +242,7 @@ class NerCurationTests(unittest.TestCase):
     def run_ner(self, directory: Path, rows, **options) -> list[dict[str, str]]:
         output, patch = directory / "Vol.ocr.ner.csv", directory / "Vol.ner.patch.csv"
         curation = Curation(NER_STEP, output, patch, **options)
-        rows = apply_corrections(curation, rows, "entity", "markdown")
+        rows = apply_corrections(curation, rows)
         curation.save_patch()
         write_csv(output, list(dict.fromkeys(name for row in rows for name in row)), rows)
         return read_csv(output)[1]

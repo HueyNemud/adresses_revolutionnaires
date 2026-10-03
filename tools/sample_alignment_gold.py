@@ -27,9 +27,10 @@ chacune avec son poids = effectif de la strate / taille tirée. La colonne
 0,85) retient la paire.
 
 Sortie : `data/alignement/<gauche>__<droite>.gold-inversions.csv`
-(versionnée), à compléter à la main dans la colonne `meme_entree` (`oui` /
-`non` / `?`) et `note`. Un fichier existant n'est jamais écrasé sans
-`--force`, puisqu'il contient des étiquettes.
+(versionnée), à compléter à la main dans la colonne `meme_entree` (`OUI` /
+`NON` / `INCERTAIN`) et `note`. Simulation par défaut, `--apply` écrit
+(lib/cli.py) ; un fichier existant n'est jamais écrasé sans `--force`,
+puisqu'il contient des étiquettes.
 """
 
 import argparse
@@ -47,6 +48,7 @@ from rich.table import Table
 
 from align_directories_nw import DEFAULT_PATCH_DIR, Params, residual_pairs, segments, similarity_matrix
 from lib.alignment import load_volume
+from lib.cli import Writes, add_apply_argument
 from lib.section_alignment import SECTION_PATCH_SUFFIX, load_section_alignment
 from lib.sequence import needleman_wunsch
 
@@ -84,6 +86,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-similarity", type=float, default=0.6, help="Similarité minimale d'une candidate (défaut : 0.6).")
     parser.add_argument("--seed", type=int, default=0, help="Graine du tirage (défaut : 0).")
     parser.add_argument("--force", action="store_true", help="Écraser un fichier existant (et ses étiquettes).")
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -143,6 +146,7 @@ def main() -> None:
     args = parse_args()
     pair_name = f"{args.left.name}__{args.right.name}"
     output = args.output or DEFAULT_PATCH_DIR / f"{pair_name}{GOLD_SUFFIX}"
+    writes = Writes(args.apply)
     if output.exists() and not args.force:
         console.print(f"[bold red]Erreur :[/bold red] {output} existe déjà (étiquettes ?) ; --force pour l'écraser.")
         sys.exit(1)
@@ -163,31 +167,34 @@ def main() -> None:
         sample += [(key, len(population) / len(drawn), candidate) for candidate in drawn]
     sample.sort(key=lambda item: item[2]["left"].order)
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS)
-        writer.writeheader()
-        for (displacement, similarity), weight, candidate in sample:
-            left_record, right_record = candidate["left"], candidate["right"]
-            writer.writerow(
-                {
-                    "strate": f"d{displacement}/s{similarity}",
-                    "poids": f"{weight:.2f}",
-                    "deplacement": candidate["deplacement"],
-                    "similarite": f"{candidate['similarite']:.4f}",
-                    "regle_actuelle": candidate["regle_actuelle"],
-                    "meme_entree": "",
-                    "note": "",
-                    "gauche_rubrique": left_record.section_title,
-                    "gauche_page": left_record.page,
-                    "gauche_texte": left_record.text,
-                    "droite_rubrique": right_record.section_title,
-                    "droite_page": right_record.page,
-                    "droite_texte": right_record.text,
-                    "left_uuid": left_record.uuid,
-                    "right_uuid": right_record.uuid,
-                }
-            )
+    def write() -> None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with output.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=FIELDS)
+            writer.writeheader()
+            for (displacement, similarity), weight, candidate in sample:
+                left_record, right_record = candidate["left"], candidate["right"]
+                writer.writerow(
+                    {
+                        "strate": f"d{displacement}/s{similarity}",
+                        "poids": f"{weight:.2f}",
+                        "deplacement": candidate["deplacement"],
+                        "similarite": f"{candidate['similarite']:.4f}",
+                        "regle_actuelle": candidate["regle_actuelle"],
+                        "meme_entree": "",
+                        "note": "",
+                        "gauche_rubrique": left_record.section_title,
+                        "gauche_page": left_record.page,
+                        "gauche_texte": left_record.text,
+                        "droite_rubrique": right_record.section_title,
+                        "droite_page": right_record.page,
+                        "droite_texte": right_record.text,
+                        "left_uuid": left_record.uuid,
+                        "right_uuid": right_record.uuid,
+                    }
+                )
+
+    writes.add(output, write)
 
     similarity_labels = sorted({key[1] for key in strata})
     table = Table(title=f"Candidates (tirées) par strate — {len(found)} candidates, {len(sample)} tirées")
@@ -202,7 +209,8 @@ def main() -> None:
             cells.append(f"{len(population)} ({min(args.per_stratum, len(population))})" if population else "")
         table.add_row(displacement, *cells)
     console.print(table)
-    console.print(f"[bold green]✅ À étiqueter (colonne meme_entree : oui / non / ?) :[/bold green] [yellow]{output}[/yellow]")
+    console.print("À étiqueter : colonne meme_entree (OUI / NON / INCERTAIN).")
+    writes.finish(console)
 
 
 if __name__ == "__main__":

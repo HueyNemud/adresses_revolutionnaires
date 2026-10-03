@@ -64,6 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from rich.console import Console
 
+from lib.cli import APPLY_FLAG, add_apply_argument
 from lib.ner.corpus import ls_texts
 from lib.ner.gliner import DEFAULT_LABEL_TEXT, NerConfig
 from lib.ner.spans import (
@@ -454,13 +455,6 @@ def parse_args() -> argparse.Namespace:
         help="Dossier du modèle entraîné (défaut : models/<première entrée>.gliner-model/).",
     )
     parser.add_argument(
-        "-r",
-        "--report",
-        type=Path,
-        default=None,
-        help="Chemin du rapport .txt (défaut : <output-dir>/eval_report.txt).",
-    )
-    parser.add_argument(
         "--model",
         type=str,
         default=DEFAULT_MODEL,
@@ -535,6 +529,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_LABEL_TEXT["ADDR"],
         help=f"Libellé envoyé au modèle pour ADDR (défaut : '{DEFAULT_LABEL_TEXT['ADDR']}').",
     )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -558,7 +553,7 @@ def main() -> None:
 
     stem = args.input_paths[0].name.split(".", 1)[0]
     output_dir = args.output_dir or DEFAULT_MODELS_DIR / f"{stem}.gliner-model"
-    report_path = args.report or (output_dir / "eval_report.txt")
+    report_path = output_dir / "eval_report.txt"
 
     console.print(f"Lecture et conversion de [yellow]{', '.join(p.name for p in args.input_paths)}[/yellow]...")
     try:
@@ -587,6 +582,15 @@ def main() -> None:
 
     max_width = args.max_width or conversion_report.max_span_width_words
     console.print(f"max_width utilisé : [cyan]{max_width}[/cyan] mots.")
+    if not args.apply:
+        # Simulation : données lues, converties et réparties ; l'entraînement
+        # lui-même n'a de sens que si son résultat est écrit.
+        console.print(
+            f"\n[bold cyan]🔍 Simulation, rien n'a été entraîné ni écrit.[/bold cyan] Le modèle serait écrit dans "
+            f"[yellow]{output_dir}[/yellow] ({'remplacé' if output_dir.exists() else 'nouveau'}). "
+            f"Relancez avec [bold]{APPLY_FLAG}[/bold] pour entraîner."
+        )
+        return
 
     try:
         import torch

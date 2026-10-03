@@ -3,8 +3,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bs4 import BeautifulSoup
-from markdownify import markdownify
 
 from extract_chandra_lines import load_document, process_json_to_json
 
@@ -36,9 +34,9 @@ class ExtractChandraLinesTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
-    def export_pages(self, no_tables: bool = False) -> list[dict]:
+    def export_pages(self) -> list[dict]:
         output_path = Path(self.temporary_directory.name) / "output.json"
-        process_json_to_json(self.json_path, output_path, no_tables=no_tables)
+        process_json_to_json(self.json_path, output_path)
         return json.loads(output_path.read_text(encoding="utf-8"))
 
     def test_output_is_a_copy_of_the_input_with_data_blocks_added(self) -> None:
@@ -61,26 +59,8 @@ class ExtractChandraLinesTests(unittest.TestCase):
             [block.chunk_index for block in pages[0].data_blocks], [0, 1, 2]
         )
 
-    def test_default_output_preserves_markdown_table_formatting(self) -> None:
+    def test_tables_are_exploded_into_cells_and_their_lines_in_reading_order(self) -> None:
         pages = self.export_pages()
-        markdown_lines = [
-            line["markdown"]
-            for block in pages[0]["data_blocks"]
-            for line in block["lines"]
-        ]
-
-        expected_lines = []
-        soup = BeautifulSoup(self.document[0]["raw"], "html.parser")
-        for block in soup.find_all("div", recursive=False):
-            expected_lines.extend(
-                markdownify(str(block), heading_style="ATX").splitlines()
-            )
-
-        self.assertEqual(markdown_lines, expected_lines)
-        self.assertTrue(any("|" in line for line in markdown_lines))
-
-    def test_no_tables_explodes_cells_and_their_lines_in_reading_order(self) -> None:
-        pages = self.export_pages(no_tables=True)
         table_block = next(
             block for block in pages[0]["data_blocks"] if block["label"] == "Table"
         )
@@ -97,8 +77,8 @@ class ExtractChandraLinesTests(unittest.TestCase):
             all("|" not in line["markdown"] for line in table_block["lines"])
         )
 
-    def test_no_tables_preserves_non_table_content_and_provenance(self) -> None:
-        pages = self.export_pages(no_tables=True)
+    def test_table_explosion_preserves_non_table_content_and_provenance(self) -> None:
+        pages = self.export_pages()
         blocks = pages[0]["data_blocks"]
 
         self.assertEqual(

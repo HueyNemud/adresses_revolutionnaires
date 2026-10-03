@@ -2,8 +2,9 @@
 
 Le JSON de sortie est une copie du JSON d'entrée : chaque page reçoit en plus
 une liste de blocs de données (« data_blocks »), et chaque bloc contient la
-liste de ses lignes Markdown (ou, avec --notables, de ses cellules de
-tableau) avec leur provenance (chunk, position).
+liste de ses lignes Markdown avec leur provenance (chunk, position). Les
+tableaux sont éclatés : chaque cellule (et chaque ligne d'une cellule)
+devient une ligne, sans syntaxe Markdown de tableau.
 """
 
 import argparse
@@ -17,6 +18,7 @@ from markdownify import markdownify
 from rich.console import Console
 
 from lib.chandra_document import iter_line_locations
+from lib.cli import Writes, add_apply_argument
 from lib.curation import line_keys
 
 console = Console()
@@ -216,17 +218,7 @@ def assign_line_keys(pages: list[dict[str, Any]]) -> None:
         line["cle"] = key
 
 
-def data_block_lines(block: DataBlock, no_tables: bool = False) -> Iterator[str]:
-    """Yield Markdown lines or, with no-tables, table cells, for one data block."""
-    if no_tables:
-        yield from no_table_markdown_lines(block.raw_html)
-    else:
-        yield from markdownify(block.raw_html, heading_style="ATX").splitlines()
-
-
-def build_data_block_record(
-    page: Page, block: DataBlock, no_tables: bool = False
-) -> dict[str, object]:
+def build_data_block_record(page: Page, block: DataBlock) -> dict[str, object]:
     """Build one JSON record for a data block, including its Markdown lines."""
     return {
         "index": block.index,
@@ -235,15 +227,13 @@ def build_data_block_record(
         "chunk_index": block.chunk_index,
         "lines": [
             _line_record(page, block, line_index, line)
-            for line_index, line in enumerate(
-                data_block_lines(block, no_tables=no_tables)
-            )
+            for line_index, line in enumerate(no_table_markdown_lines(block.raw_html))
         ],
     }
 
 
 def process_json_to_json(
-    json_path: str | Path, output_path: str | Path, no_tables: bool = False
+    json_path: str | Path, output_path: str | Path, writes: Writes | None = None
 ) -> tuple[int, int, int]:
     """Copy a Chandra OCR JSON document, adding parsed data blocks and lines to each page.
 
@@ -257,7 +247,7 @@ def process_json_to_json(
     line_count = 0
     for raw_page, page in zip(raw_pages, pages):
         block_records = [
-            build_data_block_record(page, block, no_tables=no_tables)
+            build_data_block_record(page, block)
             for block in page.data_blocks
         ]
         output_page = dict(raw_page)
@@ -267,8 +257,9 @@ def process_json_to_json(
         line_count += sum(len(record["lines"]) for record in block_records)
     assign_line_keys(output_pages)
 
-    Path(output_path).write_text(
-        json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8"
+    (writes or Writes()).add(
+        Path(output_path),
+        lambda: Path(output_path).write_text(json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8"),
     )
     return len(output_pages), block_count, line_count
 
@@ -290,13 +281,9 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=None,
-        help="Chemin du JSON de sortie (défaut : <entrée>.chandra.json).",
+        help="Chemin du JSON de sortie (défaut : <nom>.ocr.lines.json).",
     )
-    parser.add_argument(
-        "--notables",
-        action="store_true",
-        help="Exporte chaque cellule de tableau séparément, sans syntaxe Markdown de tableau.",
-    )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -309,11 +296,12 @@ def main() -> None:
         )
         return
 
-    output_path = args.output or args.json_path.with_suffix(".chandra.json")
+    output_path = args.output or args.json_path.with_suffix(".lines.json")
+    writes = Writes(args.apply)
 
     try:
         page_count, block_count, line_count = process_json_to_json(
-            args.json_path, output_path, no_tables=args.notables
+            args.json_path, output_path, writes
         )
     except (
         json.JSONDecodeError,
@@ -325,11 +313,8 @@ def main() -> None:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
 
-    console.print(
-        "\n[bold green]✅ Export JSON réussi :[/bold green] "
-        f"[yellow]{output_path}[/yellow] "
-        f"({page_count} pages, {block_count} blocs, {line_count} lignes)"
-    )
+    console.print(f"{page_count} pages, {block_count} blocs, {line_count} lignes.")
+    writes.finish(console)
 
 
 if __name__ == "__main__":

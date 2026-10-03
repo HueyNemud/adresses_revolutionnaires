@@ -22,13 +22,13 @@ from typing import Any, Iterator
 from rich.console import Console
 
 from lib.chandra_document import iter_line_locations
+from lib.cli import Writes, add_apply_argument
 from lib.curation import (
     CORRECTED_COLUMN,
     FINGERPRINT_COLUMN,
     Curation,
     CurationConflict,
     Step,
-    line_keys,
     patch_path,
     print_conflict,
     print_report,
@@ -64,14 +64,13 @@ LINES_STEP = Step("lignes", KEY_COLUMN, (CLASS_COLUMN, "markdown"), context=("ui
 def iter_csv_rows(document: list[dict[str, Any]]) -> Iterator[dict[str, str]]:
     """Yield one CSV row per Markdown line found in the JSON document.
 
-    La clé est celle écrite par extract_chandra_lines.py ; un JSON plus ancien
-    qui n'en a pas reçoit les mêmes clés, calculées ici sur son texte OCR."""
-    locations = list(iter_line_locations(document))
-    stored = [location.line.get(KEY_COLUMN) for location in locations]
-    keys = stored if all(stored) else line_keys(location.line.get("markdown", "") for location in locations)
-    for location, key in zip(locations, keys):
+    La clé est celle écrite par extract_chandra_lines.py ; un JSON qui n'en
+    a pas est refusé."""
+    for location in iter_line_locations(document):
+        if not location.line.get(KEY_COLUMN):
+            raise ValueError(f"ligne {location.line.get('uid', '?')} sans clé `{KEY_COLUMN}` : relancez extract_chandra_lines.py.")
         row = {
-            KEY_COLUMN: key,
+            KEY_COLUMN: location.line[KEY_COLUMN],
             "uid": location.line.get("uid", ""),
             "page_index": location.page.get("page_index", ""),
             "chunk_index": location.block.get("chunk_index", ""),
@@ -99,13 +98,16 @@ def process_json_to_csv(
     *,
     force: bool = False,
     capture: bool = True,
+    writes: Writes | None = None,
 ) -> Curation | None:
     """Aplatit un JSON Chandra (extraction ou annotation) en CSV.
 
     Pour un document annoté, applique le protocole de curation (lève
     CurationConflict sans rien écrire) et retourne la Curation ; None pour
-    un document brut, exporté tel quel.
+    un document brut, exporté tel quel. `writes` décide si les fichiers sont
+    écrits (lib/cli.py ; défaut : oui).
     """
+    writes = writes or Writes()
     document: Any = json.loads(json_path.read_text(encoding="utf-8"))
     if not isinstance(document, list):
         raise ValueError("Le document JSON doit être une liste de pages.")
@@ -115,8 +117,8 @@ def process_json_to_csv(
     if is_annotated(document):
         curation = Curation(LINES_STEP, csv_path, patch_file or patch_path(csv_path, LINES_STEP.name), force=force, capture=capture)
         rows = curation.apply(rows)
-        curation.save_patch()
-    write_csv(csv_path, CSV_FIELDS, rows)
+        curation.save_patch(writes)
+    writes.add(csv_path, lambda: write_csv(csv_path, CSV_FIELDS, rows))
     return curation
 
 
@@ -142,12 +144,6 @@ def parse_args() -> argparse.Namespace:
         help="Chemin du CSV de sortie (défaut : <entrée>.csv).",
     )
     parser.add_argument(
-        "--patch",
-        type=Path,
-        default=None,
-        help="Patch des corrections (défaut : data/curation/<document>.lignes.patch.csv).",
-    )
-    parser.add_argument(
         "--force",
         action="store_true",
         help="Reprend la sortie machine pour les lignes modifiées sans « corrige = oui » et abandonne les corrections inapplicables.",
@@ -157,6 +153,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Ignore le CSV existant et repart du patch versionné.",
     )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -170,10 +167,11 @@ def main() -> None:
         return
 
     output_path = args.output or args.json_path.with_suffix(".csv")
+    writes = Writes(args.apply)
 
     try:
         curation = process_json_to_csv(
-            args.json_path, output_path, args.patch, force=args.force, capture=not args.sans_capture
+            args.json_path, output_path, force=args.force, capture=not args.sans_capture, writes=writes
         )
     except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
         console.print(f"[bold red]Erreur de JSON :[/bold red] {error}")
@@ -184,10 +182,7 @@ def main() -> None:
 
     if curation is not None:
         print_report(console, curation)
-    console.print(
-        "\n[bold green]✅ Export CSV réussi :[/bold green] "
-        f"[yellow]{output_path}[/yellow]"
-    )
+    writes.finish(console)
 
 
 if __name__ == "__main__":

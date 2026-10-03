@@ -68,6 +68,7 @@ from rich.progress import (
 )
 
 from build_entity_tree import ROOT_UUID
+from lib.cli import Writes, add_apply_argument
 from lib.curation import (
     CORRECTED_COLUMN,
     FINGERPRINT_COLUMN,
@@ -87,9 +88,10 @@ from lib.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, confidence, suspicio
 
 console = Console()
 
-DEFAULT_ENTITY_COLUMN = "entity"
-DEFAULT_ENTRY_VALUE = "ENTRY"
-DEFAULT_TEXT_COLUMN = "markdown"
+# Colonnes du CSV fusionné (build_entity_tree.py).
+ENTITY_COLUMN = "entity"
+ENTRY_VALUE = "ENTRY"
+TEXT_COLUMN = "markdown"
 DEFAULT_BATCH_SIZE = 16
 DEFAULT_THRESHOLD = 0.5
 
@@ -99,10 +101,10 @@ NEW_COLUMNS = ["tagged_text", *COUNT_COLUMN_FOR_LABEL.values(), "ner_confidence"
 NER_STEP = Step("ner", "uuid", ("tagged_text", "parent_uuid"), context=("uid",))
 
 
-def correction_check(rows: list[dict[str, str]], entity_column: str, text_column: str) -> Check:
+def correction_check(rows: list[dict[str, str]]) -> Check:
     """Une correction NER ne s'applique que si son balisage redonne le texte
     actuel de l'entité et si son titre parent existe encore."""
-    titles = {row["uuid"] for row in rows if row.get(entity_column) == "TITLE"} | {ROOT_UUID}
+    titles = {row["uuid"] for row in rows if row.get(ENTITY_COLUMN) == "TITLE"} | {ROOT_UUID}
 
     def check(correction: dict[str, str], row: dict[str, str]) -> str | None:
         tagged = correction.get("tagged_text", "")
@@ -111,7 +113,7 @@ def correction_check(rows: list[dict[str, str]], entity_column: str, text_column
                 text, _ = parse_tagged_text(tagged)
             except ValueError as error:
                 return f"balisage invalide ({error})"
-            if text != row.get(text_column, "").strip():
+            if text != row.get(TEXT_COLUMN, "").strip():
                 return "texte de l'entité modifié en amont depuis la correction"
         parent = correction.get("parent_uuid", "")
         if parent not in titles:
@@ -166,18 +168,16 @@ def insert_columns_after(
     return result
 
 
-def select_entries(
-    rows: list[dict[str, str]], entity_column: str, entry_value: str, text_column: str
-) -> tuple[list[int], list[str], list[int]]:
+def select_entries(rows: list[dict[str, str]]) -> tuple[list[int], list[str], list[int]]:
     """Retourne (indices à traiter, textes correspondants, indices ENTRY
     écartés faute de texte)."""
     indices: list[int] = []
     texts: list[str] = []
     empty_text_indices: list[int] = []
     for index, row in enumerate(rows):
-        if row.get(entity_column, "").strip() != entry_value:
+        if row.get(ENTITY_COLUMN, "").strip() != ENTRY_VALUE:
             continue
-        text = row.get(text_column, "").strip()
+        text = row.get(TEXT_COLUMN, "").strip()
         if text:
             indices.append(index)
             texts.append(text)
@@ -217,24 +217,6 @@ def parse_args() -> argparse.Namespace:
         help="Chemin du CSV de sortie (défaut : <entrée>.ner.csv).",
     )
     parser.add_argument(
-        "--entity-column",
-        type=str,
-        default=DEFAULT_ENTITY_COLUMN,
-        help=f"Colonne indiquant le type de ligne (défaut : '{DEFAULT_ENTITY_COLUMN}').",
-    )
-    parser.add_argument(
-        "--entry-value",
-        type=str,
-        default=DEFAULT_ENTRY_VALUE,
-        help=f"Valeur de --entity-column marquant une ligne à traiter (défaut : '{DEFAULT_ENTRY_VALUE}').",
-    )
-    parser.add_argument(
-        "--text-column",
-        type=str,
-        default=DEFAULT_TEXT_COLUMN,
-        help=f"Colonne contenant le texte à analyser (défaut : '{DEFAULT_TEXT_COLUMN}').",
-    )
-    parser.add_argument(
         "--batch-size",
         type=int,
         default=DEFAULT_BATCH_SIZE,
@@ -253,12 +235,6 @@ def parse_args() -> argparse.Namespace:
         help=f"Score minimal d'empan sous lequel une entrée est signalée « score bas » (défaut : {DEFAULT_MIN_SCORE}).",
     )
     parser.add_argument(
-        "--patch",
-        type=Path,
-        default=None,
-        help="Patch des corrections (défaut : data/curation/<document>.ner.patch.csv).",
-    )
-    parser.add_argument(
         "--force",
         action="store_true",
         help="Reprend la sortie machine pour les lignes modifiées sans « corrige = oui » et abandonne les corrections inapplicables.",
@@ -273,15 +249,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier).",
     )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
-def apply_corrections(
-    curation: Curation, rows: list[dict[str, str]], entity_column: str, text_column: str
-) -> list[dict[str, str]]:
+def apply_corrections(curation: Curation, rows: list[dict[str, str]]) -> list[dict[str, str]]:
     """Réapplique le patch (lève CurationConflict) et recompte les empans
     des lignes corrigées."""
-    rows = curation.apply(rows, check=correction_check(rows, entity_column, text_column))
+    rows = curation.apply(rows, check=correction_check(rows))
     for row in rows:
         if is_corrected(row):
             recount(row)
@@ -289,17 +264,17 @@ def apply_corrections(
 
 
 def write_output(
-    curation: Curation, rows: list[dict[str, str]], output_path: Path, fieldnames: list[str], args: argparse.Namespace
+    curation: Curation, rows: list[dict[str, str]], output_path: Path, fieldnames: list[str], writes: Writes
 ) -> None:
-    """Corrections réappliquées puis écriture ; en cas de panique, rien
-    n'est écrit et le script s'arrête."""
+    """Corrections réappliquées puis écriture (si `--apply`) ; en cas de
+    panique, rien n'est écrit et le script s'arrête."""
     try:
-        rows = apply_corrections(curation, rows, args.entity_column, args.text_column)
+        rows = apply_corrections(curation, rows)
     except CurationConflict as conflict:
         print_conflict(console, conflict)
         raise SystemExit(1)
-    curation.save_patch()
-    write_csv(output_path, fieldnames, rows)
+    curation.save_patch(writes)
+    writes.add(output_path, lambda: write_csv(output_path, fieldnames, rows))
     print_report(console, curation)
 
 
@@ -314,9 +289,10 @@ def main() -> None:
         console.print(f"[bold red]Erreur :[/bold red] {error}")
         return
     output_path = args.output or args.input_csv.with_suffix(".ner.csv")
+    writes = Writes(args.apply)
     try:
         curation = Curation(
-            NER_STEP, output_path, args.patch or patch_path(output_path, NER_STEP.name),
+            NER_STEP, output_path, patch_path(output_path, NER_STEP.name),
             force=args.force, capture=not args.sans_capture,
         )
     except CurationConflict as conflict:
@@ -326,7 +302,7 @@ def main() -> None:
     console.print(f"Lecture de [yellow]{args.input_csv.name}[/yellow]...")
     try:
         fieldnames, rows = load_rows(args.input_csv)
-        output_fieldnames = insert_columns_after(fieldnames, args.entity_column, NEW_COLUMNS)
+        output_fieldnames = insert_columns_after(fieldnames, ENTITY_COLUMN, NEW_COLUMNS)
         if FINGERPRINT_COLUMN not in output_fieldnames:
             output_fieldnames.append(FINGERPRINT_COLUMN)
     except (OSError, csv.Error, ValueError) as error:
@@ -336,13 +312,14 @@ def main() -> None:
         for column in NEW_COLUMNS:
             row.setdefault(column, "")
 
-    indices, texts, empty_text_indices = select_entries(rows, args.entity_column, args.entry_value, args.text_column)
-    console.print(f"[green]{len(indices)}[/green] ligne(s) '{args.entry_value}' à traiter sur {len(rows)} lignes au total.")
+    indices, texts, empty_text_indices = select_entries(rows)
+    console.print(f"[green]{len(indices)}[/green] ligne(s) '{ENTRY_VALUE}' à traiter sur {len(rows)} lignes au total.")
     if empty_text_indices:
-        console.print(f"[yellow]{len(empty_text_indices)} ligne(s) '{args.entry_value}' au texte vide, ignorée(s).[/yellow]")
+        console.print(f"[yellow]{len(empty_text_indices)} ligne(s) '{ENTRY_VALUE}' au texte vide, ignorée(s).[/yellow]")
     if not indices:
         console.print("[yellow]Aucune ligne à traiter.[/yellow]")
-        write_output(curation, rows, output_path, output_fieldnames, args)
+        write_output(curation, rows, output_path, output_fieldnames, writes)
+        writes.finish(console)
         return
 
     console.print(f"Chargement du modèle [cyan]{args.model}[/cyan]...")
@@ -390,10 +367,10 @@ def main() -> None:
         if args.verbose:
             console.print(f"[green]✓[/green] ligne {row_index}  {row['tagged_text']}")
 
-    write_output(curation, rows, output_path, output_fieldnames, args)
+    write_output(curation, rows, output_path, output_fieldnames, writes)
 
     processed = len(indices) - len(errors)
-    console.print(f"\n[bold green]✅ Inférence terminée :[/bold green] [yellow]{output_path}[/yellow] ({processed}/{len(indices)} lignes traitées)")
+    console.print(f"\nInférence : {processed}/{len(indices)} lignes traitées.")
     console.print("Empans détectés — " + "  ·  ".join(f"{label} : {span_counts[label]}" for label in LABELS))
     if processed:
         detail = ", ".join(f"{reason} {count}" for reason, count in reason_counts.most_common())
@@ -403,6 +380,7 @@ def main() -> None:
         )
     if errors:
         console.print(f"[red]✗ {len(errors)} ligne(s) en échec (voir le détail ci-dessus).[/red]")
+    writes.finish(console)
 
 
 if __name__ == "__main__":

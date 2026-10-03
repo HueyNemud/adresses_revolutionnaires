@@ -455,22 +455,21 @@ def corpus_section(report: Report, documents: Sequence[SilverDocument], out: Pat
         s = d.stats
         n_pages = len(page_boundaries(d)) - 1
         rows.append([d.name, n_pages, d.labeled_count, s.original_human_lines, s.label_changed_vs_original, s.text_edited, s.heading_marker_changed, s.unmatched_source_lines])
-        csv_rows.append([d.name, d.volume, n_pages, len(d), d.labeled_count, *[counts.get(c, 0) for c in CLASSES], s.original_human_lines, s.original_model_lines, s.label_changed_vs_original, s.text_edited, s.heading_marker_changed, s.unmatched_source_lines, s.matched_by_text, s.curated_lines_without_source])
+        csv_rows.append([d.name, d.volume, n_pages, len(d), d.labeled_count, *[counts.get(c, 0) for c in CLASSES], s.original_human_lines, s.original_model_lines, s.label_changed_vs_original, s.text_edited, s.heading_marker_changed, s.unmatched_source_lines, s.added_lines])
     write_csv(
         out / "corpus.csv",
-        ["document", "volume", "pages", "lignes", "lignes_labellisees", *CLASSES, "labels_humains_origine", "labels_modele_origine", "classes_corrigees", "textes_corriges", "marqueurs_titre_modifies", "lignes_non_alignees", "alignees_par_texte", "lignes_curees_sans_source"],
+        ["document", "volume", "pages", "lignes", "lignes_labellisees", *CLASSES, "labels_humains_origine", "labels_modele_origine", "classes_corrigees", "textes_corriges", "marqueurs_titre_modifies", "lignes_non_alignees", "lignes_ajoutees"],
         csv_rows,
     )
     labeled = sum(total.values())
     changed = sum(d.stats.label_changed_vs_original for d in documents)
     model_lines = sum(d.stats.original_model_lines for d in documents)
     human = sum(d.stats.original_human_lines for d in documents)
-    fallback = [d.name for d in documents if d.observations_from_curated_text]
     report.add(
         "## 1. Données",
         f"{len(documents)} documents ({len({d.volume for d in documents})} volumes), {labeled} lignes non vides labellisées. "
         "Les observations (texte, bloc OCR, page) sont relues dans le JSON `*.ocr.lines.json` vu par "
-        "l'annotateur ; la vérité vient de la colonne `classe` du CSV corrigé, alignée par `uid`.",
+        "l'annotateur ; la vérité vient de la colonne `classe` du CSV corrigé, rattachée par la clé de ligne `cle`.",
         md_table(["Document", "Pages", "Lignes lab.", "Labels humains (orig.)", "Classes corrigées", "Textes corrigés", "dont marqueur « # »", "Non alignées"], rows),
         md_table(["Classe", "Lignes", "Part"], [[c, total[c], f"{total[c] / labeled:.2%}"] for c in CLASSES if total[c]]),
         "**Nature du silver dataset — à garder en tête pour lire tout le rapport.** "
@@ -484,7 +483,6 @@ def corpus_section(report: Report, documents: Sequence[SilverDocument], out: Pat
         "(ajoutés, retirés ou changés de niveau) : signal direct que la feature `heading`, fondée sur les « # » "
         "produits par l'OCR, est imparfaite. Le modèle évalué ne voit pas ces corrections : il voit le texte "
         "OCR brut, comme en production.",
-        f"⚠ Documents évalués sur le texte curé faute de JSON source (risque de fuite) : {names(fallback)}." if fallback else "",
     )
     return {"lignes_labellisees": labeled, "classes_corrigees": changed, "repartition": {c: total[c] / labeled for c in CLASSES if total[c]}}
 
@@ -987,8 +985,7 @@ def main() -> None:
         console.print(f"[bold red]Erreur de chargement :[/bold red] {error}")
         return
     for document in documents:
-        flag = " [yellow](texte curé : JSON source absent)[/yellow]" if document.observations_from_curated_text else ""
-        console.print(f"• {document.name} : {document.labeled_count}/{len(document)} lignes labellisées{flag}")
+        console.print(f"• {document.name} : {document.labeled_count}/{len(document)} lignes labellisées")
     out = args.output_dir
     out.mkdir(parents=True, exist_ok=True)
 
@@ -1164,8 +1161,8 @@ def main() -> None:
             [
                 "- **Observations** : lignes non vides du JSON `*.ocr.lines.json` (celui qu'a vu l'annotateur), features "
                 "recalculées avec `lib.crf.features` — strictement celles de production pour la configuration "
-                "`production`. La vérité (`classe`) est alignée par `uid` puis par (page, texte) ; les "
-                "lignes non alignées restent dans la séquence observée mais ne sont ni apprises ni évaluées.",
+                "`production`. La vérité (`classe`) est rattachée par la clé de ligne `cle` ; les "
+                "lignes supprimées à la curation restent dans la séquence observée mais ne sont ni apprises ni évaluées.",
                 "- **Protocoles** : *intra-document* = K plis de pages contiguës par document, chacun prédit par un "
                 "modèle entraîné sur les autres plis du même document ; *inter-volumes* = chaque volume prédit par un "
                 "modèle entraîné sur les autres volumes (3 volumes : 3 modèles seulement, d'où une forte variance). "

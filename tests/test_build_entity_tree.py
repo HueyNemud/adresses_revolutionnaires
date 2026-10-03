@@ -37,7 +37,7 @@ def merge(directory: Path, rows=ROWS) -> list[dict[str, str]]:
     source = directory / "Vol.1-9.ocr.lines.annotated.csv"
     write_source(source, rows)
     output = directory / "out.csv"
-    process_csv(source, output, "classe", "uid")
+    process_csv(source, output)
     with output.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
@@ -60,8 +60,8 @@ class EntityIdTests(unittest.TestCase):
 
     def test_document_distinguishes_identical_keys(self):
         a, b = [{"cle": "abc"}], [{"cle": "abc"}]
-        assign_entity_ids(a, "vol-A", "cle")
-        assign_entity_ids(b, "vol-B", "cle")
+        assign_entity_ids(a, "vol-A")
+        assign_entity_ids(b, "vol-B")
         self.assertNotEqual(a[0]["uuid"], b[0]["uuid"])
 
     def test_id_depends_on_root_line_only(self):
@@ -83,7 +83,7 @@ class EntityIdTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "Vol.1-9.ocr.lines.annotated.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv", "classe", "uid")
+            report = process_csv(source, Path(tmp) / "out.csv")
             with (Path(tmp) / "out.csv").open(encoding="utf-8", newline="") as handle:
                 reader = csv.DictReader(handle)
                 out = list(reader)
@@ -111,7 +111,7 @@ class AlphaSortKeyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv", "classe", "uid")
+            report = process_csv(source, Path(tmp) / "out.csv")
         self.assertEqual([uid for uid, *_ in report.alpha_violations], ["1.1.2"])
 
 
@@ -164,7 +164,7 @@ class TitleTreeReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "in.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv", "classe", "uid")
+            report = process_csv(source, Path(tmp) / "out.csv")
         self.assertEqual(
             format_title_tree(report),
             [

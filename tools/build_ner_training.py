@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 
 from rich.console import Console
 
+from lib.cli import Writes, add_apply_argument
 from lib.ner.corpus import iter_corpus, ls_texts
 from lib.ner.spans import Span, ls_result, signature
 
@@ -122,6 +123,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--size", type=int, default=DEFAULT_SIZE, help=f"Nombre d'exemples (défaut : {DEFAULT_SIZE}).")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("-o", "--output", type=Path, default=DEFAULT_OUTPUT, help=f"JSON de sortie (défaut : {DEFAULT_OUTPUT}).")
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -146,12 +148,17 @@ def main() -> None:
 
     chosen = sample(candidates, args.size, rng)
     rng.shuffle(chosen)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    # JSON compact : le fichier est versionné pour la machine d'entraînement.
-    args.output.write_text(json.dumps([to_task(c) for c in chosen], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    writes = Writes(args.apply)
+
+    def write() -> None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        # JSON compact : le fichier est versionné pour la machine d'entraînement.
+        args.output.write_text(json.dumps([to_task(c) for c in chosen], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+    writes.add(args.output, write)
 
     manifest = {
-        "arguments": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()},
+        "arguments": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items() if k != "apply"},
         "candidats": len(candidates),
         "écartés": dict(dropped),
         "exemples": len(chosen),
@@ -161,12 +168,12 @@ def main() -> None:
         "20_formes_principales": Counter(c.shape for c in chosen).most_common(20),
     }
     manifest_path = args.output.with_suffix(".manifest.json")
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    writes.add(manifest_path, lambda: manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8"))
 
     console.print(f"{len(candidates)} candidats ({dict(dropped)} écartés) → [cyan]{len(chosen)}[/cyan] exemples.")
     console.print("Par volume : " + ", ".join(f"{k} {v}" for k, v in manifest["par_volume"].most_common()))
     console.print("Par signature : " + ", ".join(f"{k} {v}" for k, v in manifest["par_signature"].most_common(6)))
-    console.print(f"[bold green]✅ Jeu d'entraînement :[/bold green] [yellow]{args.output}[/yellow] (manifeste : {manifest_path})")
+    writes.finish(console)
 
 
 if __name__ == "__main__":

@@ -76,7 +76,7 @@ def predict_spans(
     for start in range(0, len(inputs), batch_size):
         chunk = inputs[start : start + batch_size]
         try:
-            predictions = model.batch_predict_entities(chunk, labels, threshold=threshold)
+            predictions = model.inference(chunk, labels, threshold=threshold)
             results += [to_spans(text, entities) for text, entities in zip(chunk, predictions)]
         except Exception:  # Surface large et imprévisible côté torch.
             for offset, text in enumerate(chunk):

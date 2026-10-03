@@ -5,6 +5,12 @@ lui-même), propose des blocs de lignes à un humain, réentraîne un CRF après
 chaque lot, et exporte une copie du JSON où chaque ligne est enrichie de sa
 prédiction et de sa provenance.
 
+La session (`<entrée>.crf-session.json`) est enregistrée après chaque
+action : c'est l'état de travail, qu'on reprend en relançant le script.
+L'export du JSON annoté, lui, suit la convention commune (lib/cli.py) :
+simulation par défaut, écrit avec `--apply` — relancer avec `--apply` et
+quitter aussitôt (`q`) exporte une session terminée.
+
 Ce script ne contient que l'interface (dashboard, sessions, CLI) : le moteur
 (features, entraînement, sélection des lignes) est dans `lib.crf`.
 """
@@ -21,6 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from lib.cli import Writes, add_apply_argument
 from lib.crf.active_learning import (
     ActiveCRF,
     AnnotationHistory,
@@ -185,9 +192,9 @@ def parse_args():
     parser.add_argument(
         "-o",
         "--output",
-        type=str,
-        default="predictions_crf.json",
-        help="Nom du JSON de sortie",
+        type=Path,
+        default=None,
+        help="JSON annoté de sortie (défaut : <nom>.ocr.lines.annotated.json à côté de l'entrée).",
     )
     parser.add_argument(
         "--seed-size",
@@ -196,15 +203,11 @@ def parse_args():
         help="Nombre d'annotations diversifiées avant l'échantillonnage par incertitude.",
     )
     parser.add_argument(
-        "--session",
-        type=Path,
-        help="Fichier JSON de session (défaut : suffixe .crf-session.json).",
-    )
-    parser.add_argument(
         "--reset-session",
         action="store_true",
         help="Ignore une session existante et démarre une nouvelle annotation.",
     )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -231,12 +234,6 @@ def load_session_state(
         session.get("label_timestamps") or {}, annotated_indices
     )
     return labels, annotation_history, label_timestamps
-
-
-def load_session(session_path: Path, document_hash: str) -> list[str | None] | None:
-    """Charge les labels de session (compatibilité avec l'API existante)."""
-    session_state = load_session_state(session_path, document_hash)
-    return session_state[0] if session_state is not None else None
 
 
 def save_session(session_path: Path, document_hash: str, crf: ActiveCRF) -> None:
@@ -439,7 +436,9 @@ def main():
         )
         return
 
-    session_path = args.session or args.json_file.with_suffix(".crf-session.json")
+    session_path = args.json_file.with_suffix(".crf-session.json")
+    output_path = args.output or args.json_file.with_suffix(".annotated.json")
+    writes = Writes(args.apply)
     crf = ActiveCRF(records, raw_document, seed_size=args.seed_size)
     if not args.reset_session:
         try:
@@ -456,11 +455,9 @@ def main():
 
     try:
         annotate_interactively(crf, session_path, document_hash)
-        crf.export_json(args.output)
-        console.print(
-            "\n[bold green]✅ Export JSON réussi :[/bold green] "
-            f"[yellow]{args.output}[/yellow] ({len(crf.lines)} lignes)"
-        )
+        writes.add(output_path, lambda: crf.export_json(output_path))
+        console.print(f"{len(crf.lines)} lignes, session : [yellow]{session_path}[/yellow]")
+        writes.finish(console)
     finally:
         crf.close()
 

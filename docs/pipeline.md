@@ -66,23 +66,35 @@ jq 'map(select(.page_index >= 6 and .page_index <= 185))' \
     > annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186.ocr.json
 ```
 
+**Simulation par défaut.** Toute commande qui écrit des fichiers de données
+(étapes du pipeline, alignement, export, tirages de gold, jeu
+d'entraînement, entraînement) calcule et vérifie tout — conflits de
+curation et lignes orphelines compris — puis affiche les fichiers qu'elle
+écrirait (nouveau / remplacé), sans rien écrire. `--apply` écrit
+(`lib/cli.py`). `--force` reste distinct : il passe outre un refus
+(conflit, orphelin, fichier existant) et n'écrit lui aussi qu'avec
+`--apply`. L'annotateur (étape 2) enregistre sa session à chaque action,
+mais n'exporte le JSON annoté qu'avec `--apply` ; `tools/train_gliner.py`
+sans `--apply` vérifie et convertit les données puis s'arrête avant
+d'entraîner. Les audits et les viewers n'écrivent que des rapports ou
+rien : ils n'ont pas cette option.
+
 Les étapes 1 à 4 sur une plage, avec ces noms de fichiers :
 
 ```bash
 P=annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186
-uv run extract_chandra_lines.py $P.ocr.json --notables -o $P.ocr.lines.json
-uv run annotate_lines_crf.py $P.ocr.lines.json -o $P.ocr.lines.annotated.json \
-    --session $P.ocr.lines.crf-session.json
-uv run export_lines_csv.py $P.ocr.lines.annotated.json -o $P.ocr.lines.annotated.csv
+uv run extract_chandra_lines.py $P.ocr.json --apply                 # → $P.ocr.lines.json
+uv run annotate_lines_crf.py $P.ocr.lines.json --apply              # → $P.ocr.lines.annotated.json
+uv run export_lines_csv.py $P.ocr.lines.annotated.json --apply      # → $P.ocr.lines.annotated.csv
 # curation manuelle dans $P.ocr.lines.annotated.csv (lignes marquées corrige = oui),
 # puis relancer export_lines_csv.py : les corrections sont capturées et réappliquées
-uv run build_entity_tree.py $P.ocr.lines.annotated.csv
+uv run build_entity_tree.py $P.ocr.lines.annotated.csv --apply     # → $P.ocr.lines.annotated.merged.csv
 ```
 
 ```mermaid
 flowchart TD
     A["Sortie OCR Chandra d'une plage<br/><code>….ocr.json</code>"]
-    A -->|"1 · extract_chandra_lines.py --notables"| B["Lignes Markdown par bloc<br/><code>….ocr.lines.json</code>"]
+    A -->|"1 · extract_chandra_lines.py"| B["Lignes Markdown par bloc<br/><code>….ocr.lines.json</code>"]
     B -->|"2 · annotate_lines_crf.py<br/>(annotation interactive, CRF)"| C["Lignes annotées<br/><code>….ocr.lines.annotated.json</code>"]
     C -->|"3 · export_lines_csv.py"| D["Une ligne CSV par ligne Markdown<br/><code>….ocr.lines.annotated.csv</code>"]
     D -.->|"curation manuelle<br/>(corrige = oui)"| D
@@ -147,8 +159,9 @@ dès que le résultat ne serait pas prévisible :
 ces lignes (et retire les corrections inapplicables du patch). C'est aussi
 le moyen d'annuler une correction : vider `corrige`, relancer avec `--force`.
 `--sans-capture` ignore le fichier existant et repart du patch versionné
-(par exemple après un `git pull` qui l'a modifié). `--patch` change son
-chemin.
+(par exemple après un `git pull` qui l'a modifié). Lancée sans `--apply`,
+la commande montre les conflits éventuels et les fichiers qu'elle
+réécrirait, sans toucher ni au CSV ni au patch.
 
 Étape 3, opérations sur les lignes :
 
@@ -178,31 +191,25 @@ Les patchs vivent dans `data/`, versionné avec le code. Les commits de
 données restent séparés de ceux du code (préfixe `données:`), et les scripts
 ne commitent jamais eux-mêmes.
 
-`tools/migrer_curation.py` a converti une fois les anciens fichiers
-(`*.annotated.curated.csv` avec `prediction_curated`, `*.ner.curated.csv`,
-uuid fondés sur les `uid`) vers ce protocole ; il garde la trace de la
-méthode (rapprochement par `uid` puis par texte, lignes déplacées converties
-en suppression + ajout) et ne sert plus ensuite.
-
 ## Étape 1 — Extraction des lignes : `extract_chandra_lines.py`
 
 Parse le HTML de chaque bloc de la sortie Chandra et le convertit en lignes
 Markdown, avec leur provenance (page, bloc, position).
 
 ```bash
-uv run extract_chandra_lines.py <plage>.ocr.json --notables -o <plage>.ocr.lines.json
+uv run extract_chandra_lines.py <plage>.ocr.json --apply
 ```
 
 - **Entrée :** le JSON OCR de Chandra (`<nom>.ocr.json` : `markdown` et
   `html` par page, blocs repérés par `data-block-id`).
 - **Sortie :** une copie du JSON où chaque page reçoit une liste
   `data_blocks`, chacun portant sa liste de `lines` (`uid`, `line_index`,
-  `markdown`, `cle`). Défaut : `<entrée>.chandra.json`.
+  `markdown`, `cle`). Défaut : `<nom>.ocr.lines.json`.
 - **`cle`** : clé stable de la ligne (hash du texte OCR, voir
   [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)),
   recopiée par toutes les étapes suivantes.
-- **`--notables`** : exporte chaque cellule de tableau comme une ligne
-  séparée, sans syntaxe Markdown de tableau.
+- **Tableaux :** chaque cellule (et chaque ligne d'une cellule) devient une
+  ligne séparée, sans syntaxe Markdown de tableau.
 - Ce schéma (pages → `data_blocks` → `lines`) est le **contrat partagé** des
   étapes 2 et 3 ; il est décrit et validé en un seul endroit,
   `lib/chandra_document.py` (`iter_line_locations`). C'est là qu'il faut le
@@ -215,19 +222,19 @@ lignes les plus utiles à annoter (graine diversifiée, puis échantillonnage
 par incertitude) et prédit les autres.
 
 ```bash
-uv run annotate_lines_crf.py <plage>.ocr.lines.json \
-    -o <plage>.ocr.lines.annotated.json \
-    --session <plage>.ocr.lines.crf-session.json
+uv run annotate_lines_crf.py <plage>.ocr.lines.json --apply
 ```
 
 - **Entrée :** le JSON de l'étape 1, ou un JSON déjà partiellement annoté
   par ce script.
 - **Sortie :** le même JSON, où chaque ligne reçoit `prediction`,
   `provenance` (`human` / `model` / `unclassified`), `probability` et
-  `timestamp`. Défaut : `predictions_crf.json`.
-- **Session :** réécrite après chaque action (défaut :
-  `<entrée>.crf-session.json`) ; l'annotation reprend exactement où elle a
-  été arrêtée. `--reset-session` l'ignore.
+  `timestamp`. Défaut : `<nom>.ocr.lines.annotated.json`, écrit seulement
+  avec `--apply` (relancer avec `--apply` et quitter aussitôt par `q`
+  exporte une session terminée).
+- **Session :** `<entrée>.crf-session.json`, réécrite après chaque action
+  (même sans `--apply`) ; l'annotation reprend exactement où elle a été
+  arrêtée. `--reset-session` l'ignore.
 - **Classes :** `B-ENTRY`, `I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`,
   `OUT OF SCOPE`, `¯\_(ツ)_/¯` (incertain).
 - **`--seed-size`** : nombre d'annotations diversifiées avant l'échantillonnage
@@ -271,14 +278,15 @@ Points de conception :
 Convertit le JSON, annoté ou non, en CSV : une ligne Markdown par ligne.
 
 ```bash
-uv run export_lines_csv.py <plage>.ocr.lines.annotated.json -o <plage>.ocr.lines.annotated.csv
+uv run export_lines_csv.py <plage>.ocr.lines.annotated.json --apply
 ```
 
 - **Colonnes :** `cle`, `uid`, `page_index`, `chunk_index`,
   `data_block_index`, `line_index`, `data_block_bbox`, `data_block_label`,
   `markdown`, `classe`, `corrige`, `provenance`, `probability`, `timestamp`,
   `empreinte` (`CSV_FIELDS`). `classe` est la prédiction de l'annotateur
-  (`prediction` dans le JSON).
+  (`prediction` dans le JSON). `cle` est recopiée du JSON : un JSON sans
+  clé (antérieur à l'étape 1 actuelle) est refusé.
 - Sur le JSON brut de l'étape 1, `classe` est vide et aucun patch n'est lu
   ni écrit : pratique pour inspecter l'extraction.
 - **Curation :** on corrige directement ce CSV (classe, texte, notamment les
@@ -296,11 +304,11 @@ de lignes, rattache chaque ligne produite à son titre parent et écrit un
 rapport.
 
 ```bash
-uv run build_entity_tree.py <plage>.ocr.lines.annotated.csv
+uv run build_entity_tree.py <plage>.ocr.lines.annotated.csv --apply
 ```
 
-- **Entrée :** un CSV de l'étape 3. La classe est lue dans `classe`
-  (`--class-column`) ; les lignes `SUPPRIMÉE` sont ignorées, et les colonnes
+- **Entrée :** un CSV de l'étape 3 (colonnes `cle`, `uid`, `markdown`,
+  `classe` obligatoires). Les lignes `SUPPRIMÉE` sont ignorées, et les colonnes
   `corrige` / `empreinte` ne sont pas recopiées.
 - **Sorties :**
   - `<entrée>.merged.csv` — une ligne par entité : `ENTRY`, `TITLE` ou
@@ -341,7 +349,7 @@ flowchart LR
 ### Identifiants et hiérarchie
 
 - **`uuid`** est déterministe : uuid5 du nom du document et de la clé `cle`
-  de la **ligne racine** de l'entité (`--key-column`), jamais de son texte ni
+  de la **ligne racine** de l'entité, jamais de son texte ni
   de sa page. Il survit aux corrections de texte, à la re-segmentation de
   l'OCR et au rattachement ou détachement de lignes de continuation. La
   colonne `cle` d'une entité garde sa composition en clair (clés de ses
@@ -380,7 +388,7 @@ texte normalisé, pas sur l'`uid`).
 ### Inférence : `infer_gliner.py`
 
 ```bash
-uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model
+uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model --apply
 ```
 
 - Ajoute après `entity` la colonne `tagged_text` (texte d'origine balisé,
@@ -426,19 +434,17 @@ téléversé) :
   confiance maximale.
 - **Statistiques :** signatures, motifs, et rubriques classées par nombre
   d'entrées suspectes, pour organiser la relecture.
-- Pour un CSV sans colonne `ner_suspect`, les motifs structurels sont
-  recalculés depuis `tagged_text`.
 
 ### Entraînement
 
 ```bash
 # En local (a besoin de annuaires/) : régénère data/ner/train.ls.json à partir
 # des CSV NER (curés en priorité), tiré par forme typographique, gold exclu.
-uv run tools/build_ner_training.py
+uv run tools/build_ner_training.py --apply
 git add data/ner && git commit && git push
 
 # Sur la machine GPU (après git pull && uv sync) :
-uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model
+uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model --apply
 ```
 
 - Le jeu d'entraînement vaut ce que valent les CSV : ils doivent suivre le
@@ -452,7 +458,7 @@ uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model
 ### Audit : `audit_ner.py`
 
 ```bash
-uv run tools/sample_ner_gold.py      # une seule fois : tirage du gold
+uv run tools/sample_ner_gold.py --apply      # une seule fois : tirage du gold
 uv run audit_ner.py --split dev --model models/<actuel>.gliner-model --model models/<nom>.gliner-model
 uv run audit_ner.py --split dev --predictions autre=sortie.ner.csv
 ```
@@ -565,10 +571,10 @@ est **orpheline** : conservée, non appliquée, et les scripts paniquent
 ### Méthode Dedupe : `align_directories.py`
 
 ```bash
-uv run align_directories.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292
-uv run align_directories.py <gauche> <droite> --label          # compléter l'étiquetage
-uv run align_directories.py <gauche> <droite> --apply-only     # réappliquer le patch, sans Dedupe
-uv run align_directories.py <gauche> <droite> --raw-sections   # variante à clés de rubrique brutes
+uv run align_directories.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
+uv run align_directories.py <gauche> <droite> --label --apply          # compléter l'étiquetage
+uv run align_directories.py <gauche> <droite> --sans-dedupe --apply    # réappliquer le patch, sans Dedupe
+uv run align_directories.py <gauche> <droite> --raw-sections --apply   # variante à clés de rubrique brutes
 ```
 
 - **Champs comparés :** rubrique, SUBJ et texte, en minuscules. La rubrique
@@ -603,8 +609,8 @@ uv run align_directories.py <gauche> <droite> --raw-sections   # variante à cl�
 ### Méthode ordonnée : `align_directories_nw.py`
 
 ```bash
-uv run align_directories_nw.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292
-uv run align_directories_nw.py <gauche> <droite> --no-context   # Needleman-Wunsch seul
+uv run align_directories_nw.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
+uv run align_directories_nw.py <gauche> <droite> --no-context --apply   # Needleman-Wunsch seul
 ```
 
 Sans apprentissage supervisé ; méthode, formalisation et premiers résultats
@@ -731,7 +737,7 @@ final.
 Les patchs s'éditent à la main (tableur ou éditeur de texte) : coller une
 ligne copiée valide une paire ou confirme une absence de correspondance ;
 pour apparier deux entrées, coller la ligne de l'une et y reporter l'`uuid`
-(et le fichier) de l'autre. `align_directories.py --apply-only` régénère
+(et le fichier) de l'autre. `align_directories.py --sans-dedupe --apply` régénère
 ensuite le CSV final en quelques secondes.
 
 Pour tester le viewer, utiliser un wrapper qui redéfinit `ALIGNMENTS_DIR`
@@ -740,7 +746,7 @@ et `PATCH_DIR`, jamais les dossiers réels.
 ### Exporter la jointure : `tools/export_alignment.py`
 
 ```bash
-uv run tools/export_alignment.py annuaires/alignements/<g>__<d>.nw.csv [--excel] [-o sortie.csv]
+uv run tools/export_alignment.py annuaires/alignements/<g>__<d>.nw.csv [--excel] [-o sortie.csv] --apply
 ```
 
 Produit, pour les utilisateurs des données (historiens), la jointure des
@@ -791,7 +797,7 @@ conventions de relecture sont dans
 ### Gold des inversions et audit de la relecture
 
 ```bash
-uv run tools/sample_alignment_gold.py annuaires/<g> annuaires/<d> [--per-stratum 4]   # une fois par paire
+uv run tools/sample_alignment_gold.py annuaires/<g> annuaires/<d> [--per-stratum 4] --apply   # une fois par paire
 uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.csv
 ```
 
@@ -834,8 +840,9 @@ uv run audit_crf_features.py a.ocr.lines.annotated.csv b.ocr.lines.annotated.csv
 
 - **Entrées :** les CSV curés et, à côté de chacun, le
   `<nom>.ocr.lines.json` qu'a vu l'annotateur. Les features sont calculées
-  sur ce JSON, et les classes curées y sont alignées par `uid`
-  (`lib/crf/silver.py`) : le texte ayant parfois été corrigé à la curation
+  sur ce JSON, et les classes curées y sont rattachées par la clé de ligne
+  `cle` (`lib/crf/silver.py` ; une ligne ajoutée à la main, sans
+  observation, est ignorée) : le texte ayant parfois été corrigé à la curation
   (marqueurs `#`), calculer les features sur le CSV curé ferait fuiter les
   étiquettes.
 - **Référence « silver » :** les classes curées ne diffèrent des prédictions

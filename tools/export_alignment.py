@@ -47,6 +47,7 @@ from lib.alignment import load_volume, read_links
 from lib.alignment_review import DEFAULT_MARGIN, review
 from lib.alignment_export import STATUS_LABELS, export_csv, export_encoding, natural_rows
 from lib.alignment_patch import apply_patch, read_patch, resolve, validate
+from lib.cli import Writes, add_apply_argument
 from lib.curation import CurationConflict, print_conflict, refuse_orphans
 from lib.section_alignment import SECTION_PATCH_SUFFIX, load_section_alignment, restrict_to_corresponding, section_orphans
 
@@ -79,7 +80,9 @@ def main() -> None:
         help=f"Écart de similarité sous lequel une concurrente fait signaler `homonyme proche` (défaut : {DEFAULT_MARGIN}).",
     )
     parser.add_argument("--force", action="store_true", help="Ignorer les lignes orphelines des patchs (sinon : arrêt sans rien écrire).")
+    add_apply_argument(parser)
     args = parser.parse_args()
+    writes = Writes(args.apply)
 
     pair_name = pair_of(args.alignment)
     left_name, separator, right_name = pair_name.partition("__")
@@ -110,7 +113,7 @@ def main() -> None:
                 sys.exit(1)
 
     sections = load_section_alignment(
-        list(left.values()), list(right.values()), PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}", rewrite=False
+        list(left.values()), list(right.values()), PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
     )
     try:
         refuse_orphans(section_orphans(sections), args.force, "ligne orpheline du patch des rubriques")
@@ -130,17 +133,22 @@ def main() -> None:
         console.print(f"[bold red]⚠ {n_missing} lien(s) vers des entrées disparues, ignoré(s) : relancer l'alignement.[/bold red]")
 
     output = args.output or default_output(args.alignment)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(export_csv(rows, args.excel, found.reviews), encoding=export_encoding(args.excel), newline="")
+
+    def write() -> None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(export_csv(rows, args.excel, found.reviews), encoding=export_encoding(args.excel), newline="")
+
+    writes.add(output, write)
     counts = Counter(row.kind for row in rows)
     summary = ", ".join(f"{counts[kind]} {label}" for kind, label in STATUS_LABELS.items())
-    console.print(f"[bold green]💾 {len(rows)} ligne(s)[/bold green] ({summary}) → [yellow]{output}[/yellow]")
+    console.print(f"{len(rows)} ligne(s) ({summary}).")
     levels = Counter(found.reviews[row.link.left_uuid, row.link.right_uuid].level for row in rows if row.link and (row.link.left_uuid, row.link.right_uuid) in found.reviews)
     console.print(
         f"À vérifier : {levels[1]} paire(s) d'incertitude moyenne, {levels[2]} d'incertitude forte"
         + ("" if args.candidates else f" ; {len(found.candidates)} candidate(s) non appariée(s) non exportée(s) (--candidates)")
         + "."
     )
+    writes.finish(console)
 
 
 if __name__ == "__main__":

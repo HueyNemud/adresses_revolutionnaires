@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from export_lines_csv import CSV_FIELDS, process_json_to_csv
+from extract_chandra_lines import assign_line_keys
 
 
 class JsonToCsvTests(unittest.TestCase):
@@ -42,6 +43,7 @@ class JsonToCsvTests(unittest.TestCase):
                 ],
             }
         ]
+        assign_line_keys(self.document)
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.json_path = Path(self.temporary_directory.name) / "document.json"
         self.json_path.write_text(json.dumps(self.document), encoding="utf-8")
@@ -79,6 +81,14 @@ class JsonToCsvTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "data_blocks"):
             process_json_to_csv(json_path, csv_path)
+
+    def test_rejects_a_json_without_line_keys(self) -> None:
+        for line in self.document[0]["data_blocks"][0]["lines"]:
+            del line["cle"]
+        self.json_path.write_text(json.dumps(self.document), encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "sans clé"):
+            self.export_rows()
 
 
 if __name__ == "__main__":

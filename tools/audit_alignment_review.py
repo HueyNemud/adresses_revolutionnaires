@@ -109,7 +109,7 @@ def main() -> None:
     left, right = load_volume(ANNUAIRES_DIR / left_name), load_volume(ANNUAIRES_DIR / right_name)
     alignment_path = args.alignment or ALIGNMENTS_DIR / f"{pair_name}.nw.csv"
     links = read_links(alignment_path)
-    sections = load_section_alignment(left, right, PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}", rewrite=False)
+    sections = load_section_alignment(left, right, PATCH_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}")
     params = Params()
     found = review(links, left, right, sections, params.threshold, params.residual_threshold, params.subj_weight, args.ecart)
     retained = {(link.left_uuid, link.right_uuid) for link in links}

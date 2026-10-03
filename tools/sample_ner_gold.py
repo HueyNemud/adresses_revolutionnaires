@@ -48,6 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # accès à lib/ d
 from rich.console import Console
 from rich.table import Table
 
+from lib.cli import Writes, add_apply_argument
 from lib.ner.corpus import Entry, iter_corpus, ls_texts
 from lib.ner.shapes import shape_profile
 from lib.ner.spans import ls_result, normalize_markdown, signature
@@ -151,6 +152,7 @@ def parse_args() -> argparse.Namespace:
         help="Échantillons d'entraînement à exclure (JSON Label Studio ou CSV ; défaut : data/ner/train*.ls.json).",
     )
     parser.add_argument("--seed", type=int, default=42)
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -187,8 +189,12 @@ def main() -> None:
             tasks.append(build_task(entry, spans, name, weight, page_split(entry, args.dev_share)))
     rng.shuffle(tasks)  # ordre de relecture sans regroupement par strate
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(tasks, ensure_ascii=False, indent=1), encoding="utf-8")
+    def write() -> None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(tasks, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    writes = Writes(args.apply)
+    writes.add(args.output, write)
 
     table = Table(title=f"Jeu gold : {len(tasks)} entrées sur {len(universe)} textes distincts")
     for column in ("strate", "effectif", "tirées", "poids", "dev", "test"):
@@ -199,7 +205,7 @@ def main() -> None:
     console.print(table)
     volumes = Counter(task["data"]["volume"] for task in tasks)
     console.print("Par volume : " + ", ".join(f"{v} {n}" for v, n in sorted(volumes.items())))
-    console.print(f"[bold green]✅ Gold à corriger :[/bold green] [yellow]{args.output}[/yellow]")
+    writes.finish(console)
 
 
 if __name__ == "__main__":

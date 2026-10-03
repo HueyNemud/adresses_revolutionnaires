@@ -51,8 +51,12 @@ relecture : `left_section`, `right_section`, `left_tagged_text`,
 `right_tagged_text`.
 
 Le patch s'édite à la main ; `tools/display_alignment.py` affiche le
-résultat et copie uuid ou lignes de patch prêtes à coller. `--apply-only`
-réapplique le patch à la sortie Dedupe existante, sans relancer Dedupe. Les
+résultat et copie uuid ou lignes de patch prêtes à coller. `--sans-dedupe`
+réapplique le patch à la sortie Dedupe existante, sans relancer Dedupe.
+
+Simulation par défaut (lib/cli.py) : `--apply` écrit les sorties, le
+fichier d'entraînement et les patchs réancrés. L'étiquetage en console
+exige `--apply`, pour ne pas perdre les paires étiquetées. Les
 entrées absentes du CSV final n'ont pas de correspondance.
 """
 
@@ -68,6 +72,7 @@ from rich.table import Table
 
 from lib.alignment import Link, Record, dedupe_records, load_volume, read_links, write_links
 from lib.alignment_patch import PatchEntry, PatchStats, Resolution, apply_patch, read_patch, resolve, updated_patch, validate, write_patch
+from lib.cli import APPLY_FLAG, Writes, add_apply_argument
 from lib.curation import CurationConflict, print_conflict, refuse_orphans
 from lib.section_alignment import (
     SECTION_PATCH_SUFFIX,
@@ -108,27 +113,9 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--patch",
-        type=Path,
-        default=None,
-        help=f"Corrections manuelles (défaut : {DEFAULT_TRAINING_DIR}/<gauche>__<droite>.patch.csv).",
-    )
-    parser.add_argument(
-        "--section-patch",
-        type=Path,
-        default=None,
-        help=f"Patch des rubriques (défaut : {DEFAULT_TRAINING_DIR}/<gauche>__<droite>{SECTION_PATCH_SUFFIX}).",
-    )
-    parser.add_argument(
-        "--apply-only",
+        "--sans-dedupe",
         action="store_true",
         help="Ne pas relancer Dedupe : réappliquer le patch à la sortie .dedupe.csv existante.",
-    )
-    parser.add_argument(
-        "--training",
-        type=Path,
-        default=None,
-        help=f"Fichier d'entraînement Dedupe (défaut : {DEFAULT_TRAINING_DIR}/<gauche>__<droite>.training.json).",
     )
     parser.add_argument(
         "--label",
@@ -155,6 +142,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Ignore les lignes orphelines des patchs (sinon : arrêt sans rien écrire).",
     )
+    add_apply_argument(parser)
     return parser.parse_args()
 
 
@@ -168,8 +156,18 @@ def build_linker(left: dict, right: dict) -> dedupe.RecordLink:
     return dedupe.RecordLink(variables)
 
 
+def needs_labelling(training_path: Path, label: bool) -> bool:
+    return label or not training_path.exists()
+
+
 def train(
-    linker: dedupe.RecordLink, left: dict, right: dict, training_path: Path, label: bool, section_keys: tuple[dict, dict]
+    linker: dedupe.RecordLink,
+    left: dict,
+    right: dict,
+    training_path: Path,
+    label: bool,
+    section_keys: tuple[dict, dict],
+    writes: Writes,
 ) -> None:
     if training_path.exists():
         console.print(f"Paires d'entraînement lues dans [yellow]{training_path}[/yellow]")
@@ -179,16 +177,19 @@ def train(
     else:
         linker.prepare_training(left, right)
 
-    if label or not training_path.exists():
+    if needs_labelling(training_path, label):
         console.print(
             "[bold]Étiquetage :[/bold] y = même entrée, n = différentes, u = incertain, "
             "f = terminer, p = annuler la précédente."
         )
         dedupe.console_label(linker)
-        training_path.parent.mkdir(parents=True, exist_ok=True)
-        with training_path.open("w", encoding="utf-8") as handle:
-            linker.write_training(handle)
-        console.print(f"[bold green]💾 Paires d'entraînement :[/bold green] [yellow]{training_path}[/yellow]")
+
+        def write() -> None:
+            training_path.parent.mkdir(parents=True, exist_ok=True)
+            with training_path.open("w", encoding="utf-8") as handle:
+                linker.write_training(handle)
+
+        writes.add(training_path, write)
 
     console.print("Entraînement…")
     linker.train()
@@ -199,7 +200,12 @@ def dedupe_path(output_path: Path) -> Path:
 
 
 def infer_links(
-    left_records: dict[str, Record], right_records: dict[str, Record], args, training_path: Path, sections: SectionAlignment
+    left_records: dict[str, Record],
+    right_records: dict[str, Record],
+    args,
+    training_path: Path,
+    sections: SectionAlignment,
+    writes: Writes,
 ) -> list[Link]:
     """Dedupe compare la rubrique par sa clé canonique : celle du groupe de
     rubriques (`lib/section_alignment.py`), commune aux deux annuaires ; avec
@@ -209,7 +215,7 @@ def infer_links(
     left = dedupe_records(list(left_records.values()), left_keys)
     right = dedupe_records(list(right_records.values()), right_keys)
     linker = build_linker(left, right)
-    train(linker, left, right, training_path, args.label, (left_keys, right_keys))
+    train(linker, left, right, training_path, args.label, (left_keys, right_keys), writes)
     console.print("Appariement…")
     links = linker.join(left, right, threshold=args.threshold, constraint="one-to-one")
     return [Link(left_id, right_id, float(score)) for (left_id, right_id), score in links]
@@ -236,11 +242,11 @@ def orphan_descriptions(resolution: Resolution) -> list[str]:
 
 
 def patch_links(
-    links: list[Link], patch_path: Path, entries: list[PatchEntry], resolution: Resolution
+    links: list[Link], patch_path: Path, entries: list[PatchEntry], resolution: Resolution, writes: Writes
 ) -> tuple[list[Link], PatchStats]:
     """Applique le patch ; le réécrit si des lignes ont été réancrées."""
     if resolution.reanchored:
-        write_patch(patch_path, updated_patch(entries, resolution))
+        writes.add(patch_path, lambda: write_patch(patch_path, updated_patch(entries, resolution)))
     return apply_patch(links, resolution.entries)
 
 
@@ -255,7 +261,7 @@ def print_patch_summary(patch_path: Path, resolution: Resolution, stats: PatchSt
         f"{stats.overridden} lien(s) Dedupe écarté(s)."
     )
     if resolution.reanchored:
-        console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) réancrée(s) par le texte (patch mis à jour).[/yellow]")
+        console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) réancrée(s) par le texte (patch à réécrire).[/yellow]")
     if resolution.orphans:
         console.print(f"[bold red]⚠ {len(resolution.orphans)} ligne(s) orpheline(s), non appliquée(s) :[/bold red]")
         for entry in resolution.orphans:
@@ -319,9 +325,16 @@ def main() -> None:
 
     pair_name = f"{args.left.name}__{args.right.name}"
     output_path = args.output or DEFAULT_OUTPUT_DIR / f"{pair_name}{RAW_SECTIONS_SUFFIX if args.raw_sections else '.csv'}"
-    training_path = args.training or DEFAULT_TRAINING_DIR / f"{pair_name}.training.json"
-    patch_path = args.patch or DEFAULT_TRAINING_DIR / f"{pair_name}.patch.csv"
-    section_patch_path = args.section_patch or DEFAULT_TRAINING_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
+    training_path = DEFAULT_TRAINING_DIR / f"{pair_name}.training.json"
+    patch_path = DEFAULT_TRAINING_DIR / f"{pair_name}.patch.csv"
+    section_patch_path = DEFAULT_TRAINING_DIR / f"{pair_name}{SECTION_PATCH_SUFFIX}"
+    writes = Writes(args.apply)
+    if not args.sans_dedupe and needs_labelling(training_path, args.label) and not args.apply:
+        console.print(
+            f"[bold red]Erreur :[/bold red] l'étiquetage en console écrit {training_path} : relancez avec {APPLY_FLAG} "
+            "(sinon les paires étiquetées seraient perdues)."
+        )
+        sys.exit(1)
 
     try:
         left_records = {record.uuid: record for record in load_volume(args.left)}
@@ -332,7 +345,9 @@ def main() -> None:
     console.print(f"{args.left.name} : {len(left_records)} entrées ; {args.right.name} : {len(right_records)} entrées")
 
     try:
-        sections = load_section_alignment(list(left_records.values()), list(right_records.values()), section_patch_path)
+        sections = load_section_alignment(
+            list(left_records.values()), list(right_records.values()), section_patch_path, writes=writes
+        )
     except (OSError, csv.Error, ValueError) as error:
         console.print(f"[bold red]Erreur dans le patch des rubriques :[/bold red] {error}")
         sys.exit(1)
@@ -349,30 +364,34 @@ def main() -> None:
         sys.exit(1)
 
     raw_path = dedupe_path(output_path)
-    if args.apply_only:
+    if args.sans_dedupe:
         if not raw_path.exists():
-            console.print(f"[bold red]Erreur :[/bold red] '{raw_path}' introuvable : lancer d'abord sans --apply-only.")
+            console.print(f"[bold red]Erreur :[/bold red] '{raw_path}' introuvable : lancer d'abord sans --sans-dedupe.")
             sys.exit(1)
         links = read_links(raw_path)
         unknown = [link for link in links if link.left_uuid not in left_records or link.right_uuid not in right_records]
         if unknown:
             console.print(
                 f"[bold red]Erreur :[/bold red] {len(unknown)} lien(s) de '{raw_path}' désignent des entrées disparues "
-                "(étapes amont modifiées) : relancer Dedupe sans --apply-only."
+                "(étapes amont modifiées) : relancer Dedupe sans --sans-dedupe."
             )
             sys.exit(1)
         links, dropped = restrict_to_corresponding(links, left_records, right_records, sections)
     else:
         print_sections(sections, section_patch_path)
         links, dropped = restrict_to_corresponding(
-            infer_links(left_records, right_records, args, training_path, sections), left_records, right_records, sections
+            infer_links(left_records, right_records, args, training_path, sections, writes),
+            left_records,
+            right_records,
+            sections,
         )
-        write_links(raw_path, links, left_records, right_records)
-        console.print(f"[bold green]✅ Sortie Dedupe :[/bold green] [yellow]{raw_path}[/yellow]")
+        raw_links = links
+        writes.add(raw_path, lambda: write_links(raw_path, raw_links, left_records, right_records))
 
-    links, stats = patch_links(links, patch_path, entries, resolution)
+    links, stats = patch_links(links, patch_path, entries, resolution, writes)
     links, manual_dropped = restrict_to_corresponding(links, left_records, right_records, sections)
-    write_links(output_path, links, left_records, right_records)
+    final_links = links
+    writes.add(output_path, lambda: write_links(output_path, final_links, left_records, right_records))
 
     if dropped:
         console.print(f"[yellow]{len(dropped)} lien(s) Dedupe entre rubriques non appariées écarté(s).[/yellow]")
@@ -383,9 +402,9 @@ def main() -> None:
             f"{left_record.section_title} / {left_record.text} ↔ {right_record.section_title} / {right_record.text}",
             markup=False,
         )
-    console.print(f"\n[bold green]✅ Correspondances :[/bold green] [yellow]{output_path}[/yellow]")
     print_patch_summary(patch_path, resolution, stats)
     print_summary(args.left.name, args.right.name, len(left_records), len(right_records), links)
+    writes.finish(console)
 
 if __name__ == "__main__":
     main()
