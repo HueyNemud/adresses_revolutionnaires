@@ -2,8 +2,8 @@
 
 Ce guide s'adresse à toute personne qui corrige à la main les résultats de
 la chaîne de traitement. Aucune connaissance du code n'est nécessaire. Le
-détail technique est dans [`pipeline.md`](pipeline.md#corrections-humaines-rejouables--libcurationpy)
-et dans `lib/curation.py`.
+détail technique est dans [`pipeline.md`](pipeline.md#corrections-humaines-rejouables--numrevcurationpy)
+et dans `numrev/curation.py`.
 
 ## Le problème qu'on résout
 
@@ -18,7 +18,7 @@ qu'on n'a pas encore relu, **sans perdre une seule correction** déjà faite.
 Le principe tient en une phrase :
 
 > **Vous corrigez directement le fichier produit, vous marquez la ligne
-> `corrige = oui`, et le script s'en souviendra à chaque relance.**
+> `corrige = oui`, et la commande s'en souviendra à chaque relance.**
 
 ## Les trois colonnes à connaître
 
@@ -35,7 +35,7 @@ Mettre `corrige = oui` sert aussi quand on **valide une ligne sans la
 modifier** : confirmer que la machine a raison est une décision humaine
 qu'on veut garder.
 
-## Ce qui se passe quand on relance un script
+## Ce qui se passe quand on relance une commande
 
 ```mermaid
 flowchart LR
@@ -46,22 +46,22 @@ flowchart LR
     G["2 · génération"] --> M
 ```
 
-1. **Capture.** Le script relit votre fichier et recopie toutes les lignes
+1. **Capture.** La commande relit votre fichier et recopie toutes les lignes
    `corrige = oui` dans un petit fichier à part, le **patch**, rangé dans
    `data/curation/` et suivi par git.
 2. **Génération.** La machine refait son travail.
 3. **Application.** Vos corrections sont reposées par-dessus. **Le patch
    gagne toujours** sur la machine.
 
-Le script **réussit entièrement ou n'écrit rien**. S'il a le moindre doute,
-il s'arrête et vous explique pourquoi (voir
-[Quand le script s'arrête](#quand-le-script-sarrête)).
+La commande **réussit entièrement ou n'écrit rien**. Si elle a le moindre doute,
+elle s'arrête et vous explique pourquoi (voir
+[Quand la commande s'arrête](#quand-la-commande-sarrête)).
 
 ## Corriger les lignes (étape 3)
 
-**Fichier :** `annuaires/<volume>/<plage>/<…>.ocr.lines.annotated.csv`
-**Script à relancer :** `uv run export_lines_csv.py <…>.ocr.lines.annotated.json --apply` (sans `--apply` : simulation, qui montre les conflits sans rien écrire)
-**Patch :** `data/curation/<volume>.<plage>.lignes.patch.csv`
+**Fichier :** `annuaires/<volume>/<plage>/<…>.lines.csv`
+**Commande à relancer :** `uv run numrev tabulate <…>.labeled.json --apply` (sans `--apply` : simulation, qui montre les conflits sans rien écrire)
+**Patch :** `data/curation/<volume>.<plage>.lines.patch.csv`
 
 On y corrige deux colonnes : `classe` (le type de ligne : `B-ENTRY`,
 `I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`, `OUT OF SCOPE`) et
@@ -108,7 +108,7 @@ C'est ainsi qu'on retire, par exemple, des pages scannées deux fois.
 ### Ajouter une ligne
 
 On insère une ligne à l'endroit voulu et on **laisse sa clé vide**. Au
-prochain lancement, le script lui donne une clé dérivée de la ligne
+prochain lancement, la commande lui donne une clé dérivée de la ligne
 précédente (`a1f…+1`) et retiendra sa place.
 
 | cle | markdown | classe | corrige |
@@ -126,7 +126,7 @@ juste en dessous (la copie a donc la même clé), puis on répartit le texte :
 | `e40…` | ~~`Boulanger, rue St.-Benoit, 19. Boulanger (Ve.), rue Vivienne, 22.`~~ → **`Boulanger, rue St.-Benoit, 19.`** | `B-ENTRY` | **`oui`** |
 | `e40…` → `e40…+1` | **`Boulanger (Ve.), rue Vivienne, 22.`** | `B-ENTRY` | *(automatique)* |
 
-Le script repère la clé en double et en donne une nouvelle à la copie.
+La commande repère la clé en double et en donne une nouvelle à la copie.
 
 ### Déplacer une ligne (ordre de lecture)
 
@@ -150,8 +150,8 @@ originales en `SUPPRIMÉE`, toutes les copies sans clé.
 
 ## Corriger le NER et les rubriques (étape 5)
 
-**Fichier :** `annuaires/<volume>/<plage>/<…>.ocr.lines.annotated.merged.ner.csv`
-**Script à relancer :** `uv run infer_gliner.py <…>.merged.csv --model <modèle> --apply`
+**Fichier :** `annuaires/<volume>/<plage>/<…>.ner.csv`
+**Commande à relancer :** `uv run numrev tag <…>.entities.csv --model <modèle> --apply`
 **Patch :** `data/curation/<volume>.<plage>.ner.patch.csv`
 
 Chaque ligne du fichier est une **entrée** (ou un titre). On y corrige
@@ -187,17 +187,17 @@ sur les lignes corrigées.
 ## Corriger l'alignement entre éditions (étape 6)
 
 Ici on ne corrige pas un gros fichier : on écrit directement les décisions
-dans les patchs `data/alignement/<A>__<B>.patch.csv` (entrées) et
+dans les patchs `data/alignment/<A>__<B>.patch.csv` (entrées) et
 `.sections.csv` (rubriques), en s'aidant des boutons « copier » du viewer
-(`tools/display_alignment.py`). Les conventions sont dans le
+(`numrev view alignment`). Les conventions sont dans le
 [guide de relecture de l'alignement](guide_relecture_alignement.md).
 
 Les règles sont les mêmes qu'ailleurs : le patch gagne sur la machine, et
-le script s'arrête si une ligne du patch ne correspond plus à rien.
+la commande s'arrête si une ligne du patch ne correspond plus à rien.
 
-## Quand le script s'arrête
+## Quand la commande s'arrête
 
-Le script affiche `✋ Arrêt, rien n'a été écrit`, la liste des lignes en
+La commande affiche `✋ Arrêt, rien n'a été écrit`, la liste des lignes en
 cause et une piste. **Rien n'est perdu** : ni votre fichier ni le patch
 n'ont été modifiés.
 
@@ -216,11 +216,11 @@ n'ont été modifiés.
 
 - **`--force`** : « en cas de doute, prends la machine ». Les lignes
   problématiques reprennent la nouvelle sortie machine, et les corrections
-  qui ne s'appliquent plus sont retirées du patch. Le script liste tout ce
+  qui ne s'appliquent plus sont retirées du patch. La commande liste tout ce
   qu'il a abandonné.
 - **Annuler une correction** : videz `corrige` sur la ligne, puis relancez
   avec `--force` ; la machine reprend la main sur cette ligne.
-- **`--sans-capture`** : « ignore mon fichier, repars du patch ». Utile
+- **`--no-capture`** : « ignore mon fichier, repars du patch ». Utile
   après avoir récupéré les corrections de quelqu'un d'autre avec `git pull` :
   sinon, votre ancien fichier écraserait le patch tout juste reçu.
 
@@ -228,9 +228,9 @@ n'ont été modifiés.
 
 Les fichiers de `annuaires/` ne sont **pas** suivis par git : ce sont des
 fichiers de travail. Vos décisions, elles, sont recopiées dans les patchs
-de `data/curation/` et `data/alignement/`, qui **sont** suivis par git.
+de `data/curation/` et `data/alignment/`, qui **sont** suivis par git.
 
-Pour sauvegarder votre travail : relancez le script de l'étape (la capture
+Pour sauvegarder votre travail : relancez la commande de l'étape (la capture
 met le patch à jour), puis commitez le patch, à part du code :
 
 ```bash
@@ -244,7 +244,7 @@ Une correction retirée par erreur se retrouve avec `git diff` ou
 ## Conseils pour le tableur
 
 - **Filtrer, oui ; trier, non.** Un tri change l'ordre des lignes et fait
-  s'arrêter le script (`ligne déplacée`). Pour trier le temps d'une
+  s'arrêter la commande (`ligne déplacée`). Pour trier le temps d'une
   relecture, ajoutez d'abord une colonne de numéros 1, 2, 3… et re-triez
   dessus avant d'enregistrer (un tri sur `uid` ne suffit pas : `111.10.0`
   passerait avant `111.2.0`).
@@ -252,11 +252,11 @@ Une correction retirée par erreur se retrouve avec `git diff` ou
 - **Ne touchez jamais** à `cle`, `uuid` ni `empreinte`.
 - **Enregistrez en CSV UTF-8, séparateur virgule.** Excel en français
   enregistre souvent avec des `;` : préférez LibreOffice Calc ou OpenRefine,
-  ou vérifiez le séparateur. Au pire, le script s'arrête (`colonne(s)
+  ou vérifiez le séparateur. Au pire, la commande s'arrête (`colonne(s)
   absente(s)`) sans rien abîmer.
 - **Attention aux conversions automatiques** (« 1.10 » transformé en date,
-  zéros supprimés) : si le tableur modifie une ligne dans votre dos, le
-  script s'en aperçoit grâce à l'empreinte et s'arrête.
+  zéros supprimés) : si le tableur modifie une ligne dans votre dos, la
+  commande s'en aperçoit grâce à l'empreinte et s'arrête.
 - Écrivez `oui` en toutes lettres dans `corrige` (`Oui` et `OUI`
   conviennent aussi).
 
@@ -266,6 +266,6 @@ Une correction retirée par erreur se retrouve avec `git diff` ou
 2. Mettez `corrige = oui` sur chaque ligne corrigée ou validée.
 3. Ne supprimez pas : `SUPPRIMÉE`. Ne déplacez pas : `SUPPRIMÉE` + copie
    sans clé.
-4. Relancez le script : vos corrections sont capturées, puis réappliquées.
-5. Si le script s'arrête, lisez le message : rien n'est perdu.
+4. Relancez la commande : vos corrections sont capturées, puis réappliquées.
+5. Si la commande s'arrête, lisez le message : rien n'est perdu.
 6. Commitez les patchs de `data/`.

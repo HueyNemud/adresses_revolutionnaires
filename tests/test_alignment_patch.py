@@ -2,9 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lib.alignment import SOURCE_DEDUPE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title
-from lib.titles import title_text
-from lib.alignment_patch import (
+from numrev.alignment.patch import (
     PatchEntry,
     anchor_key,
     apply_patch,
@@ -15,6 +13,8 @@ from lib.alignment_patch import (
     validate,
     write_patch,
 )
+from numrev.alignment.records import SOURCE_DEDUPE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title
+from numrev.titles import title_text
 
 
 def record(uuid: str, markdown: str, title: str = "## AGENS DE CHANGE.", document: str = "Vol.1-9.csv", order: int = 0) -> Record:

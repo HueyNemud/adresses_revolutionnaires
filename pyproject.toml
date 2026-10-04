@@ -1,6 +1,7 @@
 [project]
 name = "numerotation-revolutionnaire"
-version = "0.1.0"
+version = "1.0.0"
+description = "Annuaires parisiens du début du XIXe siècle : de l'OCR aux entrées structurées et alignées"
 requires-python = ">=3.12"
 dependencies = [
     "accelerate>=1.1.0",
@@ -14,6 +15,7 @@ dependencies = [
     "python-crfsuite>=0.9.12",
     "rapidfuzz>=3.14.6",
     "rich>=15.0.0",
+    "scipy>=1.18.0",
     "streamlit>=1.64.0",
     "torch>=2.14.0",
     "transformers>=5.16.1",
@@ -26,3 +28,20 @@ explorations = [
     "nbconvert>=7.17.1",
     "nbformat>=5.11.1",
 ]
+
+[project.scripts]
+numrev = "numrev.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/numrev"]
+
+[tool.ruff]
+line-length = 140
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["F", "I"]

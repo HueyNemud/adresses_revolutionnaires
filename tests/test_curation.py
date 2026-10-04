@@ -1,14 +1,9 @@
-import csv
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from build_entity_tree import ROOT_UUID as ROOT
-from export_lines_csv import process_json_to_csv
-from extract_chandra_lines import assign_line_keys
-from infer_gliner import NER_STEP, apply_corrections
-from lib.curation import (
+from numrev.curation import (
     CORRECTED,
     Curation,
     CurationConflict,
@@ -18,6 +13,10 @@ from lib.curation import (
     read_csv,
     write_csv,
 )
+from numrev.pipeline.extract import assign_line_keys
+from numrev.pipeline.tabulate import process_json_to_csv
+from numrev.pipeline.tag import NER_STEP, apply_corrections
+from numrev.titles import ROOT_UUID as ROOT
 
 
 def page(index: int, blocks: list[list[tuple[str, str]]]) -> dict:
@@ -72,8 +71,8 @@ class LinesCurationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
-        self.csv = self.dir / "Vol.6-7.ocr.lines.annotated.csv"
-        self.patch = self.dir / "Vol.6-7.lignes.patch.csv"
+        self.csv = self.dir / "Vol.6-7.lines.csv"
+        self.patch = self.dir / "Vol.6-7.lines.patch.csv"
         self.export(DOCUMENT)
 
     def tearDown(self) -> None:
@@ -230,7 +229,7 @@ if __name__ == "__main__":
 
 
 class NerCurationTests(unittest.TestCase):
-    """Réapplication des corrections NER (infer_gliner.py), sans modèle."""
+    """Réapplication des corrections NER (numrev tag), sans modèle."""
 
     def machine(self) -> list[dict[str, str]]:
         return [

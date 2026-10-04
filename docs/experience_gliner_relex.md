@@ -14,27 +14,27 @@ document garde la méthode et les résultats.
 | architecture | bi-encodeur (texte : `jhu-clsp/ettin-encoder-150m`, libellés : `BAAI/bge-small-en-v1.5`) | encodeur unique `microsoft/deberta-v3-large` (0,5 G paramètres), tête relations inutilisée |
 | `max_width` | 44 mots | 44 mots (12 par défaut, élargi) |
 
-Mêmes conditions d'entraînement (`tools/train_gliner.py`) : mêmes données
+Mêmes conditions d'entraînement (`numrev train`) : mêmes données
 (`data/ner/train.ls.json`, 15 002 exemples, 11 977 en entraînement et 3 025
 en validation, split par page), mêmes libellés (`person or business name`,
 `activity description`, `postal address`), 3 époques ≈ 4 494 pas, batch 8,
 taux d'apprentissage 5e-5, bf16, texte Markdown normalisé. Entraînement
 relex : 13 min sur une RTX 5000 Ada (32 Go).
 
-Pour faire tourner un modèle relex, `lib/ner/gliner.py` (`predict_entities`)
+Pour faire tourner un modèle relex, `numrev/ner/gliner.py` (`predict_entities`)
 lui demande les seules entités (`return_relations=False`) : par défaut il
 renvoie un couple (entités, relations), qu'on aurait sinon associé aux
 mauvais textes sans erreur.
 
 ## Résultats
 
-Mesure de référence : `audit_ner.py` sur le **dev** du gold (159 entrées
+Mesure de référence : `numrev audit ner` sur le **dev** du gold (159 entrées
 relues, pondérées par le plan de sondage, intervalles bootstrap par page à
 95 %). Le split test n'a pas servi : la décision ne change rien, il reste
 intact.
 
 ```bash
-uv run audit_ner.py --split dev --model models/latynna.gliner-model \
+uv run numrev audit ner --split dev --model models/latynna.gliner-model \
     --model models/latynna-relex.gliner-model --sweep
 ```
 
@@ -81,10 +81,10 @@ descriptives (« Palais du Tribunal », « Marché Boulainvilliers ») et renvoi
 ## Refaire l'essai
 
 ```bash
-uv run tools/train_gliner.py data/ner/train.ls.json \
-    --model knowledgator/gliner-relex-large-v0.5 \
+uv run numrev train data/ner/train.ls.json \
+    --base-model knowledgator/gliner-relex-large-v0.5 \
     -o models/latynna-relex.gliner-model --apply
-uv run audit_ner.py --split dev --model models/latynna.gliner-model \
+uv run numrev audit ner --split dev --model models/latynna.gliner-model \
     --model models/latynna-relex.gliner-model --sweep
 ```
 

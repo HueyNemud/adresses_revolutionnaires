@@ -14,4 +14,4 @@ et lisent les données locales `annuaires/` (hors git).
 
 | Notebook | Sujet |
 |---|---|
-| `consolidation_adresses_1807_1808.ipynb` | Classe les adresses des paires alignées 1807/1808 (équivalence, changement de numéro, déménagement, adresse complexe, sans numéro, absente), visualise la situation et exporte la jointure avec la classe : `annuaires/alignements/<paire>.nw.jointure.consolidee.csv` |
+| `consolidation_adresses_1807_1808.ipynb` | Classe les adresses des paires alignées 1807/1808 (équivalence, changement de numéro, déménagement, adresse complexe, sans numéro, absente), visualise la situation et exporte la jointure avec la classe : `annuaires/alignments/<paire>.nw.join.consolidated.csv` |

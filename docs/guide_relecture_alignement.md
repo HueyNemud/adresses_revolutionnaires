@@ -1,6 +1,6 @@
 # Guide de relecture de l'alignement entre éditions
 
-Ce guide sert à relire les paires à vérifier dans `tools/display_alignment.py` (filtre *Incertitude* : moyenne ou forte) et à étiqueter un gold d'inversions (`tools/sample_alignment_gold.py`, colonne `meme_entree`). La question est toujours la même :
+Ce guide sert à relire les paires à vérifier dans `numrev view alignment` (filtre *Incertitude* : moyenne ou forte) et à étiqueter un gold d'inversions (`numrev gold alignment`, colonne `meme_entree`). La question est toujours la même :
 
 > Ces deux entrées désignent-elles **la même entrée de l'annuaire**, d'une édition à l'autre ?
 

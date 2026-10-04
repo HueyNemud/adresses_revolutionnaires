@@ -6,10 +6,9 @@ from pathlib import Path
 
 import numpy as np
 
-from lib.stats import roc_auc
-from lib.crf.evaluation import (
-    Experiment,
+from numrev.crf.evaluation import (
     N_CLASSES,
+    Experiment,
     cross_volume_splits,
     group_entities,
     macro_f1,
@@ -20,10 +19,11 @@ from lib.crf.evaluation import (
     score_lines,
     within_document_splits,
 )
-from lib.crf.features import PRODUCTION_GROUPS
-from lib.crf.labels import CLASSES
-from extract_chandra_lines import assign_line_keys
-from lib.crf.silver import document_names, load_silver_document
+from numrev.crf.features import PRODUCTION_GROUPS
+from numrev.crf.labels import CLASSES
+from numrev.crf.silver import document_names, load_silver_document
+from numrev.pipeline.extract import assign_line_keys
+from numrev.stats import roc_auc
 
 FIELDS = ["cle", "uid", "page_index", "chunk_index", "data_block_index", "line_index", "data_block_bbox", "data_block_label", "markdown", "classe", "provenance"]
 
@@ -43,13 +43,13 @@ def write_volume(folder: Path, name: str, pages: int, edit_first_title: bool = F
     assign_line_keys(document)
     for row, line in zip(rows, (line for page in document for block in page["data_blocks"] for line in block["lines"])):
         row["cle"] = line["cle"]
-    (folder / f"{name}.ocr.lines.annotated.json").write_text(json.dumps(document), encoding="utf-8")
+    (folder / f"{name}.labeled.json").write_text(json.dumps(document), encoding="utf-8")
     for page in document:
         for block in page["data_blocks"]:
             for line in block["lines"]:
                 del line["prediction"]
-    (folder / f"{name}.ocr.lines.json").write_text(json.dumps(document), encoding="utf-8")
-    csv_path = folder / f"{name}.ocr.lines.annotated.csv"
+    (folder / f"{name}.lines.json").write_text(json.dumps(document), encoding="utf-8")
+    csv_path = folder / f"{name}.lines.csv"
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, FIELDS)
         writer.writeheader()
@@ -60,7 +60,7 @@ def write_volume(folder: Path, name: str, pages: int, edit_first_title: bool = F
 class SilverTests(unittest.TestCase):
     def test_document_names(self):
         self.assertEqual(
-            document_names(Path("1808_AD75-PER292.6-185.ocr.lines.annotated.csv")),
+            document_names(Path("1808_AD75-PER292.6-185.lines.csv")),
             ("1808_AD75-PER292.6-185", "1808_AD75-PER292"),
         )
 

@@ -1,6 +1,6 @@
 # Aligner deux éditions d'un annuaire ancien en exploitant l'ordre des entrées
 
-*Document de travail — chaîne de traitement des annuaires parisiens du début du XIXᵉ siècle (`align_directories_nw.py`). Version du 29 septembre 2026.*
+*Document de travail — chaîne de traitement des annuaires parisiens du début du XIXᵉ siècle (`numrev align nw`). Version du 29 septembre 2026.*
 
 ---
 
@@ -286,13 +286,13 @@ On itère jusqu'à ce que le gain de log-vraisemblance soit inférieur à 1 nat.
 - **Complexité.**
   - Needleman-Wunsch est quadratique par segment ; la plus grande rubrique compte 3 277 × 2 702 entrées.
   - Le pair-HMM ne porte que sur les fenêtres entre ancres, soit environ 8 000 cases au total.
-  - Le script complet tourne en 12 s, dont 4 s pour l'alignement lui-même.
+  - La commande complète tourne en 12 s, dont 4 s pour l'alignement lui-même.
 - **Code.**
-  - `align_directories_nw.py` : le script ; `--no-context` désactive le pair-HMM.
-  - `lib/section_alignment.py` : l'alignement des rubriques et son patch.
-  - `lib/sequence.py` : Needleman-Wunsch.
-  - `lib/pair_hmm.py` : le pair-HMM.
-- **Sortie.** Le résultat est `annuaires/alignements/<A>__<B>.nw.csv`, au format de la sortie Dedupe. La colonne `source` vaut `nw` pour une ancre, `nw-contexte` pour une paire décidée par le pair-HMM (score = probabilité a posteriori) et `nw-residuel` pour une paire de la passe résiduelle.
+  - `numrev align nw` : la commande ; `--no-context` désactive le pair-HMM.
+  - `numrev/alignment/sections.py` : l'alignement des rubriques et son patch.
+  - `numrev/alignment/sequence.py` : Needleman-Wunsch.
+  - `numrev/alignment/pair_hmm.py` : le pair-HMM.
+- **Sortie.** Le résultat est `annuaires/alignments/<A>__<B>.nw.csv`, au format de la sortie Dedupe. La colonne `source` vaut `nw` pour une ancre, `nw-contexte` pour une paire décidée par le pair-HMM (score = probabilité a posteriori) et `nw-residuel` pour une paire de la passe résiduelle.
 
 ---
 
@@ -321,7 +321,7 @@ Un collègue a objecté que l'affectation optimale « force » des appariements
 et que son seuil conservateur perd des entrées déplacées qui ont aussi changé
 d'adresse. Une note de travail proposait de pénaliser le déplacement, dans
 Needleman-Wunsch et dans le HMM. Pour trancher, nous avons étiqueté un **gold
-d'inversions** (`tools/sample_alignment_gold.py`). Il regroupe 216 paires
+d'inversions** (`numrev gold alignment`). Il regroupe 216 paires
 candidates hors de l'ordre, tirées par strate (déplacement × similarité),
 chacune avec son poids : 105 `OUI`, 90 `NON` et 21 `INCERTAIN`.
 
@@ -363,7 +363,7 @@ chacune avec son poids : 105 `OUI`, 90 `NON` et 21 `INCERTAIN`.
 
 **Conclusion.** La passe résiduelle reste à seuil fixe. Les cas douteux
 sont signalés pour une **relecture humaine ciblée**
-(`lib/alignment_review.py`, voir `docs/pipeline.md`).
+(`numrev/alignment/review.py`, voir `docs/pipeline.md`).
 - Trois motifs : `déduite des voisines (p < 0,9)`, `homonyme proche` et `candidate non appariée`.
 - Une incertitude ordinale : faible, moyenne ou forte.
 - Les décisions sont reportées dans le patch des entrées, avec un statut
@@ -372,7 +372,7 @@ sont signalés pour une **relecture humaine ciblée**
 Sur ce gold, la part de `OUI` (pondérée) baisse bien de l'incertitude
 faible à forte : 94 %, 75 %, 31 %. Il reste à vérifier 445 lignes sur 14 491 paires. Ces chiffres
 sont des **observations sur 1807/1808**. Pour une autre paire d'annuaires,
-on tire un petit gold et on lance `tools/audit_alignment_review.py` avant de
+on tire un petit gold et on lance `numrev audit alignment` avant de
 se fier aux seuils.
 
 **Limite : le gold ne voit que les rubriques appariées.** On n'apparie

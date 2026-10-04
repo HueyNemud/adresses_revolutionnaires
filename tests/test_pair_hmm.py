@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from lib import pair_hmm
+from numrev.alignment import pair_hmm
 
 # Transitions proches de celles estimées sur 1807/1808 ; rapport de
 # vraisemblance défavorable à sim = 0,72 (log ≈ −2,8), très défavorable à 0,4.

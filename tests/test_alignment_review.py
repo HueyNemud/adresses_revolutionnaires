@@ -1,8 +1,8 @@
 import unittest
 
-from lib.alignment import SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_CANDIDATE, Link, Record
-from lib.alignment_review import REASON_CONTEXT, REASON_HOMONYM, REASON_CANDIDATE, review
-from lib.section_alignment import align_sections
+from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_NW, SOURCE_NW_CONTEXT, Link, Record
+from numrev.alignment.review import REASON_CANDIDATE, REASON_CONTEXT, REASON_HOMONYM, review
+from numrev.alignment.sections import align_sections
 
 
 def records(side: str, texts: list[str]) -> list[Record]:

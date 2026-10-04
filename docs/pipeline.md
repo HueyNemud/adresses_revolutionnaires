@@ -18,43 +18,44 @@ Documents associés :
 ## Sommaire
 
 - [Organisation des fichiers](#organisation-des-fichiers)
-- [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)
-- [Étape 1 — Extraction des lignes](#étape-1--extraction-des-lignes--extract_chandra_linespy)
-- [Étape 2 — Annotation interactive des lignes](#étape-2--annotation-interactive-des-lignes--annotate_lines_crfpy)
-- [Étape 3 — Aplatissement en CSV et curation](#étape-3--aplatissement-en-csv-et-curation--export_lines_csvpy)
-- [Étape 4 — Entités et arbre des titres](#étape-4--entités-et-arbre-des-titres--build_entity_treepy)
+- [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)
+- [Étape 1 — Extraction des lignes](#étape-1--extraction-des-lignes--numrev-extract)
+- [Étape 2 — Annotation interactive des lignes](#étape-2--annotation-interactive-des-lignes--numrev-label)
+- [Étape 3 — Table des lignes et curation](#étape-3--table-des-lignes-et-curation--numrev-tabulate)
+- [Étape 4 — Entités et arbre des titres](#étape-4--entités-et-arbre-des-titres--numrev-assemble)
 - [Étape 5 — Segmentation NER](#étape-5--segmentation-ner-subj--desc--addr)
-- [Étape 6 — Alignement de deux éditions](#étape-6--alignement-de-deux-éditions)
-- [Audit du CRF](#audit-du-crf--audit_crf_featurespy)
+- [Étapes 6 et 7 — Alignement de deux éditions et jointure](#étapes-6-et-7--alignement-de-deux-éditions-et-jointure)
+- [Audit du CRF](#audit-du-crf--numrev-audit-crf)
 - [Fichiers produits](#fichiers-produits)
-- [Code partagé](#code-partagé-lib)
-- [Conventions des scripts](#conventions-des-scripts)
+- [Organisation du code](#organisation-du-code)
+- [Conventions des commandes](#conventions-des-commandes)
 
 ## Organisation des fichiers
 
 Chaque annuaire a son dossier de volume dans `annuaires/` (hors git). La
 sortie OCR complète est découpée en **plages de pages** (partie utile de
 l'annuaire, liste annexe…), chacune dans son sous-dossier ; toute la chaîne
-s'exécute par plage, et les fichiers de chaque étape s'accumulent à côté de
-leur entrée en allongeant le nom :
+s'exécute par plage. Une plage est un **document**, nommé
+`<volume>.<plage>` ; chaque étape écrit à côté de son entrée un fichier
+`<document><suffixe de l'étape>` (convention : `src/numrev/paths.py`) :
 
 ```text
 annuaires/
 ├── 1808_AD75-PER292/                         dossier de volume
 │   ├── 1808_AD75-PER292.ocr.json             sortie OCR Chandra complète
 │   ├── 7-186/                                plage de pages
-│   │   ├── 1808_AD75-PER292.7-186.ocr.json                     pages de la plage
-│   │   ├── ….ocr.lines.json                                   étape 1
-│   │   ├── ….ocr.lines.crf-session.json                       étape 2 (session)
-│   │   ├── ….ocr.lines.annotated.json                         étape 2
-│   │   ├── ….ocr.lines.annotated.csv                          étape 3 (corrigé à la main)
-│   │   ├── ….ocr.lines.annotated.merged.csv                   étape 4
-│   │   ├── ….ocr.lines.annotated.merged.report.txt            étape 4
-│   │   └── ….ocr.lines.annotated.merged.ner.csv               étape 5 (corrigé à la main)
+│   │   ├── 1808_AD75-PER292.7-186.ocr.json   pages de la plage
+│   │   ├── ….lines.json                      1 · extract
+│   │   ├── ….label-session.json              2 · label (session)
+│   │   ├── ….labeled.json                    2 · label
+│   │   ├── ….lines.csv                       3 · tabulate (corrigé à la main)
+│   │   ├── ….entities.csv                    4 · assemble
+│   │   ├── ….entities.report.txt             4 · assemble
+│   │   └── ….ner.csv                         5 · tag (corrigé à la main)
 │   └── 188-194/
-└── alignements/                              sorties de l'étape 6
+└── alignments/                               sorties des étapes 6 et 7
 data/curation/                                corrections humaines (versionnées)
-├── 1808_AD75-PER292.7-186.lignes.patch.csv   étape 3
+├── 1808_AD75-PER292.7-186.lines.patch.csv    étape 3
 └── 1808_AD75-PER292.7-186.ner.patch.csv      étape 5
 ```
 
@@ -71,46 +72,49 @@ jq 'map(select(.page_index >= 6 and .page_index <= 185))' \
 d'entraînement, entraînement) calcule et vérifie tout — conflits de
 curation et lignes orphelines compris — puis affiche les fichiers qu'elle
 écrirait (nouveau / remplacé), sans rien écrire. `--apply` écrit
-(`lib/cli.py`). `--force` reste distinct : il passe outre un refus
+(`numrev/command.py`). `--force` reste distinct : il passe outre un refus
 (conflit, orphelin, fichier existant) et n'écrit lui aussi qu'avec
 `--apply`. L'annotateur (étape 2) enregistre sa session à chaque action,
-mais n'exporte le JSON annoté qu'avec `--apply` ; `tools/train_gliner.py`
+mais n'exporte le JSON annoté qu'avec `--apply` ; `numrev train`
 sans `--apply` vérifie et convertit les données puis s'arrête avant
 d'entraîner. Les audits et les viewers n'écrivent que des rapports ou
 rien : ils n'ont pas cette option.
 
-Les étapes 1 à 4 sur une plage, avec ces noms de fichiers :
+Toutes les étapes passent par la commande `numrev` (`uv run numrev` liste
+les commandes, `uv run numrev <commande> --help` détaille les options). Les
+étapes 1 à 4 sur une plage :
 
 ```bash
-P=annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186
-uv run extract_chandra_lines.py $P.ocr.json --apply                 # → $P.ocr.lines.json
-uv run annotate_lines_crf.py $P.ocr.lines.json --apply              # → $P.ocr.lines.annotated.json
-uv run export_lines_csv.py $P.ocr.lines.annotated.json --apply      # → $P.ocr.lines.annotated.csv
-# curation manuelle dans $P.ocr.lines.annotated.csv (lignes marquées corrige = oui),
-# puis relancer export_lines_csv.py : les corrections sont capturées et réappliquées
-uv run build_entity_tree.py $P.ocr.lines.annotated.csv --apply     # → $P.ocr.lines.annotated.merged.csv
+D=annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186
+uv run numrev extract  $D.ocr.json --apply       # → $D.lines.json
+uv run numrev label    $D.lines.json --apply     # → $D.labeled.json
+uv run numrev tabulate $D.labeled.json --apply   # → $D.lines.csv
+# curation manuelle dans $D.lines.csv (lignes marquées corrige = oui),
+# puis relancer numrev tabulate : les corrections sont capturées et réappliquées
+uv run numrev assemble $D.lines.csv --apply      # → $D.entities.csv
 ```
 
 ```mermaid
 flowchart TD
     A["Sortie OCR Chandra d'une plage<br/><code>….ocr.json</code>"]
-    A -->|"1 · extract_chandra_lines.py"| B["Lignes Markdown par bloc<br/><code>….ocr.lines.json</code>"]
-    B -->|"2 · annotate_lines_crf.py<br/>(annotation interactive, CRF)"| C["Lignes annotées<br/><code>….ocr.lines.annotated.json</code>"]
-    C -->|"3 · export_lines_csv.py"| D["Une ligne CSV par ligne Markdown<br/><code>….ocr.lines.annotated.csv</code>"]
+    A -->|"1 · numrev extract"| B["Lignes Markdown par bloc<br/><code>….lines.json</code>"]
+    B -->|"2 · numrev label<br/>(annotation interactive, CRF)"| C["Lignes annotées<br/><code>….labeled.json</code>"]
+    C -->|"3 · numrev tabulate"| D["Une ligne CSV par ligne Markdown<br/><code>….lines.csv</code>"]
     D -.->|"curation manuelle<br/>(corrige = oui)"| D
-    D -->|"4 · build_entity_tree.py"| F["Entités + titre parent<br/><code>….annotated.merged.csv</code><br/>+ <code>.report.txt</code>"]
-    F -->|"5 · infer_gliner.py<br/>(modèle GLiNER)"| G["Empans NER<br/><code>….merged.ner.csv</code>"]
+    D -->|"4 · numrev assemble"| F["Entités + titre parent<br/><code>….entities.csv</code><br/>+ <code>.entities.report.txt</code>"]
+    F -->|"5 · numrev tag<br/>(modèle GLiNER)"| G["Empans NER<br/><code>….ner.csv</code>"]
     G -.->|"relecture des entrées suspectes<br/>(corrige = oui)"| G
-    G -->|"6 · align_directories.py (Dedupe)<br/>ou align_directories_nw.py (ordre)<br/>deux volumes complets"| I["Correspondances<br/><code>annuaires/alignements/…</code>"]
+    G -->|"6 · numrev align nw (ordre)<br/>ou numrev align dedupe (Dedupe)<br/>deux volumes complets"| I["Correspondances<br/><code>annuaires/alignments/…</code>"]
+    I -->|"7 · numrev join"| J["Jointure lisible<br/><code>….join.csv</code>"]
 
     style F fill:#dfe,stroke:#393
     style G fill:#dfe,stroke:#393
-    style I fill:#dfe,stroke:#393
+    style J fill:#dfe,stroke:#393
 ```
 
 En pointillés, les interventions manuelles ; en vert, les livrables.
 
-## Corrections humaines rejouables : `lib/curation.py`
+## Corrections humaines rejouables : `numrev/curation.py`
 
 Version vulgarisée, avec exemples : [`guide_curation.md`](guide_curation.md).
 
@@ -122,9 +126,9 @@ l'OCR (CRF amélioré, nouveau modèle NER…) sans perdre ce travail.
 
 | Étape | Clé stable | Champs éditables | Patch versionné |
 |---|---|---|---|
-| 3 · lignes | `cle` (hash du texte OCR) | `classe`, `markdown` (+ lignes ajoutées, `SUPPRIMÉE`) | `data/curation/<document>.lignes.patch.csv` |
+| 3 · lignes | `cle` (hash du texte OCR) | `classe`, `markdown` (+ lignes ajoutées, `SUPPRIMÉE`) | `data/curation/<document>.lines.patch.csv` |
 | 5 · NER | `uuid` d'entité | `tagged_text`, `parent_uuid` | `data/curation/<document>.ner.patch.csv` |
-| 6 · alignement | uuid gauche / droit | paire, sans correspondance, `certitude` | `data/alignement/<g>__<d>.patch.csv`, `.sections.csv` |
+| 6 · alignement | uuid gauche / droit | paire, sans correspondance, `certitude` | `data/alignment/<g>__<d>.patch.csv`, `.sections.csv` |
 
 Pour les étapes 3 et 5, le CSV de sortie est **à la fois la sortie machine
 et le fichier qu'on corrige** (Excel, OpenRefine : la curation des lignes a
@@ -136,7 +140,7 @@ besoin du contexte de tout le document). Deux colonnes s'y ajoutent :
 - `empreinte` : hash des champs éditables tels que la machine les a écrits
   (ne pas y toucher).
 
-À chaque exécution, le script de l'étape enchaîne trois temps, et **réussit
+À chaque exécution, la commande de l'étape enchaîne trois temps, et **réussit
 entièrement ou n'écrit rien** :
 
 1. **capture** : si sa sortie existe déjà, ses lignes `corrige = oui`
@@ -145,7 +149,7 @@ entièrement ou n'écrit rien** :
 2. **génération** de la nouvelle sortie machine ;
 3. **application** du patch, qui gagne sur la machine.
 
-Le script **panique** (s'arrête, liste les lignes en cause, n'écrit rien)
+La commande **panique** (s'arrête, liste les lignes en cause, n'écrit rien)
 dès que le résultat ne serait pas prévisible :
 
 - une ligne modifiée (empreinte qui ne correspond plus) **sans**
@@ -158,7 +162,7 @@ dès que le résultat ne serait pas prévisible :
 `--force` résout la panique en prenant la **nouvelle sortie machine** pour
 ces lignes (et retire les corrections inapplicables du patch). C'est aussi
 le moyen d'annuler une correction : vider `corrige`, relancer avec `--force`.
-`--sans-capture` ignore le fichier existant et repart du patch versionné
+`--no-capture` ignore le fichier existant et repart du patch versionné
 (par exemple après un `git pull` qui l'a modifié). Lancée sans `--apply`,
 la commande montre les conflits éventuels et les fichiers qu'elle
 réécrirait, sans toucher ni au CSV ni au patch.
@@ -184,55 +188,55 @@ sa ligne racine : il est donc stable lui aussi.
 Les patchs d'alignement (étape 6) ne sont pas capturés depuis un CSV : on
 les édite à la main depuis le viewer. Ils suivent sinon les mêmes règles :
 le patch gagne, une ligne orpheline (uuid disparu, sans réancrage possible)
-fait paniquer `align_directories.py`, `align_directories_nw.py` et
-`tools/export_alignment.py`, et `--force` l'ignore.
+fait paniquer `numrev align dedupe`, `numrev align nw` et
+`numrev join`, et `--force` l'ignore.
 
 Les patchs vivent dans `data/`, versionné avec le code. Les commits de
-données restent séparés de ceux du code (préfixe `données:`), et les scripts
-ne commitent jamais eux-mêmes.
+données restent séparés de ceux du code (préfixe `données:`), et les commandes
+ne commitent jamais elles-mêmes.
 
-## Étape 1 — Extraction des lignes : `extract_chandra_lines.py`
+## Étape 1 — Extraction des lignes : `numrev extract`
 
 Parse le HTML de chaque bloc de la sortie Chandra et le convertit en lignes
 Markdown, avec leur provenance (page, bloc, position).
 
 ```bash
-uv run extract_chandra_lines.py <plage>.ocr.json --apply
+uv run numrev extract <document>.ocr.json --apply
 ```
 
-- **Entrée :** le JSON OCR de Chandra (`<nom>.ocr.json` : `markdown` et
+- **Entrée :** le JSON OCR de Chandra (`<document>.ocr.json` : `markdown` et
   `html` par page, blocs repérés par `data-block-id`).
 - **Sortie :** une copie du JSON où chaque page reçoit une liste
   `data_blocks`, chacun portant sa liste de `lines` (`uid`, `line_index`,
-  `markdown`, `cle`). Défaut : `<nom>.ocr.lines.json`.
+  `markdown`, `cle`). Défaut : `<document>.lines.json`.
 - **`cle`** : clé stable de la ligne (hash du texte OCR, voir
-  [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)),
+  [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)),
   recopiée par toutes les étapes suivantes.
 - **Tableaux :** chaque cellule (et chaque ligne d'une cellule) devient une
   ligne séparée, sans syntaxe Markdown de tableau.
 - Ce schéma (pages → `data_blocks` → `lines`) est le **contrat partagé** des
   étapes 2 et 3 ; il est décrit et validé en un seul endroit,
-  `lib/chandra_document.py` (`iter_line_locations`). C'est là qu'il faut le
+  `numrev/document.py` (`iter_line_locations`). C'est là qu'il faut le
   modifier.
 
-## Étape 2 — Annotation interactive des lignes : `annotate_lines_crf.py`
+## Étape 2 — Annotation interactive des lignes : `numrev label`
 
 Un CRF (`python-crfsuite`), réentraîné au fil de l'annotation, propose les
 lignes les plus utiles à annoter (graine diversifiée, puis échantillonnage
 par incertitude) et prédit les autres.
 
 ```bash
-uv run annotate_lines_crf.py <plage>.ocr.lines.json --apply
+uv run numrev label <document>.lines.json --apply
 ```
 
 - **Entrée :** le JSON de l'étape 1, ou un JSON déjà partiellement annoté
-  par ce script.
+  par cette commande.
 - **Sortie :** le même JSON, où chaque ligne reçoit `prediction`,
   `provenance` (`human` / `model` / `unclassified`), `probability` et
-  `timestamp`. Défaut : `<nom>.ocr.lines.annotated.json`, écrit seulement
+  `timestamp`. Défaut : `<document>.labeled.json`, écrit seulement
   avec `--apply` (relancer avec `--apply` et quitter aussitôt par `q`
   exporte une session terminée).
-- **Session :** `<entrée>.crf-session.json`, réécrite après chaque action
+- **Session :** `<document>.label-session.json`, réécrite après chaque action
   (même sans `--apply`) ; l'annotation reprend exactement où elle a été
   arrêtée. `--reset-session` l'ignore.
 - **Classes :** `B-ENTRY`, `I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`,
@@ -261,7 +265,7 @@ Points de conception :
 
 - Les features sont calculées sur le texte normalisé (`normalize_line` :
   marqueurs d'emphase, `#` de tête et espaces finaux retirés ; l'italique
-  est gardé comme feature). Elles sont définies dans `lib/crf/features.py`
+  est gardé comme feature). Elles sont définies dans `numrev/crf/features.py`
   (`PRODUCTION_GROUPS`) ; les modifier change le comportement de
   l'annotateur — pour essayer une feature, voir
   [l'audit du CRF](#audit-du-crf--audit_crf_featurespy).
@@ -273,12 +277,12 @@ Points de conception :
   statistiques (progression, transitions apprises, probabilités des
   candidates) à droite.
 
-## Étape 3 — Aplatissement en CSV et curation : `export_lines_csv.py`
+## Étape 3 — Table des lignes et curation : `numrev tabulate`
 
 Convertit le JSON, annoté ou non, en CSV : une ligne Markdown par ligne.
 
 ```bash
-uv run export_lines_csv.py <plage>.ocr.lines.annotated.json --apply
+uv run numrev tabulate <document>.labeled.json --apply
 ```
 
 - **Colonnes :** `cle`, `uid`, `page_index`, `chunk_index`,
@@ -290,31 +294,31 @@ uv run export_lines_csv.py <plage>.ocr.lines.annotated.json --apply
 - Sur le JSON brut de l'étape 1, `classe` est vide et aucun patch n'est lu
   ni écrit : pratique pour inspecter l'extraction.
 - **Curation :** on corrige directement ce CSV (classe, texte, notamment les
-  marqueurs de titre `#`) en marquant `corrige = oui`, puis on relance le
-  script, qui capture les corrections dans
-  `data/curation/<document>.lignes.patch.csv` et les réapplique (voir
-  [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)).
+  marqueurs de titre `#`) en marquant `corrige = oui`, puis on relance la
+  commande, qui capture les corrections dans
+  `data/curation/<document>.lines.patch.csv` et les réapplique (voir
+  [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)).
   Un nouvel export (CRF amélioré) garde ainsi les corrections et met à jour
   les autres lignes. Ces fichiers servent de référence à l'audit du CRF.
 
-## Étape 4 — Entités et arbre des titres : `build_entity_tree.py`
+## Étape 4 — Entités et arbre des titres : `numrev assemble`
 
 Recompose les entités logiques (une entrée, un titre) à partir des classes
 de lignes, rattache chaque ligne produite à son titre parent et écrit un
 rapport.
 
 ```bash
-uv run build_entity_tree.py <plage>.ocr.lines.annotated.csv --apply
+uv run numrev assemble <document>.lines.csv --apply
 ```
 
 - **Entrée :** un CSV de l'étape 3 (colonnes `cle`, `uid`, `markdown`,
   `classe` obligatoires). Les lignes `SUPPRIMÉE` sont ignorées, et les colonnes
   `corrige` / `empreinte` ne sont pas recopiées.
 - **Sorties :**
-  - `<entrée>.merged.csv` — une ligne par entité : `ENTRY`, `TITLE` ou
+  - `<document>.entities.csv` — une ligne par entité : `ENTRY`, `TITLE` ou
     `OUT OF SCOPE` (toute classe inconnue est recopiée telle quelle), avec
     son `uuid` et le `parent_uuid` de son titre parent ;
-  - `<sortie>.report.txt` — comptages, arbre indenté des titres (entrées
+  - `<document>.entities.report.txt` — comptages, arbre indenté des titres (entrées
     directes et de tout le sous-arbre) et cas à vérifier.
 
 ### Fusion des lignes
@@ -344,7 +348,7 @@ flowchart LR
   réinitialisé à chaque `TITLE` ; les ruptures sont listées avec l'`uid` de
   l'entrée fautive.
 - Une classe inconnue est traitée comme hors champ et signalée à part :
-  renommer une classe de ligne impose de mettre ce script à jour.
+  renommer une classe de ligne impose de mettre `numrev/pipeline/assemble.py` à jour.
 
 ### Identifiants et hiérarchie
 
@@ -377,18 +381,18 @@ Deux jeux de données versionnés, aux rôles séparés :
 
 | | `data/ner/gold.ls.json` | `data/ner/train.ls.json` |
 |---|---|---|
-| Rôle | **évaluer** (`audit_ner.py`) | **entraîner** (`tools/train_gliner.py`) |
+| Rôle | **évaluer** (`numrev audit ner`) | **entraîner** (`numrev train`) |
 | Taille | 600 entrées | ~15 000 entrées |
-| Origine | tiré une fois (`tools/sample_ner_gold.py`), relu entrée par entrée dans Label Studio | construit par `tools/build_ner_training.py` à partir des CSV NER de `annuaires/` |
+| Origine | tiré une fois (`numrev gold ner`), relu entrée par entrée dans Label Studio | construit par `numrev train-set` à partir des CSV NER de `annuaires/` |
 | Qualité | vérité terrain | sortie du modèle, corrigée là où une ligne porte `corrige = oui` |
 
 Les textes du gold sont toujours exclus de l'entraînement (comparaison sur le
 texte normalisé, pas sur l'`uid`).
 
-### Inférence : `infer_gliner.py`
+### Inférence : `numrev tag`
 
 ```bash
-uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model --apply
+uv run numrev tag <document>.entities.csv --model models/<nom>.gliner-model --apply
 ```
 
 - Ajoute après `entity` la colonne `tagged_text` (texte d'origine balisé,
@@ -399,7 +403,7 @@ uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model 
   reportés sur le Markdown d'origine.
 - Deux colonnes guident la relecture : `ner_confidence` (score minimal des
   empans) et `ner_suspect`, la liste des motifs de relecture prioritaire
-  (`lib/ner/suspicion.py`) :
+  (`numrev/ner/suspicion.py`) :
   - `aucun empan` ;
   - `score bas` (sous `--min-score`, défaut 0,9) ;
   - `texte non couvert` (un mot hors de tout empan) ;
@@ -413,17 +417,17 @@ uv run infer_gliner.py <plage>.….merged.csv --model models/<nom>.gliner-model 
   `corrige = oui` ; à la prochaine inférence, les corrections sont capturées
   dans `data/curation/<document>.ner.patch.csv` (avant le chargement du
   modèle) et réappliquées par `uuid` (voir
-  [Corrections humaines rejouables](#corrections-humaines-rejouables--libcurationpy)).
+  [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)).
   Ce CSV est l'entrée de l'étape 6 et de la construction du jeu
   d'entraînement.
 
-### Explorer un volume : `tools/display_directory.py`
+### Explorer un volume : `numrev view directory`
 
 ```bash
-uv run streamlit run tools/display_directory.py
+uv run numrev view directory
 ```
 
-Visualiseur d'un CSV NER (`*.merged.ner.csv`, choisi dans `annuaires/` ou
+Visualiseur d'un CSV NER (`*.ner.csv`, choisi dans `annuaires/` ou
 téléversé) :
 
 - **Contexte :** empans colorés par classe ; chaque entrée est replacée dans
@@ -440,57 +444,58 @@ téléversé) :
 ```bash
 # En local (a besoin de annuaires/) : régénère data/ner/train.ls.json à partir
 # des CSV NER (curés en priorité), tiré par forme typographique, gold exclu.
-uv run tools/build_ner_training.py --apply
+uv run numrev train-set --apply
 git add data/ner && git commit && git push
 
 # Sur la machine GPU (après git pull && uv sync) :
-uv run tools/train_gliner.py data/ner/train.ls.json -o models/<nom>.gliner-model --apply
+uv run numrev train data/ner/train.ls.json -o models/<nom>.gliner-model --apply
 ```
 
 - Le jeu d'entraînement vaut ce que valent les CSV : ils doivent suivre le
   guide d'annotation, car le modèle réapprend les écarts de convention de
   ses données.
-- `train_gliner.py` accepte un ou plusieurs fichiers Label Studio, convertit
+- `numrev train` accepte un ou plusieurs fichiers Label Studio, convertit
   les empans en caractères en empans de tokens, calcule `max_width`, exclut
   à nouveau les textes du gold, valide sur un découpage **par page** et
   écrit `<modèle>/ner_config.json`.
 - Modèle de base : `knowledgator/gliner-bi-base-v2.0` (bi-encodeur). Un
-  GLiNER-relex (`--model knowledgator/gliner-relex-large-v0.5`) s'entraîne
+  GLiNER-relex (`--base-model knowledgator/gliner-relex-large-v0.5`) s'entraîne
   et s'utilise aussi, mais n'a rien gagné à conditions égales :
   [Expérience GLiNER-relex](experience_gliner_relex.md).
 
-### Audit : `audit_ner.py`
+### Audit : `numrev audit ner`
 
 ```bash
-uv run tools/sample_ner_gold.py --apply      # une seule fois : tirage du gold
-uv run audit_ner.py --split dev --model models/<actuel>.gliner-model --model models/<nom>.gliner-model
-uv run audit_ner.py --split dev --predictions autre=sortie.ner.csv
+uv run numrev gold ner --apply      # une seule fois : tirage du gold
+uv run numrev audit ner --split dev --model models/<actuel>.gliner-model --model models/<nom>.gliner-model
+uv run numrev audit ner --split dev --predictions autre=sortie.ner.csv
 ```
 
 - **Gold :** entrées stratifiées (courant / forme rare / signature rare /
   désaccord) et pondérées pour rester représentatives du corpus ;
   configuration Label Studio dans `data/ner/label_studio_config.xml`.
   Découpage figé `dev` (choix, réglages) / `test` (confirmation du modèle
-  retenu, une seule fois). Le gold n'est jamais retiré, pour que les scores
+  retenu, une seule fois). Le gold n'est jamais retiré (`numrev gold ner` refuse
+  d'écraser le fichier, sauf `--force`), pour que les scores
   restent comparables.
 - **Métrique principale :** exactitude par entrée (part des entrées sans
   correction à faire), avec intervalle de confiance par bootstrap des pages
   et écarts appariés contre le premier système. Aussi : F1 par classe,
   exactitude par token, types d'erreurs, ventilation par volume / strate /
   profil, couverture et rappel des motifs `ner_suspect`.
-- **Sortie :** `rapports/audit_ner/rapport.md` et `erreurs.csv`.
+- **Sortie :** `reports/ner/rapport.md` et `erreurs.csv`.
 - Une entrée de la strate « courant » pèse environ 1,5 point sur le split
   `dev` : comparer aussi les nombres bruts d'erreurs.
 - Les CSV NER ne sont que partiellement relus (`corrige = oui`) : ce ne sont
   pas des vérités terrain.
 
-## Étape 6 — Alignement de deux éditions
+## Étapes 6 et 7 — Alignement de deux éditions et jointure
 
 Retrouve, entre deux éditions d'un annuaire, les ENTRY qui décrivent la même
 personne ou le même commerce. Deux méthodes produisent des correspondances
 **un-à-un** au même format :
 
-| | `align_directories.py` | `align_directories_nw.py` |
+| | `numrev align dedupe` | `numrev align nw` |
 |---|---|---|
 | Principe | [Dedupe](https://github.com/dedupeio/dedupe) `RecordLink` : ressemblance apprise sur des paires étiquetées | ordre des entrées : Needleman-Wunsch par rubrique, puis pair-HMM entre ancres |
 | Étiquetage | oui, en console | aucun |
@@ -504,39 +509,38 @@ Les deux méthodes restent à comparer sur un corpus d'alignements vérifiés.
 flowchart TD
     L["Volume de gauche<br/><code>annuaires/&lt;gauche&gt;/</code>"] --> R
     Rt["Volume de droite<br/><code>annuaires/&lt;droite&gt;/</code>"] --> R
-    R["Chargement des ENTRY<br/>(lib/alignment.py)"] --> S
-    SP[/"Patch des rubriques<br/><code>data/alignement/…sections.csv</code>"/] --> S
-    S["Correspondance des rubriques<br/>(lib/section_alignment.py)"]
-    S -->|"clé commune de groupe"| D["align_directories.py<br/>Dedupe"]
-    TJ[/"Paires étiquetées<br/><code>data/alignement/…training.json</code>"/] --> D
+    R["Chargement des ENTRY<br/>(numrev/alignment/records.py)"] --> S
+    SP[/"Patch des rubriques<br/><code>data/alignment/…sections.csv</code>"/] --> S
+    S["Correspondance des rubriques<br/>(numrev/alignment/sections.py)"]
+    S -->|"clé commune de groupe"| D["numrev align dedupe<br/>Dedupe"]
+    TJ[/"Paires étiquetées<br/><code>data/alignment/…training.json</code>"/] --> D
     D --> DC["<code>….dedupe.csv</code>"]
-    DC --> AP["Application du patch des entrées<br/>(lib/alignment_patch.py)"]
-    EP[/"Patch des entrées<br/><code>data/alignement/…patch.csv</code>"/] --> AP
+    DC --> AP["Application du patch des entrées<br/>(numrev/alignment/patch.py)"]
+    EP[/"Patch des entrées<br/><code>data/alignment/…patch.csv</code>"/] --> AP
     AP --> F["<code>&lt;gauche&gt;__&lt;droite&gt;.csv</code><br/>résultat final"]
-    S -->|"groupes de rubriques appariées"| N["align_directories_nw.py<br/>NW + résiduelle + pair-HMM"]
+    S -->|"groupes de rubriques appariées"| N["numrev align nw<br/>NW + résiduelle + pair-HMM"]
     N --> NC["<code>….nw.csv</code>"]
-    DC --> V["tools/display_alignment.py<br/>(patch appliqué en mémoire)"]
+    DC --> V["numrev view alignment<br/>(patch appliqué en mémoire)"]
     NC --> V
     EP --> V
-    DC --> X["tools/export_alignment.py<br/>(jointure lisible)"]
+    DC --> X["numrev join<br/>(jointure lisible)"]
     NC --> X
     F --> X
-    X --> XC["<code>….jointure.csv</code>"]
+    X --> XC["<code>….join.csv</code>"]
 
     style F fill:#dfe,stroke:#393
     style NC fill:#dfe,stroke:#393
 ```
 
-Les fichiers de `data/alignement/` sont **versionnés** (au contraire de
+Les fichiers de `data/alignment/` sont **versionnés** (au contraire de
 `annuaires/`) : ils portent tout le travail humain et survivent aux
 relances.
 
 ### Chargement des volumes
 
-`lib/alignment.py` lit un dossier de volume en entier : ses sous-dossiers de
-plages triés par première page, chacun par son propre
-`<volume>.<plage>.ocr.lines.annotated.merged.ner.csv`
-(`NER_SUFFIX` ; un fichier manquant est une erreur). Seules les
+`numrev/alignment/records.py` lit un dossier de volume en entier : ses
+sous-dossiers de plages triés par première page, chacun par son propre
+`<volume>.<plage>.ner.csv` (un fichier manquant est une erreur). Seules les
 ENTRY sont alignées. Pour chacune :
 
 - **rubrique** : titre ancêtre de niveau 2, à défaut de niveau 1, selon
@@ -548,15 +552,15 @@ ENTRY sont alignées. Pour chacune :
 
 ### Correspondance des rubriques
 
-Partagée par les deux méthodes et le viewer (`lib/section_alignment.py`).
+Partagée par les deux méthodes et le viewer (`numrev/alignment/sections.py`).
 Une rubrique est une suite contiguë d'ENTRY de même rubrique, identifiée par
 l'uuid de son TITLE. L'ordre des rubriques étant stable d'une édition à
 l'autre, elles sont alignées par Needleman-Wunsch sur la similarité
-Jaro-Winkler de leur clé (seuil 0,8, `lib/sequence.py`) : « Liste » et
+Jaro-Winkler de leur clé (seuil 0,8, `numrev/alignment/sequence.py`) : « Liste » et
 « Listes de non-commerçans » se correspondent.
 
 Ce qui échappe à l'ordre ou au seuil se corrige à la main dans
-`data/alignement/<gauche>__<droite>.sections.csv` (colonnes `left_uuid,
+`data/alignment/<gauche>__<droite>.sections.csv` (colonnes `left_uuid,
 right_uuid, left_title, right_title, note`) :
 
 - une ligne à deux uuid lie deux rubriques ; un même uuid peut figurer dans
@@ -568,17 +572,17 @@ right_uuid, left_title, right_title, note`) :
 Le patch gagne : ses rubriques sont retirées de l'alignement automatique.
 Si un uuid disparaît (re-segmentation amont), la ligne est réancrée sur la
 rubrique de même titre nettoyé, unique dans l'annuaire, et le patch est
-réécrit par les scripts d'alignement ; faute de candidat unique, la ligne
-est **orpheline** : conservée, non appliquée, et les scripts paniquent
+réécrit par les commandes d'alignement ; faute de candidat unique, la ligne
+est **orpheline** : conservée, non appliquée, et les commandes paniquent
 (`--force` pour l'ignorer).
 
-### Méthode Dedupe : `align_directories.py`
+### Méthode Dedupe : `numrev align dedupe`
 
 ```bash
-uv run align_directories.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
-uv run align_directories.py <gauche> <droite> --label --apply          # compléter l'étiquetage
-uv run align_directories.py <gauche> <droite> --sans-dedupe --apply    # réappliquer le patch, sans Dedupe
-uv run align_directories.py <gauche> <droite> --raw-sections --apply   # variante à clés de rubrique brutes
+uv run numrev align dedupe annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
+uv run numrev align dedupe <gauche> <droite> --label --apply          # compléter l'étiquetage
+uv run numrev align dedupe <gauche> <droite> --patch-only --apply    # réappliquer le patch, sans Dedupe
+uv run numrev align dedupe <gauche> <droite> --raw-sections --apply   # variante à clés de rubrique brutes
 ```
 
 - **Champs comparés :** rubrique, SUBJ et texte, en minuscules. La rubrique
@@ -587,22 +591,22 @@ uv run align_directories.py <gauche> <droite> --raw-sections --apply   # variant
   substitution est aussi appliquée, à la lecture, aux paires du fichier
   d'entraînement, qui reste donc valable. `--raw-sections` garde les clés
   propres à chaque volume et écrit
-  `<gauche>__<droite>.rubriques-brutes[.dedupe].csv`, pour comparer les deux
+  `<gauche>__<droite>.raw-sections[.dedupe].csv`, pour comparer les deux
   variantes.
 - **Étiquetage :** à la première exécution (ou avec `--label`), Dedupe
   propose des paires en console (`y` / `n` / `u` incertain / `f` terminer).
   Elles sont enregistrées dans
-  `data/alignement/<gauche>__<droite>.training.json` et réutilisées ensuite
+  `data/alignment/<gauche>__<droite>.training.json` et réutilisées ensuite
   sans interaction.
 - **Seuil :** `--threshold` (score minimal, défaut 0,5).
 - **Seulement entre rubriques appariées :** Dedupe ne voit la rubrique que
   comme un champ parmi d'autres et peut lier deux rubriques qui ne se
   correspondent pas ; ces liens sont écartés (`restrict_to_corresponding`,
-  `lib/section_alignment.py`), comme les paires du patch des entrées qui
+  `numrev/alignment/sections.py`), comme les paires du patch des entrées qui
   violent cette règle (signalées en console : lier d'abord les rubriques).
   Le viewer et l'export appliquent le même filtre aux sorties plus
   anciennes.
-- **Sorties** dans `annuaires/alignements/`, dans l'ordre de l'annuaire de
+- **Sorties** dans `annuaires/alignments/`, dans l'ordre de l'annuaire de
   gauche : `<gauche>__<droite>.dedupe.csv` (liens bruts) et
   `<gauche>__<droite>.csv` (résultat final, Dedupe + patch des entrées). La
   console résume les taux d'appariement, la distribution des scores et
@@ -610,11 +614,11 @@ uv run align_directories.py <gauche> <droite> --raw-sections --apply   # variant
 - `prepare_training` prend quelques minutes sur ~17 000 × 16 000 entrées.
   Dedupe 3.0.3 exige `btrees<6` (fixé dans `pyproject.toml`).
 
-### Méthode ordonnée : `align_directories_nw.py`
+### Méthode ordonnée : `numrev align nw`
 
 ```bash
-uv run align_directories_nw.py annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
-uv run align_directories_nw.py <gauche> <droite> --no-context --apply   # Needleman-Wunsch seul
+uv run numrev align nw annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
+uv run numrev align nw <gauche> <droite> --no-context --apply   # Needleman-Wunsch seul
 ```
 
 Sans apprentissage supervisé ; méthode, formalisation et premiers résultats
@@ -631,7 +635,7 @@ dans [`alignement_ordonne.md`](alignement_ordonne.md). En bref :
    inversions 1807/1808, cette règle est précise (≈ 93 %) et ce qu'elle
    manque ne se départage pas automatiquement : les cas douteux vont à la
    relecture (ci-dessous), pas à une règle plus fine ;
-4. entre deux ancres consécutives, un **pair-HMM** (`lib/pair_hmm.py`) garde
+4. entre deux ancres consécutives, un **pair-HMM** (`numrev/alignment/pair_hmm.py`) garde
    les paires de probabilité a posteriori > 0,5 : une paire de similarité
    moyenne encadrée par des paires sûres peut être retenue. Les émissions
    sont estimées sans étiquettes ; seules les transitions sont apprises par
@@ -642,7 +646,7 @@ seul sans SUBJ, `--subj-weight`, défaut 0,5). Les seuils se règlent par
 `--threshold`, `--anchor-threshold`, `--residual-threshold` et
 `--section-threshold`.
 
-Sortie : `annuaires/alignements/<gauche>__<droite>.nw.csv`, avec `source` =
+Sortie : `annuaires/alignments/<gauche>__<droite>.nw.csv`, avec `source` =
 `nw` (ancre), `nw-contexte` (paire du pair-HMM, score = probabilité a
 posteriori) ou `nw-residuel`. Le patch des entrées n'est pas appliqué. La
 console affiche les transitions estimées et l'accord avec le `.dedupe.csv`
@@ -665,7 +669,7 @@ correspondance.
 
 Les méthodes peuvent être relancées à chaque amélioration des étapes amont ;
 les décisions humaines vivent donc à part, dans
-`data/alignement/<gauche>__<droite>.patch.csv` (`lib/alignment_patch.py`),
+`data/alignment/<gauche>__<droite>.patch.csv` (`numrev/alignment/patch.py`),
 réappliqué après chaque exécution de Dedupe.
 
 - **Une ligne = une décision :** `left_uuid` + `right_uuid` → ces deux
@@ -689,10 +693,10 @@ réappliqué après chaque exécution de Dedupe.
   non appliquée.
 - Un uuid présent dans deux lignes, ou une ligne sans uuid, est une erreur.
 
-### Explorer et corriger : `tools/display_alignment.py`
+### Explorer et corriger : `numrev view alignment`
 
 ```bash
-uv run streamlit run tools/display_alignment.py
+uv run numrev view alignment
 ```
 
 Le viewer est en lecture seule. On choisit une sortie brute (`*.dedupe.csv`,
@@ -734,33 +738,33 @@ final.
   fichier.
 - **Export CSV :** le bouton *Exporter en CSV* de la barre latérale
   télécharge les lignes affichées (filtres et tri appliqués) au format de
-  `tools/export_alignment.py` (ci-dessous) ; la case *Pour un tableur en
+  `numrev join` (ci-dessous) ; la case *Pour un tableur en
   français* (cochée par défaut) choisit le séparateur `;` et l'UTF-8 avec
   BOM.
 
 Les patchs s'éditent à la main (tableur ou éditeur de texte) : coller une
 ligne copiée valide une paire ou confirme une absence de correspondance ;
 pour apparier deux entrées, coller la ligne de l'une et y reporter l'`uuid`
-(et le fichier) de l'autre. `align_directories.py --sans-dedupe --apply` régénère
+(et le fichier) de l'autre. `numrev align dedupe --patch-only --apply` régénère
 ensuite le CSV final en quelques secondes.
 
 Pour tester le viewer, utiliser un wrapper qui redéfinit `ALIGNMENTS_DIR`
 et `PATCH_DIR`, jamais les dossiers réels.
 
-### Exporter la jointure : `tools/export_alignment.py`
+### Étape 7 — Jointure lisible : `numrev join`
 
 ```bash
-uv run tools/export_alignment.py annuaires/alignements/<g>__<d>.nw.csv [--excel] [-o sortie.csv] --apply
+uv run numrev join annuaires/alignments/<g>__<d>.nw.csv [--excel] [-o sortie.csv] --apply
 ```
 
 Produit, pour les utilisateurs des données (historiens), la jointure des
-deux volumes alignés (leurs `*.merged.ner.csv`) : **une ligne par correspondance ou par
+deux volumes alignés (leurs `*.ner.csv`) : **une ligne par correspondance ou par
 entrée sans correspondance**, dans l'ordre naturel du viewer
-(`lib/alignment_export.py`, partagé avec lui). L'entrée est une sortie
+(`numrev/alignment/export.py`, partagé avec lui). L'entrée est une sortie
 d'alignement (`*.dedupe.csv`, `*.nw.csv` ou le CSV final) ; comme dans le
 viewer, les volumes sont relus en entier et le patch des entrées est
-appliqué en mémoire, sans être réécrit (`--sans-patch` l'ignore). Sortie
-par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
+appliqué en mémoire, sans être réécrit (`--no-patch` l'ignore). Sortie
+par défaut : `<entrée sans .csv>.join.csv` à côté de l'entrée.
 
 | Colonne | Contenu |
 |---|---|
@@ -773,12 +777,12 @@ par défaut : `<entrée sans .csv>.jointure.csv` à côté de l'entrée.
 
 `--excel` écrit avec le séparateur `;` et en UTF-8 avec BOM, qu'un tableur
 réglé en français ouvre directement ; sans l'option, CSV standard (`,`,
-UTF-8). `--candidates` ajoute les candidates non appariées ; `--ecart`
+UTF-8). `--candidates` ajoute les candidates non appariées ; `--margin`
 règle l'écart « homonyme proche ».
 
 ### Relecture ciblée : motifs et incertitude
 
-L'alignement automatique n'est pas modifié : `lib/alignment_review.py`
+L'alignement automatique n'est pas modifié : `numrev/alignment/review.py`
 signale seulement, après coup, les décisions qu'une relecture humaine peut
 corriger, avec un motif explicite (même principe que `ner_suspect` pour la
 NER). Calcul par segment, avec la similarité de la méthode ordonnée :
@@ -786,7 +790,7 @@ NER). Calcul par segment, avec la similarité de la méthode ordonnée :
 | Motif | Concerne | Règle |
 |---|---|---|
 | `déduite des voisines (p < 0,9)` | paire `nw-contexte` | retenue par le pair-HMM parce que ses voisines sont appariées, mais de probabilité a posteriori < 0,9 |
-| `homonyme proche` | paire `nw`, `nw-residuel` ou `dedupe` | une autre entrée du segment, d'un côté ou de l'autre, est à moins de 0,05 de similarité (`--ecart`) |
+| `homonyme proche` | paire `nw`, `nw-residuel` ou `dedupe` | une autre entrée du segment, d'un côté ou de l'autre, est à moins de 0,05 de similarité (`--margin`) |
 | `candidate non appariée` | deux entrées sans correspondance | chacune est la plus proche de l'autre dans le segment, similarité dans [τ ; θr[ (seuils de Needleman-Wunsch et de la passe résiduelle) ; jamais une entrée déclarée seule au patch |
 
 L'**incertitude** est ordinale (pour trier, ce n'est pas une probabilité) :
@@ -801,18 +805,18 @@ conventions de relecture sont dans
 ### Gold des inversions et audit de la relecture
 
 ```bash
-uv run tools/sample_alignment_gold.py annuaires/<g> annuaires/<d> [--per-stratum 4] --apply   # une fois par paire
-uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.csv
+uv run numrev gold alignment annuaires/<g> annuaires/<d> [--per-stratum 4] --apply   # une fois par paire
+uv run numrev audit alignment data/alignment/<g>__<d>.gold-inversions.csv
 ```
 
-- `tools/sample_alignment_gold.py` tire des paires candidates
+- `numrev gold alignment` tire des paires candidates
   « inversion » (entrées laissées seules par Needleman-Wunsch, qui croisent
   au moins une paire ordonnée ; meilleure partenaire croisée de chaque
   entrée de gauche), stratifiées par déplacement × similarité, avec leur
   poids. On les étiquette à la main dans `meme_entree` : `OUI`, `NON` ou
   `INCERTAIN`, selon le guide de relecture. Un fichier existant n'est
   jamais écrasé sans `--force`.
-- `tools/audit_alignment_review.py` en tire `rapports/audit_alignement/<g>__<d>.md` :
+- `numrev audit alignment` en tire `reports/alignment/<g>__<d>.md` :
   précision et gain plafond de la règle de la passe résiduelle, devenir de
   chaque paire du gold selon la relecture (retenue avec ou sans motif,
   candidate non appariée, ni l'une ni l'autre), part de OUI par
@@ -821,38 +825,38 @@ uv run tools/audit_alignment_review.py data/alignement/<g>__<d>.gold-inversions.
   inversions de rubriques appariées, le motif `déduite des voisines` et la
   perte due aux rubriques sans correspondance n'y sont pas évalués.
 - **Pour une nouvelle paire d'annuaires**, commencer par les rubriques sans
-  correspondance (console d'`align_directories_nw.py`, encart
+  correspondance (console d'`numrev align nw`, encart
   *Rubriques* du viewer, section 3 du rapport d'audit) :
   leurs entrées ne sont jamais appariées et le gold ne voit pas cette perte.
   Lier dans le patch des rubriques celles qui ont un équivalent. Ensuite,
   les seuils ne sont pas à reprendre de 1807/1808 les yeux fermés : tirer un petit gold
   (`--per-stratum 4`, ≈ 100 paires), l'étiqueter, lancer l'audit, et
-  n'ajuster τ, θr ou `--ecart` que si le rapport l'exige (part de OUI qui ne
+  n'ajuster τ, θr ou `--margin` que si le rapport l'exige (part de OUI qui ne
   baisse plus de l'incertitude faible à forte, règle imprécise, motifs qui n'attrapent pas
   les erreurs).
 
-## Audit du CRF : `audit_crf_features.py`
+## Audit du CRF : `numrev audit crf`
 
 Mesure la performance du CRF de l'étape 2 et l'apport de chacune de ses
-features, contre les CSV corrigés à la main `*.ocr.lines.annotated.csv`
+features, contre les CSV corrigés à la main `*.lines.csv`
 (colonne `classe`, lignes `SUPPRIMÉE` exclues).
 
 ```bash
-uv run audit_crf_features.py                 # tous les *.ocr.lines.annotated.csv sous annuaires/
-uv run audit_crf_features.py a.ocr.lines.annotated.csv b.ocr.lines.annotated.csv -o rapports/mon_audit
+uv run numrev audit crf                 # tous les *.lines.csv sous annuaires/
+uv run numrev audit crf a.lines.csv b.lines.csv -o reports/mon_audit
 ```
 
 - **Entrées :** les CSV curés et, à côté de chacun, le
-  `<nom>.ocr.lines.json` qu'a vu l'annotateur. Les features sont calculées
+  `<document>.lines.json` qu'a vu l'annotateur. Les features sont calculées
   sur ce JSON, et les classes curées y sont rattachées par la clé de ligne
-  `cle` (`lib/crf/silver.py` ; une ligne ajoutée à la main, sans
+  `cle` (`numrev/crf/silver.py` ; une ligne ajoutée à la main, sans
   observation, est ignorée) : le texte ayant parfois été corrigé à la curation
   (marqueurs `#`), calculer les features sur le CSV curé ferait fuiter les
   étiquettes.
 - **Référence « silver » :** les classes curées ne diffèrent des prédictions
-  d'origine (relues dans `<nom>.ocr.lines.annotated.json`) que sur ~0,2 %
+  d'origine (relues dans `<document>.labeled.json`) que sur ~0,2 %
   des lignes ; les scores absolus sont donc optimistes.
-- **Sortie :** `rapports/audit_crf/` par défaut — `rapport.md` (résumé,
+- **Sortie :** `reports/crf/` par défaut — `rapport.md` (résumé,
   recommandations, analyses), tables CSV et `resume.json`.
 - **Contenu :** performances par classe et par entité (règles de l'étape 4)
   selon deux validations croisées (intra-document par blocs de pages
@@ -865,7 +869,7 @@ uv run audit_crf_features.py a.ocr.lines.annotated.csv b.ocr.lines.annotated.csv
   rapide), `--hyperparams` (grille c1 × c2).
 
 Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
-`lib/crf/features.py` : l'audit l'évalue sans changer l'annotateur.
+`numrev/crf/features.py` : l'audit l'évalue sans changer l'annotateur.
 `LEGACY_GROUPS` reproduit un jeu de features antérieur, évalué comme
 `production_v1` pour comparaison.
 
@@ -873,53 +877,72 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 
 | Fichier | Produit par | Contenu |
 |---|---|---|
-| `….ocr.lines.json` | `extract_chandra_lines.py` | Pages → blocs → lignes Markdown (`uid`, `line_index`, `markdown`, `cle`) |
-| `….ocr.lines.annotated.json` / `.crf-session.json` | `annotate_lines_crf.py` | Classe, provenance, probabilité de chaque ligne ; session reprenable |
-| `….ocr.lines.annotated.csv` | `export_lines_csv.py` + curation manuelle | Une ligne CSV par ligne Markdown, corrigée à la main (`corrige = oui`) |
-| `….merged.csv` | `build_entity_tree.py` | Une ligne par entité (`ENTRY`, `TITLE`, `OUT OF SCOPE`) avec `uuid`, `parent_uuid`, texte fusionné et provenance |
-| `….merged.report.txt` | `build_entity_tree.py` | Comptages, arbre des titres, cas à vérifier |
-| `….merged.ner.csv` | `infer_gliner.py` + relecture manuelle | Le CSV d'entités avec `tagged_text`, comptes d'empans, `ner_confidence`, `ner_suspect`, corrigé à la main (`corrige = oui`) |
-| `data/curation/<document>.lignes.patch.csv`, `.ner.patch.csv` | capture automatique (étapes 3 et 5) | Corrections humaines des lignes et du NER (versionnées) |
-| `annuaires/alignements/<g>__<d>.dedupe.csv` | `align_directories.py` | Correspondances brutes de Dedupe |
-| `annuaires/alignements/<g>__<d>.csv` | `align_directories.py` | Correspondances finales (Dedupe + patch) |
-| `annuaires/alignements/<g>__<d>.nw.csv` | `align_directories_nw.py` | Correspondances de la méthode ordonnée |
-| `annuaires/alignements/<g>__<d>.….jointure.csv` | `tools/export_alignment.py`, viewer | Jointure lisible des deux volumes alignés (pour les utilisateurs des données) |
-| `data/alignement/<g>__<d>.training.json` | `align_directories.py --label` | Paires étiquetées pour Dedupe (versionné) |
-| `data/alignement/<g>__<d>.sections.csv` | édition manuelle | Patch des rubriques (versionné) |
-| `data/alignement/<g>__<d>.patch.csv` | édition manuelle | Patch des entrées (versionné) |
-| `data/alignement/<g>__<d>.gold-inversions.csv` | `tools/sample_alignment_gold.py` + étiquetage manuel | Gold des inversions (versionné) |
-| `data/ner/gold.ls.json`, `data/ner/train.ls.json` | `sample_ner_gold.py` + Label Studio, `build_ner_training.py` | Gold d'évaluation et jeu d'entraînement NER (versionnés) |
-| `rapports/audit_crf/`, `rapports/audit_ner/`, `rapports/audit_alignement/` | audits | Rapports Markdown et tables |
+| `….lines.json` | `numrev extract` | Pages → blocs → lignes Markdown (`uid`, `line_index`, `markdown`, `cle`) |
+| `….labeled.json` / `.label-session.json` | `numrev label` | Classe, provenance, probabilité de chaque ligne ; session reprenable |
+| `….lines.csv` | `numrev tabulate` + curation manuelle | Une ligne CSV par ligne Markdown, corrigée à la main (`corrige = oui`) |
+| `….entities.csv` | `numrev assemble` | Une ligne par entité (`ENTRY`, `TITLE`, `OUT OF SCOPE`) avec `uuid`, `parent_uuid`, texte fusionné et provenance |
+| `….entities.report.txt` | `numrev assemble` | Comptages, arbre des titres, cas à vérifier |
+| `….ner.csv` | `numrev tag` + relecture manuelle | Le CSV d'entités avec `tagged_text`, comptes d'empans, `ner_confidence`, `ner_suspect`, corrigé à la main (`corrige = oui`) |
+| `data/curation/<document>.lines.patch.csv`, `.ner.patch.csv` | capture automatique (étapes 3 et 5) | Corrections humaines des lignes et du NER (versionnées) |
+| `annuaires/alignments/<g>__<d>.dedupe.csv` | `numrev align dedupe` | Correspondances brutes de Dedupe |
+| `annuaires/alignments/<g>__<d>.csv` | `numrev align dedupe` | Correspondances finales (Dedupe + patch) |
+| `annuaires/alignments/<g>__<d>.nw.csv` | `numrev align nw` | Correspondances de la méthode ordonnée |
+| `annuaires/alignments/<g>__<d>.….join.csv` | `numrev join`, viewer | Jointure lisible des deux volumes alignés (pour les utilisateurs des données) |
+| `data/alignment/<g>__<d>.training.json` | `numrev align dedupe --label` | Paires étiquetées pour Dedupe (versionné) |
+| `data/alignment/<g>__<d>.sections.csv` | édition manuelle | Patch des rubriques (versionné) |
+| `data/alignment/<g>__<d>.patch.csv` | édition manuelle | Patch des entrées (versionné) |
+| `data/alignment/<g>__<d>.gold-inversions.csv` | `numrev gold alignment` + étiquetage manuel | Gold des inversions (versionné) |
+| `data/ner/gold.ls.json`, `data/ner/train.ls.json` | `numrev gold ner` + Label Studio, `numrev train-set` | Gold d'évaluation et jeu d'entraînement NER (versionnés) |
+| `reports/crf/`, `reports/ner/`, `reports/alignment/` | audits | Rapports Markdown et tables |
 
-## Code partagé (`lib/`)
+## Organisation du code
 
-Les scripts de la racine importent `lib.…` et s'exécutent donc depuis la
-racine du dépôt ; ceux de `tools/` ajoutent la racine à `sys.path`.
+Le code est un paquet Python, `src/numrev/`, installé par `uv sync` avec la
+commande `numrev` ; les commandes se lancent depuis la racine du dépôt (les
+chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 
 | Module | Rôle |
 |---|---|
-| `lib/chandra_document.py` | Schéma pages → `data_blocks` → `lines`, validation et parcours (`iter_line_locations`) |
-| `lib/curation.py` | Protocole des corrections humaines rejouables : clés de ligne, empreintes, capture, application, panique (`CurationConflict`), écriture atomique des CSV |
-| `lib/crf/` | Cœur du CRF : `features.py` (groupes de features), `model.py` (entraînement, marginales), `active_learning.py` (moteur de l'annotateur), `silver.py` et `evaluation.py` (audit) |
-| `lib/titles.py` | Niveau et texte lisible des titres |
-| `lib/ner/` | `spans.py` (empans, `tagged_text`, Label Studio, normalisation Markdown), `html.py` (rendu des empans pour les viewers), `shapes.py` (formes typographiques), `corpus.py` (lecture des CSV NER), `metrics.py`, `suspicion.py` (motifs de relecture), `gliner.py` (chargement et prédiction) |
-| `lib/alignment.py` | Chargement des volumes, champs comparés, lecture et écriture des correspondances |
-| `lib/alignment_patch.py` | Patch des entrées |
-| `lib/alignment_export.py` | Jointure dans l'ordre naturel (viewer) et export CSV lisible |
-| `lib/alignment_review.py` | Motifs de relecture, incertitude et candidates non appariées |
-| `lib/section_alignment.py` | Correspondance des rubriques et son patch |
-| `lib/sequence.py` | Needleman-Wunsch |
-| `lib/pair_hmm.py` | Pair-HMM de la méthode ordonnée |
-| `lib/stats.py`, `lib/reporting.py` | Bootstrap, intervalles, calibration ; mise en forme Markdown des rapports d'audit |
+| `cli.py` | Point d'entrée : table des commandes (nom, module, résumé) ; un module n'est importé que pour la commande lancée |
+| `command.py` | Conventions communes : `Writes` et `--apply`, `CommandError`, options partagées, sortie par défaut |
+| `paths.py` | Noms et emplacements des fichiers : suffixes des étapes, nom de document, découverte des plages, fichiers d'une paire (`Pair`) |
+| `pipeline/` | Une commande par étape : `extract`, `label`, `tabulate`, `assemble`, `tag`, `align_nw`, `align_dedupe`, `join` |
+| `viewers/` | Viewers Streamlit `directory` et `alignment` (`numrev view`) |
+| `devtools/` | Gold (`ner_gold`, `alignment_gold`), jeu d'entraînement et entraînement NER (`ner_dataset`, `ner_train`), audits (`crf_audit`, `ner_audit`, `alignment_audit`) |
+| `document.py` | Schéma pages → `data_blocks` → `lines`, validation et parcours (`iter_line_locations`) |
+| `curation.py` | Protocole des corrections humaines rejouables : clés de ligne, empreintes, capture, application, panique (`CurationConflict`), écriture atomique des CSV |
+| `titles.py` | Niveau et texte lisible des titres, racine de l'arbre des titres (`ROOT_UUID`) |
+| `crf/` | Cœur du CRF : `labels.py`, `features.py` (groupes de features), `model.py` (entraînement, marginales), `active_learning.py` (moteur de l'annotateur), `silver.py` et `evaluation.py` (audit) |
+| `ner/` | `spans.py` (empans, `tagged_text`, Label Studio, normalisation Markdown), `html.py` (rendu des empans pour les viewers), `shapes.py` (formes typographiques), `corpus.py` (lecture des CSV NER), `metrics.py`, `suspicion.py` (motifs de relecture), `gliner.py` (chargement et prédiction) |
+| `alignment/records.py` | Chargement des volumes, champs comparés, similarité, lecture et écriture des correspondances |
+| `alignment/pair.py` | Chargement d'une paire (volumes + correspondance des rubriques), bilans en console |
+| `alignment/sections.py` | Correspondance des rubriques et son patch, segments à aligner |
+| `alignment/nw.py` | Méthode ordonnée : Needleman-Wunsch, passe résiduelle, pair-HMM entre les ancres |
+| `alignment/sequence.py`, `alignment/pair_hmm.py` | Needleman-Wunsch ; pair-HMM |
+| `alignment/patch.py` | Patch des entrées |
+| `alignment/review.py` | Motifs de relecture, incertitude et candidates non appariées |
+| `alignment/export.py` | Jointure dans l'ordre naturel (viewer, `numrev join`) et export CSV lisible |
+| `stats.py`, `reporting.py` | Bootstrap, intervalles, calibration ; mise en forme Markdown des rapports d'audit |
 
-## Conventions des scripts
+## Conventions des commandes
 
-- Un script autonome par étape, CLI en français (`argparse`) ; `-o/--output`
-  a toujours une valeur par défaut dérivée du nom d'entrée.
-- Sortie console via `rich` (`✅` pour un succès, `[bold red]Erreur :[/]`
-  pour un échec attendu).
+- Une commande par étape ou par outil, déclarée dans `cli.py` ; son module
+  expose `add_arguments(parser)` et `run(args)`. Noms de commandes et
+  d'options en anglais, aide et messages en français ; `-o/--output` a
+  toujours une valeur par défaut dérivée du nom d'entrée (`paths.py`).
+- Mêmes noms pour les mêmes choses dans toutes les commandes : l'entrée des
+  étapes 1 à 5 est l'argument positionnel `input` ; toute sortie (fichier
+  ou dossier de rapport) est `-o/--output` ; `--model` désigne toujours un
+  modèle entraîné (`train` prend `--base-model`) ; `--force` est le seul
+  moyen d'écraser un gold ; `--gold`, `--root`, `--seed`, `--bootstrap`,
+  `--threshold`, `--min-score`, `--batch-size` et `--margin` ont le même
+  sens partout où ils apparaissent.
+- Sortie console via `rich` (`✅` pour un succès). Une erreur attendue lève
+  `CommandError` (fichier introuvable, entrée invalide) : `cli.py` affiche
+  `Erreur : …` et sort avec le code 1, comme pour une panique de curation.
 - Existence des fichiers d'entrée vérifiée avant tout traitement ; erreurs
   typées plutôt que des `except Exception` génériques, sauf pour
-  l'inférence GLiNER par lots (`lib/ner/gliner.py`), qui doit résister aux
+  l'inférence GLiNER par lots (`ner/gliner.py`), qui doit résister aux
   erreurs imprévisibles de torch.
-- Tests : `unittest` (pas pytest), lancés depuis la racine.
+- Tests : `unittest` (pas pytest), lancés depuis la racine ;
+  `ruff check src tests` (imports triés, pas d'import inutile).

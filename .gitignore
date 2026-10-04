@@ -74,8 +74,8 @@ annuaires/*
 *.BAK
 
 *.pdf
-# Cache des prédictions de audit_crf_features.py
-rapports/**/cache/
+# Cache des prédictions de `numrev audit crf`
+reports/**/cache/
 
 # Modèles entraînés et échantillons locaux (volumineux, hors git)
 models/

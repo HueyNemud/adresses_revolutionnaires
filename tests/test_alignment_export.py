@@ -2,9 +2,9 @@ import csv
 import io
 import unittest
 
-from lib.alignment import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_CANDIDATE, Link, Record
-from lib.alignment_export import EXPORT_FIELDS, CANDIDATE, export_csv, export_row, natural_rows, span_texts
-from lib.alignment_review import Review
+from numrev.alignment.export import CANDIDATE, EXPORT_FIELDS, export_csv, export_row, natural_rows, span_texts
+from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record
+from numrev.alignment.review import Review
 
 
 def record(uuid: str, order: int, tagged_text: str = "", section_uuid: str = "s") -> Record:

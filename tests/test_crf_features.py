@@ -1,6 +1,6 @@
 import unittest
 
-from lib.crf.features import (
+from numrev.crf.features import (
     CANDIDATE_GROUPS,
     LEGACY_GROUPS,
     PLACEBO_GROUPS,

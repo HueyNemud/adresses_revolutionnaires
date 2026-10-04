@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from lib.ner.metrics import METRICS, Scored, compare, page_bootstrap, paired_delta, summarize
-from lib.ner.shapes import coarse_shape
-from lib.ner.spans import (
+from numrev.ner.metrics import METRICS, Scored, compare, page_bootstrap, paired_delta, summarize
+from numrev.ner.shapes import coarse_shape
+from numrev.ner.spans import (
     Span,
     canonical_spans,
     char_span_to_word_span,
@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
 class SuspicionTests(unittest.TestCase):
     def reasons(self, tagged_text: str, scores=None, min_score: float = 0.9):
-        from lib.ner.suspicion import suspicion_reasons
+        from numrev.ner.suspicion import suspicion_reasons
 
         text, spans = parse_tagged_text(tagged_text)
         if scores:
@@ -142,7 +142,7 @@ class SuspicionTests(unittest.TestCase):
         )
 
     def test_confidence_is_minimal_span_score(self):
-        from lib.ner.suspicion import confidence
+        from numrev.ner.suspicion import confidence
 
         self.assertEqual(confidence([Span(0, 1, "SUBJ", 0.9), Span(2, 3, "ADDR", 0.7)]), 0.7)
         self.assertEqual(confidence([]), 0.0)
