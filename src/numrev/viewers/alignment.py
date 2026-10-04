@@ -17,12 +17,15 @@ affiché est le résultat final.
 - **Documents** (vue d'accueil, `numrev/viewers/context.py`) : les deux
   annuaires côte à côte, chacun dans son ordre, avec titres et lignes hors
   sujet ; les paires reliées dans une gouttière (inversions en orange), les
-  tâches de relecture marquées « ! ». Un clic sur une entrée en fait la
-  ligne courante ; l'inspecteur, au-dessus, permet de décider sur place, et
-  « Apparier autrement… » fait choisir le partenaire dans les documents ;
+  tâches de relecture marquées « ! ». Un clic sur une entrée ou sur un lien
+  en fait la ligne courante ; les boutons, au-dessus, permettent de décider
+  sur place, et
+  « Autre partenaire… » fait choisir le partenaire dans les documents ;
 - **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne courante —
   différences de texte surlignées, rapprochements possibles, note — et
-  l'avance automatique à la tâche suivante après chaque décision.
+  l'avance automatique à la tâche suivante après chaque décision. On y entre
+  par le bouton « Relire en détail » (Entrée), à côté des décisions, ou par
+  la loupe 🔍 posée sur le lien courant.
 
 Le bandeau de tâches, commun, mène d'une tâche à l'autre (P / N), annule la
 dernière décision (Ctrl+Z) et bascule d'une vue à l'autre (Entrée : zoom,
@@ -106,7 +109,7 @@ from numrev.alignment.sections import (
     restrict_to_corresponding,
     segment_entries,
 )
-from numrev.ner.html import LABEL_COLORS, SPAN_CSS, badge
+from numrev.ner.html import SPAN_CSS
 from numrev.paths import JOIN_SUFFIX, Pair
 from numrev.viewers import context, focus
 from numrev.viewers.common import text_mask
@@ -813,6 +816,7 @@ def eligible(alignment: Alignment, cursor: tuple[str, str]) -> dict[str, set[str
 def handle_event(event: tuple[str, dict], alignment: Alignment, records: dict, pair_name: str, digest: str) -> None:
     """Clic dans les documents : ligne courante, appariement ou fenêtre agrandie."""
     name, value = event
+    value = value if isinstance(value, dict) else {}
     cursor = tuple(st.session_state.get(CURSOR) or ("", ""))
     side, uuid = value.get("side"), value.get("uuid")
     if name == "focus" and side in context.SIDES:
@@ -825,6 +829,8 @@ def handle_event(event: tuple[str, dict], alignment: Alignment, records: dict, p
         if left is not None and right is not None:
             on_decide(pair_name, digest, None, SAME, left, right, None)
         st.session_state[PAIRING] = False
+    elif name == "zoom":
+        st.session_state[PENDING_VIEW] = REVIEW
     elif name == "more":
         before, after = window_extra(cursor)
         if value.get("dir", 1) < 0:
@@ -836,12 +842,12 @@ def handle_event(event: tuple[str, dict], alignment: Alignment, records: dict, p
 
 
 def documents_panel(
-    docs: context.Documents, cursor: tuple[str, str], view_name: str, marks: context.Marks, titles: tuple[str, str]
+    docs: context.Documents, cursor: tuple[str, str], view_name: str, marks: context.Marks, titles: tuple[str, str], info: str
 ) -> tuple[str, dict] | None:
     before, after = WINDOW[view_name]
     more_before, more_after = window_extra(cursor)
     bounds = context.window(docs, context.centers(docs, *cursor), before + more_before, after + more_after)
-    data = context.payload(docs, bounds, cursor, marks, HEIGHT[view_name])
+    data = context.payload(docs, bounds, cursor, marks, HEIGHT[view_name], info)
     return context.documents_diff(data, "documents_diff", titles)
 
 
@@ -999,14 +1005,11 @@ def main() -> None:
         can_undo=bool(journal_of(pair_name)),
         pairing_active=pairing_active,
     )
-    if view_name == DOCUMENTS:
-        focus.task_bar(controls, "Relire en détail", REVIEW, "Enter")
-    else:
-        focus.task_bar(controls, "Vue d'ensemble", DOCUMENTS, "Esc")
+    focus.task_bar(controls, back=DOCUMENTS if view_name == REVIEW else None)
 
     focused = focus_of(alignment, records, current, params.subj_weight, with_alternatives=view_name == REVIEW)
     if view_name == DOCUMENTS:
-        focus.inspector(focused, controls)
+        focus.decision_buttons(focused, controls, None, zoom=REVIEW)
         jump, search, matches_box = st.columns([2.2, 2.2, 1.6], vertical_alignment="bottom")
         firsts = rows.drop_duplicates("left_section").query("left_uuid != ''")
         jumps = {f"{row.left_section_title or NO_SECTION}": (row.left_uuid, row.right_uuid) for row in firsts.itertuples()}
@@ -1045,11 +1048,9 @@ def main() -> None:
             task_marks(rows, levels), {"left": set(), "right": set()}, eligible(alignment, cursor) if pairing_active else None
         )
     docs = context.documents({"left": load_document_lines(left_dir), "right": load_document_lines(right_dir)}, alignment.states)
-    event = documents_panel(docs, cursor, view_name, marks, (left_name, right_name))
+    event = documents_panel(docs, cursor, view_name, marks, (left_name, right_name), focus.summary(focused))
     if event:
         handle_event(event, alignment, records, pair_name, digest)
-    legend = "".join(badge(label, colors) for label, colors in LABEL_COLORS.items())
-    st.html(f"{CSS}<div class='legend'>{legend}</div>")
 
 
 if __name__ == "__main__":

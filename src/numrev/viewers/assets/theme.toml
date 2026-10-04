@@ -1,0 +1,53 @@
+# Thème du viewer d'alignement : Dracula (sombre) et Alucard, sa variante
+# claire officielle (https://draculatheme.com/spec). Streamlit suit le
+# réglage du système, l'utilisateur peut basculer dans ⋮ → Settings.
+#
+# Source unique : `numrev view alignment` passe ces valeurs en options de
+# `streamlit run` (numrev/viewers/__init__.py), `numrev publish-viewer` les
+# écrit dans `.streamlit/config.toml` du dépôt de déploiement. Les mêmes
+# couleurs sont reprises dans assets/context.css et viewers/focus.py.
+
+[theme]
+baseRadius = "0.5rem"
+buttonRadius = "0.5rem"
+showWidgetBorder = true
+
+[theme.dark]
+primaryColor = "#bd93f9"
+backgroundColor = "#282a36"
+secondaryBackgroundColor = "#343746"
+textColor = "#f8f8f2"
+linkColor = "#8be9fd"
+borderColor = "#44475a"
+codeBackgroundColor = "#21222c"
+redColor = "#ff5555"
+orangeColor = "#ffb86c"
+yellowColor = "#f1fa8c"
+greenColor = "#50fa7b"
+blueColor = "#8be9fd"
+violetColor = "#bd93f9"
+grayColor = "#6272a4"
+
+[theme.dark.sidebar]
+backgroundColor = "#21222c"
+secondaryBackgroundColor = "#282a36"
+
+[theme.light]
+primaryColor = "#644ac9"
+backgroundColor = "#fffbeb"
+secondaryBackgroundColor = "#f3eed9"
+textColor = "#1f1f1f"
+linkColor = "#036a96"
+borderColor = "#cfcfde"
+codeBackgroundColor = "#f3eed9"
+redColor = "#cb3a2a"
+orangeColor = "#a34d14"
+yellowColor = "#846e15"
+greenColor = "#14710a"
+blueColor = "#036a96"
+violetColor = "#644ac9"
+grayColor = "#6c664b"
+
+[theme.light.sidebar]
+backgroundColor = "#f3eed9"
+secondaryBackgroundColor = "#fffbeb"

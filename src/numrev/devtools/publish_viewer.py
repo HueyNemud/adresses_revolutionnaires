@@ -14,6 +14,7 @@ données d'une version donnée, sans les dépendances lourdes de `numrev`
 - pour chaque paire publiée : les `<volume>.<plage>.ner.csv` des deux
   volumes, ses sorties d'alignement, la correspondance des rubriques et le
   patch des entrées s'il existe (les relecteurs y rejouent leurs décisions) ;
+- `viewers/assets/theme.toml`, le thème, en `.streamlit/config.toml` ;
 - générés : `streamlit_app.py` (point d'entrée), `requirements.txt`
   (versions installées de `ALLOWED`), `README.md` (provenance) et le
   manifeste `.numrev-publish.json`.
@@ -44,6 +45,7 @@ ASSETS = "numrev/viewers/assets"
 ALLOWED = ("numpy", "pandas", "rapidfuzz", "rich", "scipy", "streamlit")  # bibliothèques tierces du viewer
 MANIFEST = ".numrev-publish.json"
 ENTRY_POINT = "streamlit_app.py"
+STREAMLIT_CONFIG = ".streamlit/config.toml"  # seul fichier géré de .streamlit/ (secrets.toml n'est jamais touché)
 NEVER_TOUCHED = {".git", ".streamlit", ".venv", "__pycache__", ".gitignore", MANIFEST}
 # Disposition publiée = valeurs par défaut de `numrev.paths` (le viewer déployé les lit telles quelles).
 PUBLISHED_ANNUAIRES = Path("annuaires")
@@ -123,6 +125,8 @@ def code_files() -> dict[str, Path]:
     for asset in sorted((package_dir() / "viewers" / "assets").iterdir()):
         if asset.is_file():
             published[f"{ASSETS}/{asset.name}"] = asset
+    # Le thème (Dracula / Alucard) devient la configuration Streamlit du dépôt publié.
+    published[STREAMLIT_CONFIG] = package_dir() / "viewers" / "assets" / "theme.toml"
     return published
 
 

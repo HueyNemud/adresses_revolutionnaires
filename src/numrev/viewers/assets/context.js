@@ -1,13 +1,15 @@
 // Vue « Documents » (numrev/viewers/context.py) : deux colonnes, chacune dans
 // l'ordre de son annuaire, et une gouttière SVG qui relie les entrées
-// appariées. Les liens qui se croisent (inversions) sont en orange.
-// Événements renvoyés à Python : `focus` (clic sur une entrée), `pair` (clic
-// en mode « choisir le partenaire »), `more` (clic sur « ⋯ »).
+// appariées. Les liens qui se croisent (inversions) sont en rose.
+// Événements renvoyés à Python : `focus` (clic sur une entrée ou un lien),
+// `pair` (clic en mode « choisir le partenaire »), `more` (clic sur « ⋯ »),
+// `zoom` (loupe de la ligne courante : vue Relecture).
 // La fonction est rappelée à chaque changement de `data` : elle redessine
-// tout, en gardant à l'écran la ligne courante si elle y était déjà.
+// tout, puis place la ligne courante (voir `place`).
 
 const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const STEP = 40;
+const CENTER = 0.4; // hauteur, dans la fenêtre, où l'on place une nouvelle ligne courante
 
 function lineHtml(line, side, data) {
   const classes = ["ln", line.t];
@@ -35,6 +37,19 @@ function column(lines, side, data) {
   const top = before ? `<button class="ctx-more" data-dir="-1">⋯ ${STEP} lignes précédentes</button>` : "";
   const bottom = after ? `<button class="ctx-more" data-dir="1">⋯ ${STEP} lignes suivantes</button>` : "";
   return `<div class="ctx-col ${side}">${top}${lines.map((line) => lineHtml(line, side, data)).join("")}${bottom}</div>`;
+}
+
+// Fond sombre ou clair, d'après le thème Streamlit (Dracula / Alucard).
+function isDark(root) {
+  const value = getComputedStyle(root).getPropertyValue("--st-background-color").trim();
+  let rgb = null;
+  if (/^#[0-9a-f]{6}$/i.test(value)) rgb = [1, 3, 5].map((i) => parseInt(value.slice(i, i + 2), 16));
+  else {
+    const match = value.match(/rgba?\(([^)]+)\)/);
+    if (match) rgb = match[1].split(",").slice(0, 3).map(Number);
+  }
+  if (!rgb) return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2] < 128;
 }
 
 function draw(root, data) {
@@ -96,13 +111,20 @@ function draw(root, data) {
   svg.setAttribute("width", width);
   svg.setAttribute("height", height);
   const bend = (x2 - x1) * 0.5;
+  let loupe = null; // position de la loupe : milieu du lien courant
   const parts = links.map((link, index) => {
     const classes = ["link"];
     if (link.kind === "candidate") classes.push("candidate");
     if (link.manual) classes.push("manual");
     if (crossing.has(index)) classes.push("cross");
-    if (link.l === data.focus[0] && link.r === data.focus[1]) classes.push("focus");
-    return `<path class="${classes.join(" ")}" d="M${x1},${link.y1} C${x1 + bend},${link.y1} ${x2 - bend},${link.y2} ${x2},${link.y2}"/>`;
+    const current = link.l === data.focus[0] && link.r === data.focus[1];
+    if (current) {
+      classes.push("focus");
+      loupe = { x: (x1 + x2) / 2, y: (link.y1 + link.y2) / 2 };
+    }
+    const path = `M${x1},${link.y1} C${x1 + bend},${link.y1} ${x2 - bend},${link.y2} ${x2},${link.y2}`;
+    return `<g class="lk"><path class="${classes.join(" ")}" d="${path}"/>` +
+      `<path class="hit" d="${path}" data-l="${esc(link.l)}" data-r="${esc(link.r)}"><title>Sélectionner cette paire</title></path></g>`;
   });
   // Partenaire hors de la fenêtre : flèche au bord de la gouttière.
   const stub = (column, x, anchor, lookup) => column.querySelectorAll(".ln.entry").forEach((element) => {
@@ -113,10 +135,23 @@ function draw(root, data) {
   stub(left, x1 + 6, "start", lines);
   stub(right, x2 - 6, "end", rightLines);
   svg.innerHTML = parts.join("");
+
+  // Loupe : sur le lien courant, sinon à côté de l'entrée courante seule.
+  if (!loupe && focusLeft && !focusRight) loupe = { x: x1 + 18, y: dotY(focusLeft) };
+  if (!loupe && focusRight && !focusLeft) loupe = { x: x2 - 18, y: dotY(focusRight) };
+  grid.querySelectorAll(".loupe").forEach((element) => element.remove());
+  if (loupe && !data.pairing) {
+    const button = document.createElement("button");
+    button.className = "loupe";
+    button.textContent = "🔍";
+    button.title = `Relire en détail (Entrée)${data.info ? " — " + data.info : ""}`;
+    button.style.left = `${loupe.x}px`;
+    button.style.top = `${loupe.y}px`;
+    grid.appendChild(button);
+  }
 }
 
-// Position à l'écran (relative au conteneur défilant) des lignes visibles,
-// pour garder en place, après le nouveau rendu, celle qui y était déjà.
+// Position à l'écran (relative au conteneur défilant) des lignes affichées.
 function screenPositions(root) {
   const scroll = root.querySelector(".ctx-scroll");
   const positions = new Map();
@@ -128,41 +163,50 @@ function screenPositions(root) {
   return positions;
 }
 
-// Défile de `delta` pixels ; si le haut du contenu l'empêche (défilement
-// négatif), un espace en tête de grille compense, pour que la ligne
-// d'ancrage ne bouge pas à l'écran.
-function scrollBy(scroll, delta) {
+// Défile de `delta` pixels. `spacer` : si le haut du contenu l'empêche, un
+// espace en tête de grille compense (seulement après un clic, pour que
+// l'élément cliqué ne bouge pas).
+function scrollBy(scroll, delta, spacer) {
   const grid = scroll.querySelector(".ctx-grid");
   const target = scroll.scrollTop + delta;
-  if (target < 0 && grid) {
+  if (target < 0 && spacer && grid) {
     grid.style.marginTop = `${-target}px`;
     scroll.scrollTop = 0;
   } else {
-    scroll.scrollTop = target;
+    scroll.scrollTop = Math.max(0, target);
   }
 }
 
-function place(root, data, previous) {
+// Place la nouvelle vue : 1. après un clic dans les documents, l'élément
+// cliqué reste où il était ; 2. si la ligne courante n'a pas changé (une
+// décision, une fenêtre agrandie) et qu'elle était visible, elle reste où
+// elle était ; 3. sinon (tâche suivante, recherche, rubrique…), elle est
+// centrée.
+function place(root, data, previous, previousFocus) {
   const scroll = root.querySelector(".ctx-scroll");
   if (!scroll) return;
   const top = () => scroll.getBoundingClientRect().top;
-  // 1. l'élément d'ancrage choisi au clic, 2. la ligne courante si elle était
-  // déjà affichée, 3. sinon la ligne courante au tiers de la hauteur.
-  const candidates = [];
-  if (root.__anchor) candidates.push(root.__anchor);
-  ["left", "right"].forEach((side, index) => { if (data.focus[index]) candidates.push(`${side}:${data.focus[index]}`); });
-  for (const key of candidates) {
+  const find = (key) => {
     const [side, uuid] = key.split(/:(.*)/s);
-    const element = root.querySelector(`.ln[data-side="${side}"][data-uuid="${CSS.escape(uuid)}"]`);
-    if (element && previous.has(key)) {
-      scrollBy(scroll, element.getBoundingClientRect().top - top() - previous.get(key));
-      root.__anchor = null;
+    return root.querySelector(`.ln[data-side="${side}"][data-uuid="${CSS.escape(uuid)}"]`);
+  };
+  const anchor = root.__anchor;
+  root.__anchor = null;
+  if (anchor && previous.has(anchor) && find(anchor)) {
+    scrollBy(scroll, find(anchor).getBoundingClientRect().top - top() - previous.get(anchor), true);
+    return;
+  }
+  const focusKey = data.focus.join("|");
+  if (focusKey === previousFocus) {
+    const keys = ["left", "right"].map((side, index) => `${side}:${data.focus[index]}`).filter((key) => previous.has(key) && find(key));
+    const visible = keys.find((key) => previous.get(key) >= 0 && previous.get(key) <= scroll.clientHeight);
+    if (visible) {
+      scrollBy(scroll, find(visible).getBoundingClientRect().top - top() - previous.get(visible), false);
       return;
     }
   }
-  root.__anchor = null;
   const focus = root.querySelector(".ln.focus");
-  if (focus) scrollBy(scroll, focus.getBoundingClientRect().top - top() - scroll.clientHeight / 3);
+  if (focus) scrollBy(scroll, focus.getBoundingClientRect().top - top() - scroll.clientHeight * CENTER, false);
 }
 
 async function copyText(button) {
@@ -183,17 +227,23 @@ export default function (component) {
     root.addEventListener("click", (event) => {
       const copy = event.target.closest("button.copy-uuid");
       if (copy) { event.stopPropagation(); copyText(copy); return; }
+      if (event.target.closest("button.loupe")) { setTriggerValue("zoom", { view: "detail" }); return; }
       const more = event.target.closest("button.ctx-more");
       if (more) {
-        // Garde en place la première ligne visible du côté cliqué.
-        const element = more.dataset.dir === "-1" ? more.nextElementSibling : null;
-        if (element && element.dataset.uuid) root.__anchor = `${element.dataset.side}:${element.dataset.uuid}`;
         setTriggerValue("more", { dir: Number(more.dataset.dir) });
+        return;
+      }
+      const current = root.__data;
+      const link = event.target.closest("path.hit");
+      if (link) {
+        if (current && current.pairing) return;
+        const element = root.querySelector(`.ctx-col.left .ln[data-uuid="${CSS.escape(link.dataset.l)}"]`);
+        if (element) root.__anchor = `left:${link.dataset.l}`;
+        setTriggerValue("focus", { side: "left", uuid: link.dataset.l });
         return;
       }
       const element = event.target.closest(".ln.entry");
       if (!element) return;
-      const current = root.__data;
       if (current && current.pairing) {
         if (!element.classList.contains("eligible")) return;
         setTriggerValue("pair", { side: element.dataset.side, uuid: element.dataset.uuid });
@@ -206,11 +256,14 @@ export default function (component) {
     });
   }
   const previous = screenPositions(root);
+  const previousFocus = root.__focus || "";
+  root.dataset.scheme = isDark(root) ? "dark" : "light";
   const [leftTitle, rightTitle] = data.titles || ["gauche", "droite"];
   const height = typeof data.height === "number" ? `${data.height}px` : data.height;
   const banner = data.pairing
     ? `<div class="ctx-banner">Choisir le partenaire : cliquer l’entrée correspondante (les entrées estompées sont hors des rubriques appariées).</div>`
     : "";
+  const span = (label) => `<mark class="span" title="${label}">${label}</mark>`;
   root.innerHTML =
     banner +
     `<div class="ctx-head"><div>${esc(leftTitle)}</div><div></div><div>${esc(rightTitle)}</div></div>` +
@@ -219,17 +272,19 @@ export default function (component) {
     `<div></div>` +
     column(data.right, "right", data) +
     `<svg class="ctx-gutter"></svg></div></div>` +
-    `<div class="ctx-legend"><span><i style="border-color:var(--pair)"></i>appariées</span>` +
-    `<span><i style="border-color:var(--candidate);border-top-style:dashed"></i>candidate</span>` +
-    `<span><i style="border-color:var(--manual)"></i>décision du patch</span>` +
-    `<span><i style="border-color:var(--cross)"></i>inversion (liens croisés)</span>` +
+    `<div class="ctx-legend">${span("SUBJ")}${span("DESC")}${span("ADDR")}` +
+    `<span><i style="border-color:var(--link)"></i>appariées</span>` +
+    `<span><i style="border-color:var(--orange);border-top-style:dashed"></i>candidate</span>` +
+    `<span><i style="border-color:var(--purple)"></i>décision du patch</span>` +
+    `<span><i style="border-color:var(--pink)"></i>inversion (liens croisés)</span>` +
     `<span><b class="task t1">!</b><b class="task t2">!</b> tâche de relecture</span>` +
-    `<span>↑ ↓ partenaire hors de la fenêtre · clic : ligne courante</span></div>`;
+    `<span>clic sur une entrée ou un lien : ligne courante · 🔍 relire en détail · ↑ ↓ partenaire hors de la fenêtre</span></div>`;
 
   root.__data = data;
+  root.__focus = data.focus.join("|");
   const redraw = () => draw(root, root.__data);
   redraw();
-  place(root, data, previous);
+  place(root, data, previous, previousFocus);
   requestAnimationFrame(redraw);
   if (!root.__observer) {
     root.__observer = new ResizeObserver(() => requestAnimationFrame(redraw));

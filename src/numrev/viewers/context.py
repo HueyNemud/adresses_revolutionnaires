@@ -6,7 +6,8 @@ vue à part entière.
 
 Ce module construit la fenêtre affichée (fonctions pures, testées) et monte
 le composant `st.components.v2` qui la dessine (`assets/context.js|css`).
-Un clic sur une entrée en fait la ligne courante (`focus`) ; en mode
+Un clic sur une entrée ou un lien en fait la ligne courante (`focus`) ; la
+loupe du lien courant ouvre la relecture détaillée (`zoom`) ; en mode
 « choisir le partenaire », il apparie (`pair`) ; « ⋯ » agrandit la fenêtre
 (`more`).
 """
@@ -101,7 +102,7 @@ class Marks:
     eligible: dict[str, set[str]] | None = None  # mode « choisir le partenaire » : entrées cliquables
 
 
-def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[str, str], marks: Marks, height: str) -> dict:
+def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[str, str], marks: Marks, height: str, info: str = "") -> dict:
     """Données du composant : lignes des deux fenêtres, ligne courante,
     marqueurs (tâches, recherche) et mode d'appariement."""
     sides = {}
@@ -129,6 +130,7 @@ def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[st
         "left": sides["left"],
         "right": sides["right"],
         "focus": list(focus),
+        "info": info,  # la ligne courante en une phrase (infobulle de la loupe)
         "pairing": marks.eligible is not None,
         "height": height,
         "more": {side: [bounds[side][0] > 0, bounds[side][1] < len(docs.lines[side])] for side in SIDES},
@@ -146,14 +148,15 @@ def _diff_component():
     return _component
 
 
-EVENTS = ("focus", "pair", "more")  # déclencheurs du composant
+EVENTS = ("focus", "pair", "more", "zoom")  # déclencheurs du composant
 
 
 def documents_diff(data: dict, key: str, titles: tuple[str, str]) -> tuple[str, dict] | None:
     """Monte le composant ; renvoie (événement, valeur) au tour qui suit un
     clic, sinon None. Événements : `focus` ({side, uuid} : entrée cliquée),
     `pair` ({side, uuid} : partenaire choisi en mode d'appariement), `more`
-    ({dir} : -1 lignes précédentes, 1 lignes suivantes)."""
+    ({dir} : -1 lignes précédentes, 1 lignes suivantes), `zoom` (loupe de la
+    ligne courante)."""
     callbacks = {f"on_{event}_change": (lambda: None) for event in EVENTS}
     result = _diff_component()(key=key, data=data | {"titles": list(titles)}, **callbacks)
     for event in EVENTS:

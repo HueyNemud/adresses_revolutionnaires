@@ -82,6 +82,7 @@ class PublishTests(unittest.TestCase):
             "README.md",
             "numrev/viewers/alignment.py",
             "numrev/viewers/assets/context.js",
+            ".streamlit/config.toml",
             "annuaires/1807_A/1-9/1807_A.1-9.ner.csv",
             "annuaires/1808_A/1-9/1808_A.1-9.ner.csv",
             f"annuaires/alignments/1807_A__1808_A{paths.NW_SUFFIX}",

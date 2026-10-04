@@ -719,13 +719,15 @@ gardant.
   candidate) ; les liens qui se croisent (inversions) sont en orange, une
   flèche ↑ ↓ signale un partenaire hors de la fenêtre ; les tâches de
   relecture portent un « ! » (orange : incertitude moyenne ; rouge : forte
-  ou candidate). Les deux lignes courantes sont alignées.
-  - **Clic sur une entrée** : elle devient la ligne courante, sans bouger à
-    l'écran ; son partenaire vient en face.
-  - **Inspecteur**, au-dessus : les deux textes, le statut, le score, les
-    motifs, et les boutons de décision (ci-dessous). On décide sur place ;
-    la ligne courante ne change pas.
-  - **⇄ Apparier autrement…** (`A`) : mode « choisir le partenaire ». Seules
+  ou candidate). Les deux lignes courantes sont alignées ; une tâche
+  atteinte par `N` / `P`, la recherche ou une rubrique est centrée.
+  - **Clic sur une entrée ou sur un lien** : la paire devient la ligne
+    courante, sans bouger à l'écran ; son partenaire vient en face. Le lien
+    courant (cyan) porte une **loupe 🔍** qui ouvre la relecture détaillée ;
+    son infobulle résume statut, score et motifs.
+  - **Boutons de décision**, au-dessus (ci-dessous), et **Relire en détail**
+    (`Entrée`). On décide sur place ; la ligne courante ne change pas.
+  - **⇄ Autre partenaire…** (`A`) : mode « choisir le partenaire ». Seules
     les entrées des rubriques appariées avec celles de la ligne courante
     restent cliquables (les autres sont estompées) ; un clic crée la paire
     (les lignes du patch qui touchaient ces entrées sont retirées). `Échap`
@@ -746,11 +748,19 @@ gardant.
 
 **Bandeau de tâches**, commun : progression (tâches restantes, lignes
 décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`P` / `N`),
-`↶ Annuler la dernière` (`Ctrl+Z`), bascule de vue. **Décisions** : `V` même
-entrée (ou, pour une entrée seule, confirmer sans correspondance), `I`
-probablement (`certitude = incertaine`), `X` pas la même entrée, `A`
-apparier autrement, `↺` annuler la décision (l'alignement automatique
-reprend la main).
+`↶ Annuler` la dernière décision (`Ctrl+Z`) et, en relecture détaillée,
+`Vue d'ensemble` (`Échap`). **Décisions** : `V` ✓ même entrée (ou, pour une
+entrée seule, confirmer sans correspondance), `I` ≈ incertaine (paire
+retenue, `certitude = incertaine`), `X` ✗ différentes, `A` ⇄ autre
+partenaire, `↺ Défaire` (l'alignement automatique reprend la main).
+
+**Thème** : Dracula en sombre, Alucard (sa variante claire officielle) en
+clair, dans `viewers/assets/theme.toml`, passé en options de
+`streamlit run` par `numrev view alignment` et publié en
+`.streamlit/config.toml` par `numrev publish-viewer` ; les mêmes couleurs
+dans `assets/context.css` et `viewers/focus.py` (liens appariés discrets,
+lien courant cyan, décisions du patch violettes, candidates orange,
+inversions roses).
 
 **File de tâches** (barre latérale, *Tâches de relecture*) : candidates non
 appariées, paires d'incertitude moyenne, paires d'incertitude forte (cochées
@@ -763,7 +773,7 @@ partie. La première tâche est la ligne courante à l'ouverture.
 **Décisions** (`numrev/alignment/decisions.py`) : un journal ordonné,
 rejoué sur le patch versionné ; chaque décision retire les lignes du patch
 qui touchent ses uuid puis ajoute les siennes (le patch reste valide, et
-annuler revient à retirer la décision du journal). *Pas la même entrée*
+annuler revient à retirer la décision du journal). *Différentes*
 déclare les deux entrées sans correspondance (le format du patch ne sait
 pas dire « pas avec celle-là ») ; on ré-apparie ensuite celle qui a un
 autre partenaire. Le journal est gardé dans le `localStorage` du

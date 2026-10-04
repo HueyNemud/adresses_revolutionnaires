@@ -21,10 +21,10 @@ L'incertitude (faible, moyenne, forte) ne sert qu'à ordonner la relecture : ell
 | Réponse | Gold (`meme_entree`) | Bouton du viewer (raccourci) | Ligne(s) de patch produites |
 |---|---|---|---|
 | Même entrée | `OUI` | **✓ Même entrée** (`V`) | la paire |
-| Pas la même entrée | `NON` | **✗ Pas la même entrée** (`X`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (**⇄ Apparier autrement…**, `A`, ou *Rapprochements possibles*) |
-| On ne peut pas trancher | `INCERTAIN` | **≈ Probablement (incertaine)** (`I`) si la paire est plausible ; sinon **Tâche ▶** (`N`) | la paire avec `certitude=incertaine` |
+| Pas la même entrée | `NON` | **✗ Différentes** (`X`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (**⇄ Autre partenaire…**, `A`, ou *Rapprochements possibles*) |
+| On ne peut pas trancher | `INCERTAIN` | **≈ Incertaine** (`I`) si la paire est plausible ; sinon **Tâche ▶** (`N`) | la paire avec `certitude=incertaine` |
 
-Le patch ne sait pas dire « pas avec celle-là » : *Pas la même entrée*
+Le patch ne sait pas dire « pas avec celle-là » : *Différentes*
 déclare les deux entrées sans correspondance, ce qui retire aussi la
 candidate de la file. Une entrée seule se confirme avec **✓ Confirmer sans
 correspondance** (`V`).
@@ -64,11 +64,12 @@ correspondance** (`V`).
 - **Documents** (vue d'accueil) : les deux annuaires côte à côte, chacun
   dans son ordre, titres et lignes hors sujet compris. Les tâches portent
   un « ! » ; les liens qui se croisent (orange) signalent une inversion.
-  Un clic sur une entrée en fait la ligne courante ; on décide sur place
-  avec les boutons de l'inspecteur. **⇄ Apparier autrement…** (`A`) fait
+  Un clic sur une entrée ou sur un lien en fait la ligne courante ; on
+  décide sur place avec les boutons du haut. **⇄ Autre partenaire…** (`A`) fait
   choisir le partenaire dans les documents : seules les entrées des
   rubriques appariées restent cliquables.
-- **Relecture** (`Entrée` ; `Échap` pour revenir) : la ligne courante en
+- **Relecture** (bouton **Relire en détail**, `Entrée`, ou la loupe 🔍 du
+  lien courant ; `Échap` pour revenir) : la ligne courante en
   grand. Les caractères qui diffèrent entre les deux textes sont surlignés.
   Les **rapprochements possibles** donnent les entrées les plus proches de
   l'autre côté (la concurrente d'un `homonyme proche` y est signalée). La

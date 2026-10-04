@@ -1,62 +1,102 @@
-/* Vue « Documents » : deux colonnes et une gouttière de liens (context.js). */
-.ctx { --gutter: 72px; --pair: #16a34a; --candidate: #d97706; --manual: #7c3aed; --cross: #ea580c;
-       --muted: color-mix(in srgb, var(--st-text-color, #1e293b) 55%, transparent);
-       --line: color-mix(in srgb, var(--st-text-color, #1e293b) 12%, transparent);
-       --focus: rgba(37, 99, 235, 0.12); --focus-edge: rgba(37, 99, 235, 0.5);
-       color: var(--st-text-color, #1e293b); font-size: 0.9rem; font-family: inherit; }
+/* Vue « Documents » : deux colonnes et une gouttière de liens (context.js).
+   Couleurs : Alucard (clair) et Dracula (sombre, data-scheme="dark" posé par
+   context.js d'après le fond du thème Streamlit) — https://draculatheme.com/spec */
+.ctx {
+  --fg: var(--st-text-color, #1f1f1f);
+  --bg: var(--st-background-color, #fffbeb);
+  --comment: #6c664b; --selection: #cfcfde;
+  --cyan: #036a96; --green: #14710a; --orange: #a34d14; --pink: #a3144d; --purple: #644ac9; --red: #cb3a2a; --yellow: #846e15;
+  --gutter: 76px;
+}
+.ctx[data-scheme="dark"] {
+  --comment: #6272a4; --selection: #44475a;
+  --cyan: #8be9fd; --green: #50fa7b; --orange: #ffb86c; --pink: #ff79c6; --purple: #bd93f9; --red: #ff5555; --yellow: #f1fa8c;
+}
+.ctx {
+  --link: color-mix(in srgb, var(--comment) 75%, transparent);
+  --muted: color-mix(in srgb, var(--fg) 55%, transparent);
+  --line: color-mix(in srgb, var(--fg) 12%, transparent);
+  --focus: color-mix(in srgb, var(--cyan) 14%, transparent);
+  --focus-edge: color-mix(in srgb, var(--cyan) 60%, transparent);
+  color: var(--fg); font-size: 0.9rem; font-family: inherit;
+}
 .ctx-head { display: grid; grid-template-columns: 1fr var(--gutter) 1fr; font-weight: 600; font-size: 0.85em;
             color: var(--muted); padding: 0 0 6px; }
 .ctx-head div:last-child { padding-left: 4px; }
-.ctx-scroll { overflow-y: auto; border: 1px solid var(--line); border-radius: var(--st-base-radius, 6px); position: relative; }
+.ctx-scroll { overflow-y: auto; border: 1px solid var(--line); border-radius: var(--st-base-radius, 8px); position: relative; }
 .ctx-grid { display: grid; grid-template-columns: 1fr var(--gutter) 1fr; position: relative; padding: 6px 0 40vh; }
 .ctx-col { min-width: 0; }
 .ctx-gutter { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .ctx-more { display: block; width: calc(100% - 8px); margin: 2px 4px 6px; font: inherit; font-size: 0.75em; color: var(--muted);
-             text-align: center; padding: 3px 0; background: transparent; border: 1px dashed var(--line); border-radius: 4px; cursor: pointer; }
-.ctx-more:hover { color: var(--st-text-color, #1e293b); border-color: var(--muted); }
-.ctx-banner { font-size: 0.85em; padding: 6px 10px; margin-bottom: 6px; border-radius: 6px;
-              background: color-mix(in srgb, var(--manual) 14%, transparent); color: var(--manual); font-weight: 600; }
-.ln { position: relative; padding: 3px 10px; border-radius: 4px; margin: 1px 4px; line-height: 1.35; overflow-wrap: anywhere; }
-.ln.title { font-weight: 700; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
-.ln.title.l1 { font-size: 1.05em; text-transform: none; }
+            text-align: center; padding: 3px 0; background: transparent; border: 1px dashed var(--line); border-radius: 4px; cursor: pointer; }
+.ctx-more:hover { color: var(--fg); border-color: var(--muted); }
+.ctx-banner { font-size: 0.85em; padding: 6px 10px; margin-bottom: 6px; border-radius: 6px; font-weight: 600;
+              background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
+
+/* Lignes */
+.ln { position: relative; padding: 3px 10px; border-radius: 4px; margin: 1px 4px; line-height: 1.4; overflow-wrap: anywhere; }
+.ln.title { font-weight: 700; margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--purple); }
+.ln.title.l1 { font-size: 1.05em; }
 .ln.title.l3, .ln.title.l4 { font-weight: 600; font-style: italic; }
-.ln.out { color: var(--muted); font-size: 0.8em; font-style: italic; }
+.ln.out { color: var(--comment); font-size: 0.8em; font-style: italic; }
 .ln.entry { cursor: pointer; }
-.ln.entry:hover { background: color-mix(in srgb, var(--st-text-color, #1e293b) 5%, transparent); }
+.ln.entry:hover { background: color-mix(in srgb, var(--selection) 45%, transparent); }
 .ln.focus { background: var(--focus); box-shadow: inset 0 0 0 1px var(--focus-edge); }
-.ln.hit { background: rgba(250, 204, 21, 0.22); }
+.ln.hit { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
 .ln.focus.hit { background: var(--focus); }
 .pairing .ln.dimmed { opacity: 0.35; cursor: default; }
 .pairing .ln.focus.dimmed { opacity: 1; }
 .pairing .ln.eligible { cursor: copy; }
-.pairing .ln.eligible:hover { box-shadow: inset 0 0 0 2px var(--manual); }
-.task { display: inline-block; vertical-align: 1px; margin-right: 5px; font-size: 0.72em; font-weight: 800; line-height: 1;
-        padding: 2px 5px; border-radius: 6px; color: #fff; }
-.task.t1 { background: #ea580c; }
-.task.t2 { background: #dc2626; }
-.ctx-legend .task { margin-right: 2px; }
-.ln .copy-uuid { visibility: hidden; font: inherit; font-size: 0.7em; font-weight: 400; margin-left: 6px; padding: 0 5px; cursor: pointer;
-                 border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); }
-.ln.title:hover .copy-uuid { visibility: visible; }
-.ln .pg { float: right; font-size: 0.72em; color: var(--muted); margin-left: 6px; font-family: monospace; }
+.pairing .ln.eligible:hover { box-shadow: inset 0 0 0 2px var(--purple); }
+.ln .pg { float: right; font-size: 0.72em; color: var(--comment); margin-left: 6px; font-family: monospace; }
 .right .ln .pg { float: left; margin: 0 6px 0 0; }
 .left .ln.entry { padding-right: 18px; }
 .right .ln.entry { padding-left: 18px; }
-.dot { position: absolute; top: 0.65em; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box;
-       border: 2px solid var(--muted); background: transparent; }
+
+/* Pastilles d'état, marqueurs */
+.dot { position: absolute; top: 0.7em; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box;
+       border: 2px solid var(--comment); background: transparent; }
 .left .dot { right: 3px; }
 .right .dot { left: 3px; }
-.dot.pair { background: var(--pair); border-color: var(--pair); }
-.dot.candidate { background: var(--candidate); border-color: var(--candidate); }
-.dot.manual { box-shadow: 0 0 0 2px var(--manual); }
-.dot.local { box-shadow: 0 0 0 2px var(--manual); border-style: dashed; }
+.dot.pair { background: var(--green); border-color: var(--green); }
+.dot.candidate { background: var(--orange); border-color: var(--orange); }
+.dot.manual { box-shadow: 0 0 0 2px var(--purple); }
+.dot.local { box-shadow: 0 0 0 2px var(--purple); border-style: dashed; }
+.task { display: inline-block; vertical-align: 1px; margin-right: 5px; font-size: 0.72em; font-weight: 800; line-height: 1;
+        padding: 2px 5px; border-radius: 6px; color: var(--bg); }
+.task.t1 { background: var(--orange); }
+.task.t2 { background: var(--red); }
 .ln .tag { font-size: 0.7em; font-weight: 600; padding: 0 5px; border-radius: 8px; margin-left: 4px; white-space: nowrap;
-           background: color-mix(in srgb, var(--manual) 15%, transparent); color: var(--manual); }
-path.link { fill: none; stroke: var(--pair); stroke-width: 1.5; opacity: 0.75; }
-path.link.candidate { stroke: var(--candidate); stroke-dasharray: 4 3; }
-path.link.manual { stroke: var(--manual); }
-path.link.cross { stroke: var(--cross); stroke-width: 2.2; opacity: 0.95; }
-path.link.focus { stroke-width: 3.5; opacity: 1; }
-text.stub { font-size: 11px; fill: var(--muted); }
-.ctx-legend { font-size: 0.75em; color: var(--muted); padding-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+           background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
+.ln .copy-uuid { visibility: hidden; font: inherit; font-size: 0.7em; font-weight: 400; margin-left: 6px; padding: 0 5px; cursor: pointer;
+                 border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); }
+.ln.title:hover .copy-uuid { visibility: visible; }
+
+/* Empans NER : couleurs du thème plutôt que celles, fixes, de numrev/ner/html.py */
+mark.span { color: inherit !important; }
+mark.span[title="SUBJ"] { background: color-mix(in srgb, var(--cyan) 16%, transparent) !important; border-color: var(--cyan) !important; }
+mark.span[title="DESC"] { background: color-mix(in srgb, var(--yellow) 18%, transparent) !important; border-color: var(--yellow) !important; }
+mark.span[title="ADDR"] { background: color-mix(in srgb, var(--green) 14%, transparent) !important; border-color: var(--green) !important; }
+mark.span[title="SUBJ"] sub { color: var(--cyan) !important; }
+mark.span[title="DESC"] sub { color: var(--yellow) !important; }
+mark.span[title="ADDR"] sub { color: var(--green) !important; }
+
+/* Liens */
+path.link { fill: none; stroke: var(--link); stroke-width: 1.5; }
+path.link.candidate { stroke: var(--orange); stroke-dasharray: 4 3; }
+path.link.manual { stroke: var(--purple); }
+path.link.cross { stroke: var(--pink); stroke-width: 2.2; }
+path.link.focus { stroke: var(--cyan); stroke-width: 3.5; }
+path.link.hover { stroke-width: 3; }
+path.hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+text.stub { font-size: 11px; fill: var(--comment); }
+.loupe { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; cursor: zoom-in;
+         display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; padding: 0;
+         background: var(--bg); color: var(--cyan); border: 2px solid var(--cyan); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); z-index: 2; }
+.loupe:hover { background: var(--cyan); color: var(--bg); }
+
+/* Légende */
+.ctx-legend { font-size: 0.75em; color: var(--muted); padding-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
 .ctx-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 4px; }
+.ctx-legend .task { margin-right: 2px; }
+.ctx-legend mark.span { padding: 0 4px; border-radius: 3px; border-bottom: 2px solid; }

@@ -4,6 +4,7 @@ import pandas as pd
 
 from numrev.alignment.export import CANDIDATE, LEFT_ONLY, PAIR, RIGHT_ONLY
 from numrev.alignment.records import SOURCE_MANUAL, DocLine, Record
+from numrev.viewers import theme_options
 from numrev.viewers.alignment import TaskOptions, task_levels, task_marks, task_queue
 from numrev.viewers.context import EntryState, Marks, centers, documents, payload, window
 from numrev.viewers.focus import alternatives, char_diff
@@ -100,6 +101,15 @@ class TaskQueueTests(unittest.TestCase):
 
     def test_section(self):
         self.assertEqual(task_queue(task_levels(self.rows, set(), TaskOptions(section="bois", include_decided=True)), False), [6])
+
+
+class ThemeTests(unittest.TestCase):
+    def test_theme_becomes_streamlit_options(self):
+        options = theme_options()
+        self.assertIn("--theme.dark.backgroundColor=#282a36", options)  # Dracula
+        self.assertIn("--theme.light.backgroundColor=#fffbeb", options)  # Alucard
+        self.assertIn("--theme.showWidgetBorder=true", options)
+        self.assertTrue(all(option.startswith("--theme.") for option in options))
 
 
 class FocusTests(unittest.TestCase):
