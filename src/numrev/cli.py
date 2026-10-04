@@ -48,6 +48,7 @@ TOOLS: dict[str, Command | dict[str, Command]] = {
         "ner": Command("numrev.devtools.ner_audit", "audit de la NER sur le gold → reports/ner/"),
         "alignment": Command("numrev.devtools.alignment_audit", "audit de la relecture d'alignement sur le gold → reports/alignment/"),
     },
+    "publish-viewer": Command("numrev.devtools.publish_viewer", "publie le viewer d'alignement (code + données) pour Streamlit Cloud"),
 }
 COMMANDS = PIPELINE | TOOLS
 

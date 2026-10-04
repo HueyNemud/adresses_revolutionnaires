@@ -81,7 +81,7 @@ class Writes:
 
     def __init__(self, apply: bool = True) -> None:
         self.apply = apply
-        self.planned: list[tuple[Path, bool]] = []
+        self.planned: list[tuple[Path, bool | None]] = []  # (chemin, existait ; None = supprimé)
 
     def add(self, path: Path, write: Callable[[], object]) -> None:
         path = Path(path)
@@ -90,12 +90,23 @@ class Writes:
             path.parent.mkdir(parents=True, exist_ok=True)
             write()
 
+    def remove(self, path: Path) -> None:
+        """Suppression d'un fichier existant, comme une écriture : listée, faite
+        seulement avec `--apply`."""
+        path = Path(path)
+        if not path.exists():
+            return
+        self.planned.append((path, None))
+        if self.apply:
+            path.unlink()
+
     def finish(self, console: Console = console) -> None:
         """Bilan : fichiers écrits, ou qui l'auraient été."""
         if not self.planned:
             console.print("[dim]Aucun fichier à écrire.[/dim]")
             return
-        lines = [f"  [yellow]{path}[/yellow] ({'remplacé' if existed else 'nouveau'})" for path, existed in self.planned]
+        states = {True: "remplacé", False: "nouveau", None: "supprimé"}
+        lines = [f"  [yellow]{path}[/yellow] ({states[existed]})" for path, existed in self.planned]
         if self.apply:
             console.print("\n[bold green]✅ Fichiers écrits :[/bold green]", *lines, sep="\n")
         else:
