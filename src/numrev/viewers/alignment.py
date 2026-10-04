@@ -63,10 +63,12 @@ import csv
 import html
 import io
 import os
-from dataclasses import asdict, dataclass, fields
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass
 from functools import partial
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -83,7 +85,17 @@ from numrev.alignment.decisions import (
     to_json,
     touched_uuids,
 )
-from numrev.alignment.export import CANDIDATE, LEFT_ONLY, PAIR, RIGHT_ONLY, JoinedRow, export_csv, export_encoding, natural_rows
+from numrev.alignment.export import (
+    CANDIDATE,
+    LEFT_ONLY,
+    PAIR,
+    RIGHT_ONLY,
+    JoinedRow,
+    NaturalOrder,
+    export_csv,
+    export_encoding,
+    natural_order,
+)
 from numrev.alignment.nw import Params
 from numrev.alignment.patch import (
     PATCH_FIELDS,
@@ -96,8 +108,18 @@ from numrev.alignment.patch import (
     validate,
     write_patch,
 )
-from numrev.alignment.records import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, DocLine, Link, Record, load_lines, load_volume, read_links
-from numrev.alignment.review import DEFAULT_MARGIN, SEPARATOR, Review, review
+from numrev.alignment.records import (
+    SOURCE_CANDIDATE,
+    SOURCE_MANUAL,
+    SOURCE_MANUAL_UNCERTAIN,
+    DocLine,
+    Link,
+    Record,
+    load_lines,
+    load_volume,
+    read_links,
+)
+from numrev.alignment.review import DEFAULT_MARGIN, Review, Reviewer
 from numrev.alignment.sections import (
     SECTION_PATCH_FIELDS,
     SOURCE_AUTO,
@@ -119,7 +141,7 @@ VIEWS = {DOCUMENTS: ":material/difference: Documents", REVIEW: ":material/zoom_i
 ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
 MANUAL_SOURCES = {SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN}
-ENTRY_COLUMNS = [field.name for field in fields(Record)]
+ROW_COLUMNS = ("uuid", "section", "section_title", "section_uuid", "markdown")  # champs de Record gardés par ligne, de chaque côté
 WINDOW = {DOCUMENTS: (30, 70), REVIEW: (8, 8)}  # lignes affichées avant / après la ligne courante
 HEIGHT = {DOCUMENTS: "68vh", REVIEW: "430px"}
 MORE_STEP = 40  # lignes ajoutées par « ⋯ » (assets/context.js)
@@ -178,10 +200,107 @@ def load_document_lines(volume_dir: str) -> list[DocLine]:
     return load_lines(Path(volume_dir))
 
 
+@st.cache_resource
+def load_positions(volume_dir: str) -> dict[str, int]:
+    """uuid → rang de la ligne dans `load_document_lines`."""
+    return {line.uuid: index for index, line in enumerate(load_document_lines(volume_dir))}
+
+
+# Le calcul est découpé pour qu'une décision coûte peu, même sur des annuaires
+# de 100 000 entrées et plus : `load_base` (rubriques, segments, liens bruts)
+# ne dépend pas des décisions ; `load_reviewer` garde les motifs de chaque
+# segment et ne recalcule que les segments touchés (`Reviewer`) ;
+# `load_alignment` rejoue le patch et le journal et reconstruit les lignes,
+# colonne par colonne. Les fichiers entrent dans la clé de cache par leur
+# date de modification (`*_mtime`).
+@dataclass
+class Base:
+    """Ce qui ne dépend pas du patch des entrées ni des décisions."""
+
+    links: list[Link]  # liens de l'alignement brut (Dedupe ou `numrev align nw`)
+    sections: SectionAlignment  # correspondance des rubriques (avec leur patch)
+    n_section_patch: int
+    segments: list[tuple[list[Record], list[Record]]]  # entrées de chaque segment (rubriques appariées)
+    segment_of: dict[tuple[str, str], int]  # (côté, uuid) → rang du segment
+    section_keys: list[str]  # clés de rubrique des deux annuaires, triées
+    records: dict[str, list[Record]]  # côté → entrées dans l'ordre de l'annuaire
+    rank: dict[str, dict[str, int]]  # côté → uuid → rang dans `records`
+    columns: dict[str, dict[str, np.ndarray]]  # côté → champ de ROW_COLUMNS → valeurs dans l'ordre, plus "" en dernier (rang -1)
+
+
+@st.cache_resource(show_spinner="Correspondance des rubriques…", max_entries=2)
+def load_base(
+    left_dir: str, right_dir: str, dedupe_path: str, dedupe_mtime: float, section_patch_path: str, section_patch_mtime: float
+) -> Base:
+    records = {"left": load_records(left_dir), "right": load_records(right_dir)}
+    sections = load_section_alignment(list(records["left"].values()), list(records["right"].values()), Path(section_patch_path))
+    segments = segment_entries(sections)
+    ordered = {side: sorted(side_records.values(), key=lambda record: record.order) for side, side_records in records.items()}
+    return Base(
+        links=read_links(Path(dedupe_path)),
+        sections=sections,
+        n_section_patch=len(read_section_patch(Path(section_patch_path))),
+        segments=segments,
+        segment_of={
+            (side, record.uuid): number
+            for number, pair in enumerate(segments)
+            for side, side_records in zip(context.SIDES, pair)
+            for record in side_records
+        },
+        section_keys=sorted({record.section for side in records.values() for record in side.values()}),
+        records=ordered,
+        rank={side: {record.uuid: rank for rank, record in enumerate(side_records)} for side, side_records in ordered.items()},
+        columns={
+            side: {column: np.array([getattr(record, column) for record in side_records] + [""], dtype=object) for column in ROW_COLUMNS}
+            for side, side_records in ordered.items()
+        },
+    )
+
+
+@st.cache_resource(show_spinner="Similarités des entrées…", max_entries=2)
+def load_reviewer(
+    left_dir: str,
+    right_dir: str,
+    dedupe_path: str,
+    dedupe_mtime: float,
+    section_patch_path: str,
+    section_patch_mtime: float,
+    candidate_low: float,
+    margin: float,
+) -> Reviewer:
+    base = load_base(left_dir, right_dir, dedupe_path, dedupe_mtime, section_patch_path, section_patch_mtime)
+    params = Params()
+    return Reviewer(base.sections, candidate_low, params.residual_threshold, params.subj_weight, margin)
+
+
+class EntryStates(Mapping):
+    """État de chaque entrée alignable d'un côté (uuid → `EntryState`, vue
+    Documents), calculé à la demande depuis les lignes : seules les entrées
+    affichées sont consultées."""
+
+    KINDS = {PAIR: "pair", CANDIDATE: "candidate", LEFT_ONLY: "alone", RIGHT_ONLY: "alone"}
+
+    def __init__(self, side: str, columns: dict[str, list], index: dict[str, int], confirmed: set[str], local: set[str]):
+        self.columns, self.index, self.confirmed, self.local = columns, index, confirmed, local
+        self.partners = columns[f"{context.other(side)}_uuid"]
+
+    def __getitem__(self, uuid: str) -> context.EntryState:
+        row = self.index[uuid]
+        manual = self.columns["source"][row] in MANUAL_SOURCES or uuid in self.confirmed
+        return context.EntryState(self.KINDS[self.columns["kind"][row]], self.partners[row], manual, uuid in self.local)
+
+    def __iter__(self):
+        return iter(self.index)
+
+    def __len__(self) -> int:
+        return len(self.index)
+
+
 @dataclass
 class Alignment:
     rows: pd.DataFrame  # sortie de `build_rows`
-    joined: list[JoinedRow]  # mêmes lignes, même ordre (index de `rows`) : pour l'export
+    order: NaturalOrder  # mêmes lignes, même ordre (index de `rows`)
+    records: dict[str, list[Record]]  # côté → entrées dans l'ordre (rangs de `order`)
     reviews: dict[tuple[str, str], Review]  # motifs de relecture (`numrev/alignment/review.py`)
     entries: list[PatchEntry]  # patch effectif (versionné + journal), avant résolution
     n_base: int  # lignes du patch versionné
@@ -197,7 +316,20 @@ class Alignment:
     by_uuid: dict[str, dict[str, int]]  # côté → uuid → index de ligne
     segments: list[tuple[list[Record], list[Record]]]  # entrées de chaque segment (rubriques appariées)
     segment_of: dict[tuple[str, str], int]  # (côté, uuid) → rang du segment
-    states: dict[str, dict[str, context.EntryState]]  # côté → uuid → état (vue Documents)
+    states: dict[str, EntryStates]  # côté → uuid → état (vue Documents)
+    jumps: dict[str, tuple[str, str]]  # titre de rubrique (gauche) → clé de sa première ligne
+
+    def joined(self, indices: list[int]) -> list[JoinedRow]:
+        """Lignes `indices` de la jointure, pour l'export."""
+        left, right, link = self.order.left, self.order.right, self.order.link
+        return [
+            JoinedRow(
+                self.records["left"][left[index]] if left[index] >= 0 else None,
+                self.records["right"][right[index]] if right[index] >= 0 else None,
+                self.order.links[link[index]] if link[index] >= 0 else None,
+            )
+            for index in indices
+        ]
 
 
 @st.cache_resource(show_spinner="Application du patch…", max_entries=4)
@@ -215,60 +347,51 @@ def load_alignment(
     journal: str,
 ) -> Alignment:
     """Résultat final (alignement + patch + journal), recalculé seulement si
-    l'un des fichiers ou le journal change (`*_mtime` et `journal` font partie
-    de la clé de cache). Lève ValueError si un patch est incohérent. Le
-    patch des rubriques n'est pas réécrit ici."""
+    l'un des fichiers ou le journal change. Lève ValueError si un patch est
+    incohérent. Le patch des rubriques n'est pas réécrit ici."""
+    files = (left_dir, right_dir, dedupe_path, dedupe_mtime, section_patch_path, section_patch_mtime)
+    base = load_base(*files)
     records = {"left": load_records(left_dir), "right": load_records(right_dir)}
-    base = read_patch(Path(patch_path))
-    validate(base)
+    patch = read_patch(Path(patch_path))
+    validate(patch)
     decisions = from_json(journal)[0] if journal else []
-    entries = apply_decisions(base, decisions)
+    entries = apply_decisions(patch, decisions)
     validate(entries)
     resolution = resolve(entries, records["left"], records["right"])
-    links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
-    sections = load_section_alignment(list(records["left"].values()), list(records["right"].values()), Path(section_patch_path))
-    links, dropped = restrict_to_corresponding(links, records["left"], records["right"], sections)
+    links, _ = apply_patch(base.links, resolution.entries)
+    links, dropped = restrict_to_corresponding(links, records["left"], records["right"], base.sections)
     declared = declared_unmatched(resolution)
-    params = Params()
-    found = review(
-        links,
-        list(records["left"].values()),
-        list(records["right"].values()),
-        sections,
-        candidate_low,
-        params.residual_threshold,
-        params.subj_weight,
-        margin,
-        declared,
-    )
-    joined, n_missing = natural_rows(links + found.candidates, records["left"], records["right"])
-    rows = build_rows(joined, found.reviews)
+    found = load_reviewer(*files, candidate_low, margin)(links, declared)
+    order = natural_order(links + found.candidates, base.rank["left"], base.rank["right"])
+    rows = build_rows(order, found.reviews, base.columns)
     local = touched_uuids(decisions)
-    segments = segment_entries(sections)
+    columns = {column: rows[column].tolist() for column in ("left_uuid", "right_uuid", "kind", "source")}
+    by_uuid = {side: {uuid: index for index, uuid in enumerate(columns[f"{side}_uuid"]) if uuid} for side in context.SIDES}
+    firsts = rows.drop_duplicates("left_section").query("left_uuid != ''")
     return Alignment(
         rows=rows,
-        joined=joined,
+        order=order,
+        records=base.records,
         reviews=found.reviews,
         entries=entries,
-        n_base=len(base),
-        n_missing=n_missing,
+        n_base=len(patch),
+        n_missing=order.missing,
         reanchored=len(resolution.reanchored),
         orphans=resolution.orphans,
         confirmed=declared,
         local=local,
-        sections=sections,
-        n_section_patch=len(read_section_patch(Path(section_patch_path))),
+        sections=base.sections,
+        n_section_patch=base.n_section_patch,
         dropped=dropped,
-        by_key={(row.left_uuid, row.right_uuid): index for index, row in enumerate(rows.itertuples())},
-        by_uuid={side: {uuid: index for index, uuid in enumerate(rows[f"{side}_uuid"]) if uuid} for side in context.SIDES},
-        segments=segments,
-        segment_of={
-            (side, record.uuid): number
-            for number, pair in enumerate(segments)
-            for side, side_records in zip(context.SIDES, pair)
-            for record in side_records
+        by_key=dict(zip(zip(columns["left_uuid"], columns["right_uuid"]), range(len(rows)))),
+        by_uuid=by_uuid,
+        segments=base.segments,
+        segment_of=base.segment_of,
+        states={side: EntryStates(side, columns, by_uuid[side], declared, local) for side in context.SIDES},
+        jumps={
+            title or NO_SECTION: (left, right)
+            for title, left, right in zip(firsts["left_section_title"], firsts["left_uuid"], firsts["right_uuid"])
         },
-        states=entry_states(rows, declared, local),
     )
 
 
@@ -276,45 +399,33 @@ def mtime(path: Path) -> float:
     return path.stat().st_mtime if path.exists() else 0.0
 
 
-def build_rows(joined: list[JoinedRow], reviews: dict[tuple[str, str], Review]) -> pd.DataFrame:
-    """Une ligne par ligne de la jointure (ordre naturel), colonnes
-    `left_*` / `right_*` (vides du côté absent), niveau d'incertitude et
-    motifs de relecture."""
-
-    def found(row: JoinedRow) -> Review | None:
-        return reviews.get((row.link.left_uuid, row.link.right_uuid)) if row.link else None
-
-    def side(prefix: str, record: Record | None) -> dict:
-        return {f"{prefix}_{column}": getattr(record, column) if record else "" for column in ENTRY_COLUMNS}
-
-    rows = pd.DataFrame(
-        [
-            {
-                **side("left", row.left),
-                **side("right", row.right),
-                "score": row.link.score if row.link else None,
-                "source": row.link.source if row.link else "",
-                "kind": row.kind,
-                "level": found(row).level if found(row) else 0,
-                "reasons": SEPARATOR.join(found(row).reasons) if found(row) else "",
-            }
-            for row in joined
-        ]
-    )
-    rows["score"] = pd.to_numeric(rows["score"])
-    return rows
-
-
-def entry_states(rows: pd.DataFrame, confirmed: set[str], local: set[str]) -> dict[str, dict[str, context.EntryState]]:
-    """État de chaque entrée alignable, des deux côtés (vue Documents)."""
-    states: dict[str, dict[str, context.EntryState]] = {"left": {}, "right": {}}
-    kinds = {PAIR: "pair", CANDIDATE: "candidate", LEFT_ONLY: "alone", RIGHT_ONLY: "alone"}
-    for row in rows.itertuples():
-        for side, uuid, partner in (("left", row.left_uuid, row.right_uuid), ("right", row.right_uuid, row.left_uuid)):
-            if uuid:
-                manual = row.source in MANUAL_SOURCES or uuid in confirmed
-                states[side][uuid] = context.EntryState(kinds[row.kind], partner, manual, uuid in local)
-    return states
+def build_rows(order: NaturalOrder, reviews: dict[tuple[str, str], Review], columns: dict[str, dict[str, np.ndarray]]) -> pd.DataFrame:
+    """Une ligne par ligne de la jointure (ordre naturel), construite par
+    indexation de tableaux : `left_*` / `right_*` (`ROW_COLUMNS`, vides du
+    côté absent : le rang -1 désigne le "" final de `columns`), score,
+    source, statut et niveau d'incertitude."""
+    data: dict[str, np.ndarray] = {}
+    for side, ranks in (("left", order.left), ("right", order.right)):
+        for column in ROW_COLUMNS:
+            data[f"{side}_{column}"] = columns[side][column][ranks]
+    # Valeurs par lien, plus une dernière pour les lignes sans lien (indice -1).
+    links = order.links
+    score = np.array([link.score if link.score is not None else np.nan for link in links] + [np.nan], dtype=float)
+    source = np.array([link.source for link in links] + [""], dtype=object)
+    level = np.zeros(len(links) + 1, dtype=np.int64)
+    index = {(link.left_uuid, link.right_uuid): number for number, link in enumerate(links)}
+    for key, found in reviews.items():
+        if key in index:
+            level[index[key]] = found.level
+    linked = order.link >= 0
+    data["score"] = score[order.link]
+    data["source"] = source[order.link]
+    data["kind"] = np.where(
+        linked, np.where(data["source"] == SOURCE_CANDIDATE, CANDIDATE, PAIR), np.where(order.left >= 0, LEFT_ONLY, RIGHT_ONLY)
+    ).astype(object)
+    data["level"] = level[order.link]
+    # Colonnes de texte en `object` : la conversion en chaînes Arrow coûterait plus que tout le reste.
+    return pd.DataFrame({name: pd.Series(values, dtype=values.dtype, copy=False) for name, values in data.items()})
 
 
 def decided_mask(rows: pd.DataFrame, confirmed: set[str]) -> pd.Series:
@@ -518,11 +629,11 @@ def focus_of(
             continue
         others = alignment.segments[number][1 if side == "left" else 0]
         other_side = context.other(side)
-        partners = {
-            uuid: records[side][state.partner]
-            for uuid, state in alignment.states[other_side].items()
-            if state.kind == "pair" and state.partner in records[side]
-        }
+        partners = {}
+        for other in others:
+            state = alignment.states[other_side].get(other.uuid)
+            if state is not None and state.kind == "pair" and state.partner in records[side]:
+                partners[other.uuid] = records[side][state.partner]
         alternatives[side] = focus.alternatives(record, side, others, partner.uuid if partner else "", partners, subj_weight, rivals)
     manual = row["source"] in MANUAL_SOURCES or row["left_uuid"] in alignment.confirmed or row["right_uuid"] in alignment.confirmed
     return focus.Focus(
@@ -944,8 +1055,10 @@ def main() -> None:
     # File de tâches
     with tasks_box:
         options = task_options()
-        sections = sorted({record.section for side in records.values() for record in side.values()})
-        section = st.selectbox("Rubrique", [ALL_SECTIONS, *sections], format_func=lambda s: s or NO_SECTION)
+        section_keys = load_base(
+            left_dir, right_dir, str(alignment_path), mtime(alignment_path), str(section_patch_path), mtime(section_patch_path)
+        ).section_keys
+        section = st.selectbox("Rubrique", [ALL_SECTIONS, *section_keys], format_func=lambda s: s or NO_SECTION)
     if section != ALL_SECTIONS:
         options = TaskOptions(**{**asdict(options), "section": section})
     levels = task_levels(rows, alignment.confirmed, options)
@@ -958,9 +1071,7 @@ def main() -> None:
         st.download_button(
             f"Exporter en CSV ({len(exported):,} lignes)".replace(",", " "),
             # Généré au clic seulement.
-            lambda: export_csv([alignment.joined[index] for index in exported], excel=excel, reviews=alignment.reviews).encode(
-                export_encoding(excel)
-            ),
+            lambda: export_csv(alignment.joined(exported), excel=excel, reviews=alignment.reviews).encode(export_encoding(excel)),
             file_name=f"{pair_name}{JOIN_SUFFIX}",
             mime="text/csv",
             icon=":material/download:",
@@ -1009,8 +1120,7 @@ def main() -> None:
     if view_name == DOCUMENTS:
         focus.decision_buttons(focused, controls, None)
         jump, search, matches_box = st.columns([2.2, 2.2, 1.6], vertical_alignment="bottom")
-        firsts = rows.drop_duplicates("left_section").query("left_uuid != ''")
-        jumps = {f"{row.left_section_title or NO_SECTION}": (row.left_uuid, row.right_uuid) for row in firsts.itertuples()}
+        jumps = alignment.jumps
         jump.selectbox(
             "Aller à la rubrique",
             list(jumps),
@@ -1045,7 +1155,11 @@ def main() -> None:
         marks = context.Marks(
             task_marks(rows, levels), {"left": set(), "right": set()}, eligible(alignment, cursor) if pairing_active else None
         )
-    docs = context.documents({"left": load_document_lines(left_dir), "right": load_document_lines(right_dir)}, alignment.states)
+    docs = context.Documents(
+        {"left": load_document_lines(left_dir), "right": load_document_lines(right_dir)},
+        {"left": load_positions(left_dir), "right": load_positions(right_dir)},
+        alignment.states,
+    )
     event = documents_panel(docs, cursor, view_name, marks, (left_name, right_name), focus.summary(focused))
     if event:
         handle_event(event, alignment, records, pair_name, digest)

@@ -22,8 +22,9 @@ en français, texte sans Markdown, empans NER éclatés en colonnes
 
 import csv
 import io
-from collections import defaultdict
 from dataclasses import dataclass
+
+import numpy as np
 
 from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text
 from numrev.alignment.review import LEVEL_LABELS, SEPARATOR, Review
@@ -61,39 +62,73 @@ class JoinedRow:
         return LEFT_ONLY if self.left is not None else RIGHT_ONLY
 
 
+@dataclass
+class NaturalOrder:
+    """L'ordre naturel sous forme de tableaux, une case par ligne de la
+    jointure : rang de l'entrée de gauche et de droite dans leur annuaire
+    (-1 si absente) et indice du lien dans `links` (-1 sans lien)."""
+
+    left: np.ndarray
+    right: np.ndarray
+    link: np.ndarray
+    links: list[Link]  # liens dont les deux entrées existent
+    missing: int  # liens ignorés faute d'entrée
+
+
+def natural_order(links: list[Link], left_rank: dict[str, int], right_rank: dict[str, int]) -> NaturalOrder:
+    """Ordre naturel (voir la docstring du module), calculé par un tri
+    numpy plutôt qu'une boucle (le viewer le recalcule après chaque
+    décision, sur des annuaires de 100 000 entrées et plus). `*_rank` : uuid
+    → rang de l'entrée dans son annuaire (0, 1, 2…)."""
+    kept = [link for link in links if link.left_uuid in left_rank and link.right_uuid in right_rank]
+    n_left, n_right = len(left_rank), len(right_rank)
+    link_left = np.fromiter((left_rank[link.left_uuid] for link in kept), dtype=np.int64, count=len(kept))
+    link_right = np.fromiter((right_rank[link.right_uuid] for link in kept), dtype=np.int64, count=len(kept))
+    of_left, of_right = np.full(n_left, -1, dtype=np.int64), np.full(n_right, -1, dtype=np.int64)
+    of_left[link_left] = np.arange(len(kept))
+    of_right[link_right] = np.arange(len(kept))
+
+    # Une entrée de droite seule suit la paire de l'entrée de droite appariée
+    # qui la précède (clé : rang de gauche de la paire, puis 2) ; avant la
+    # première, elle précède la première paire (clé : son rang de gauche, 0) ;
+    # sans aucune paire, elle va à la fin.
+    paired = of_right >= 0
+    previous = np.maximum.accumulate(np.where(paired, np.arange(n_right), -1)) if n_right else np.zeros(0, dtype=np.int64)
+    alone = np.flatnonzero(~paired)
+    anchors = previous[alone]
+    first = link_left[of_right[np.argmax(paired)]] if paired.any() else n_left
+    alone_anchor = np.where(anchors >= 0, link_left[of_right[np.maximum(anchors, 0)]] if len(kept) else first, first)
+    alone_place = np.where(anchors >= 0, 2, 0)
+
+    # Une ligne par entrée de gauche (clé : son rang, 1), avec son lien.
+    lefts = np.arange(n_left)
+    primary = np.concatenate([lefts, alone_anchor])
+    secondary = np.concatenate([np.ones(n_left, dtype=np.int64), alone_place])
+    tertiary = np.concatenate([np.full(n_left, -1, dtype=np.int64), alone])
+    order = np.lexsort((tertiary, secondary, primary))
+    row_link = np.concatenate([of_left, np.full(len(alone), -1, dtype=np.int64)])[order]
+    row_left = np.concatenate([lefts, np.full(len(alone), -1, dtype=np.int64)])[order]
+    row_right = np.where(
+        row_link >= 0, link_right[np.maximum(row_link, 0)] if len(kept) else -1, np.concatenate([np.full(n_left, -1), alone])[order]
+    )
+    return NaturalOrder(row_left, row_right, row_link, kept, len(links) - len(kept))
+
+
 def natural_rows(links: list[Link], left: dict[str, Record], right: dict[str, Record]) -> tuple[list[JoinedRow], int]:
     """Lignes de la jointure dans l'ordre naturel, et nombre de liens ignorés
     faute d'entrée (étapes amont modifiées depuis l'alignement)."""
-    kept = [link for link in links if link.left_uuid in left and link.right_uuid in right]
-    by_left = {link.left_uuid: link for link in kept}
-    by_right = {link.right_uuid: link for link in kept}
-
-    # Entrées de droite seules, rattachées à la paire qui les précède (clé :
-    # uuid de gauche de la paire) ; celles d'avant la première paire vont
-    # juste avant elle.
-    after: dict[str, list[Record]] = defaultdict(list)
-    before: list[Record] = []
-    first, anchor = None, None
-    for record in sorted(right.values(), key=lambda record: record.order):
-        link = by_right.get(record.uuid)
-        if link is not None:
-            anchor = link.left_uuid
-            first = first or anchor
-        elif anchor is None:
-            before.append(record)
-        else:
-            after[anchor].append(record)
-
-    rows: list[JoinedRow] = []
-    for record in sorted(left.values(), key=lambda record: record.order):
-        if record.uuid == first:
-            rows += [JoinedRow(None, alone, None) for alone in before]
-        link = by_left.get(record.uuid)
-        rows.append(JoinedRow(record, right[link.right_uuid] if link else None, link))
-        rows += [JoinedRow(None, alone, None) for alone in after.get(record.uuid, [])]
-    if first is None:
-        rows += [JoinedRow(None, alone, None) for alone in before]
-    return rows, len(links) - len(kept)
+    left_records = sorted(left.values(), key=lambda record: record.order)
+    right_records = sorted(right.values(), key=lambda record: record.order)
+    found = natural_order(
+        links,
+        {record.uuid: rank for rank, record in enumerate(left_records)},
+        {record.uuid: rank for rank, record in enumerate(right_records)},
+    )
+    rows = [
+        JoinedRow(left_records[i] if i >= 0 else None, right_records[j] if j >= 0 else None, found.links[k] if k >= 0 else None)
+        for i, j, k in zip(found.left.tolist(), found.right.tolist(), found.link.tolist())
+    ]
+    return rows, found.missing
 
 
 # ----------------------------------------------------------------------

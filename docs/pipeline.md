@@ -705,7 +705,27 @@ On choisit une sortie brute (`*.dedupe.csv`, `*.nw.csv` ou une variante
 `rubriques-brutes`) ; la paire de volumes se déduit du nom de fichier, les
 deux annuaires sont relus en entier et le patch des entrées, augmenté des
 décisions en attente, est appliqué en mémoire : l'écran montre le résultat
-final, recalculé après chaque décision (≈ 1 s sur 1807/1808).
+final, recalculé après chaque décision.
+
+Le calcul est découpé pour qu'une décision reste rapide sur de gros
+annuaires (100 000 entrées et plus de chaque côté) :
+
+- ce qui ne dépend pas des décisions (annuaires, liens bruts,
+  correspondance des rubriques, segments) est calculé une fois
+  (`load_base`) ;
+- les motifs de relecture sont gardés segment par segment
+  (`review.Reviewer`) : seuls les segments touchés par une décision sont
+  recalculés, avec leur matrice de similarité ;
+- l'ordre naturel (`export.natural_order`) et les lignes sont calculés
+  par tableaux numpy, sans boucle par ligne.
+
+Mesures : sur 1807/1808 (≈ 14 000 entrées de chaque côté), une décision
+coûte moins de 0,1 s. Sur un banc de charge à ≈ 170 000 / 160 000 entrées
+(1807/1808 dupliqués dix fois), elle coûte ≈ 0,7 s, et changer de tâche
+≈ 0,1 s ; le premier chargement (lecture des CSV, similarités de tous les
+segments) prend ≈ 20 s, une fois par serveur. Les similarités se calculent
+segment par segment : une rubrique géante (des dizaines de milliers
+d'entrées dans un même segment) reste coûteuse en temps et en mémoire.
 
 **Deux niveaux de lecture, un curseur et une file de tâches communs.** La
 **ligne courante** est une paire, une candidate ou une entrée seule ; un

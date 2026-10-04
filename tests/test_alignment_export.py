@@ -1,6 +1,8 @@
 import csv
 import io
+import random
 import unittest
+from collections import defaultdict
 
 from numrev.alignment.export import CANDIDATE, EXPORT_FIELDS, export_csv, export_row, natural_rows, span_texts
 from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record
@@ -31,7 +33,44 @@ def uuids(rows) -> list[tuple[str, str]]:
     return [(row.left.uuid if row.left else "", row.right.uuid if row.right else "") for row in rows]
 
 
+def reference_rows(links: list[Link], left: dict[str, Record], right: dict[str, Record]) -> list[tuple[str, str]]:
+    """L'ordre naturel écrit comme une boucle, pour vérifier `natural_order`, vectorisé."""
+    kept = [link for link in links if link.left_uuid in left and link.right_uuid in right]
+    by_left, by_right = {link.left_uuid: link for link in kept}, {link.right_uuid: link for link in kept}
+    after, before, first, anchor = defaultdict(list), [], None, None
+    for record in sorted(right.values(), key=lambda record: record.order):
+        link = by_right.get(record.uuid)
+        if link is not None:
+            anchor = link.left_uuid
+            first = first or anchor
+        elif anchor is None:
+            before.append(record.uuid)
+        else:
+            after[anchor].append(record.uuid)
+    rows = []
+    for record in sorted(left.values(), key=lambda record: record.order):
+        if record.uuid == first:
+            rows += [("", alone) for alone in before]
+        link = by_left.get(record.uuid)
+        rows.append((record.uuid, link.right_uuid if link else ""))
+        rows += [("", alone) for alone in after.get(record.uuid, [])]
+    if first is None:
+        rows += [("", alone) for alone in before]
+    return rows
+
+
 class NaturalRowsTests(unittest.TestCase):
+    def test_matches_the_reference_loop(self):
+        generator = random.Random(0)
+        for _ in range(500):
+            left = side([record(f"l{i}", i) for i in range(generator.randrange(6))])
+            right = side([record(f"r{i}", i) for i in range(generator.randrange(6))])
+            pairs = zip(generator.sample(list(left), generator.randrange(len(left) + 1)), generator.sample(list(right), len(right)))
+            links = [Link(a, b, 0.9) for a, b in pairs] + ([Link("l0", "gone", 0.5)] if generator.random() < 0.2 else [])
+            rows, missing = natural_rows(links, left, right)
+            self.assertEqual(uuids(rows), reference_rows(links, left, right))
+            self.assertEqual(missing, sum(1 for link in links if link.right_uuid == "gone"))
+
     def test_right_only_after_preceding_pair_and_before_first(self):
         left = side([record("l0", 0), record("l1", 1), record("l2", 2), record("l3", 3)])
         right = side([record("r0", 0), record("r1", 1), record("r2", 2), record("r3", 3), record("r4", 4)])

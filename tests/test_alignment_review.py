@@ -1,7 +1,8 @@
+import random
 import unittest
 
 from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_NW, SOURCE_NW_CONTEXT, Link, Record
-from numrev.alignment.review import REASON_CANDIDATE, REASON_CONTEXT, REASON_HOMONYM, review
+from numrev.alignment.review import REASON_CANDIDATE, REASON_CONTEXT, REASON_HOMONYM, Reviewer, review
 from numrev.alignment.sections import align_sections
 
 
@@ -73,3 +74,27 @@ class ReviewTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewerTests(unittest.TestCase):
+    def test_incremental_calls_match_a_fresh_review(self):
+        # Le viewer garde un Reviewer et le rappelle après chaque décision :
+        # seuls les segments dont les liens changent sont recalculés.
+        names = [
+            "Martin, rue A, 1.",
+            "Martin, rue A, 2.",
+            "Bernard, quai Voltaire, 30.",
+            "Pagès, rue de l'Echiquier, 33.",
+            "Dubois, rue B, 4.",
+        ]
+        left = records("g", names)
+        right = records("d", ["Martin, rue A, 1.", "Bernard, quai Voltaire, 31.", "Pagès, boulevard Montmartre, 14.", "Dubois, rue B, 4."])
+        sections = align_sections(left, right)
+        reviewer = Reviewer(sections, 0.6, 0.85, 0.5)
+        generator = random.Random(4)
+        for _ in range(30):
+            pairs = list(zip(generator.sample(left, 3), generator.sample(right, 3)))
+            links = [Link(a.uuid, b.uuid, generator.random(), generator.choice([SOURCE_NW, SOURCE_NW_CONTEXT])) for a, b in pairs]
+            declared = {generator.choice(left).uuid} if generator.random() < 0.5 else set()
+            expected = review(links, left, right, sections, 0.6, 0.85, 0.5, declared=declared)
+            self.assertEqual(reviewer(links, declared), expected)
