@@ -85,7 +85,7 @@ uv run numrev join annuaires/alignments/<A>__<B>.nw.csv --excel --apply   # join
 
 # Consultation
 uv run numrev view directory     # un annuaire, empans et entrées suspectes
-uv run numrev view alignment     # un alignement, aide à la relecture
+uv run numrev view alignment     # un alignement : relecture, décisions → patch
 
 # Modèles et évaluation
 uv run numrev gold ner --apply                    # tire le gold NER (une fois)

@@ -1,6 +1,6 @@
 # Guide de relecture de l'alignement entre éditions
 
-Ce guide sert à relire les paires à vérifier dans `numrev view alignment` (filtre *Incertitude* : moyenne ou forte) et à étiqueter un gold d'inversions (`numrev gold alignment`, colonne `meme_entree`). La question est toujours la même :
+Ce guide sert à relire les paires à vérifier dans `numrev view alignment` (vue **Relecture**, dont la file contient par défaut les lignes à vérifier, pas encore décidées) et à étiqueter un gold d'inversions (`numrev gold alignment`, colonne `meme_entree`). La question est toujours la même :
 
 > Ces deux entrées désignent-elles **la même entrée de l'annuaire**, d'une édition à l'autre ?
 
@@ -18,11 +18,16 @@ L'incertitude (faible, moyenne, forte) ne sert qu'à ordonner la relecture : ell
 
 ## Trois réponses
 
-| Réponse | Gold (`meme_entree`) | Patch des entrées |
-|---|---|---|
-| Même entrée | `OUI` | ligne de la paire (bouton **copier**) |
-| Pas la même entrée | `NON` | rien pour une candidate non appariée ; pour une paire retenue à tort, une ligne par entrée, seule (ou la bonne paire si on la connaît) |
-| On ne peut pas trancher | `INCERTAIN` | ligne de la paire avec `certitude=incertaine` (bouton **incertaine**) si la paire est plausible ; sinon rien |
+| Réponse | Gold (`meme_entree`) | Bouton du viewer (raccourci) | Ligne(s) de patch produites |
+|---|---|---|---|
+| Même entrée | `OUI` | **✓ Même entrée** (`V`) | la paire |
+| Pas la même entrée | `NON` | **✗ Pas la même entrée** (`X`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (*Rapprochements possibles* ou vue Documents) |
+| On ne peut pas trancher | `INCERTAIN` | **≈ Probablement (incertaine)** (`I`) si la paire est plausible ; sinon **↷ Passer** (`→`) | la paire avec `certitude=incertaine` |
+
+Le patch ne sait pas dire « pas avec celle-là » : *Pas la même entrée*
+déclare les deux entrées sans correspondance, ce qui retire aussi la
+candidate de la file. Une entrée seule se confirme avec **✓ Confirmer sans
+correspondance** (`V`).
 
 `INCERTAIN` est une réponse à part entière, pas un échec. L'export la transmet aux utilisateurs des données (`certitude = incertaine`), qui décident de s'en servir ou non. Mieux vaut `INCERTAIN` qu'un `OUI` ou un `NON` arbitraire.
 
@@ -53,6 +58,28 @@ L'incertitude (faible, moyenne, forte) ne sert qu'à ordonner la relecture : ell
 - **Plusieurs entrées concurrentes** proches dans l'autre édition (deux Bourquelot rue des Noyers à des numéros différents, aucun à l'adresse attendue).
 - **Graphies assez éloignées** et adresse différente, même si aucune autre entrée ne fait concurrence.
 - **Cas qui demandent une source extérieure** : renvoi vers une société, changement de raison sociale.
+
+## Relire dans le viewer
+
+- **Relecture** : une ligne à la fois. Les caractères qui diffèrent entre
+  les deux textes sont surlignés. Sous la carte, les **rapprochements
+  possibles** donnent les entrées les plus proches de l'autre côté (la
+  concurrente d'un `homonyme proche` y est signalée), chacune avec un bouton
+  **Apparier**. Le **contexte** montre les deux annuaires autour de la ligne,
+  chacun dans son ordre. Après une décision, on passe à la ligne suivante ;
+  `←` revient en arrière, `Ctrl+Z` annule la dernière décision. La note
+  facultative va dans la colonne `note` du patch.
+- **Table** : toutes les lignes filtrées ; **Relire →** ouvre une ligne dans
+  la vue Relecture.
+- **Documents** : les deux annuaires côte à côte, titres et lignes hors
+  sujet compris. Les liens qui se croisent (orange) signalent une inversion.
+  Cliquer une entrée de chaque côté propose de les apparier.
+
+Les décisions vont dans un journal gardé par le navigateur (il survit à un
+rechargement). En local, **Enregistrer** écrit le patch
+`data/alignment/<A>__<B>.patch.csv` ; sur la copie hébergée,
+**Télécharger le patch** donne le fichier complet à transmettre, à déposer
+tel quel dans `data/alignment/`.
 
 ## Ordre de lecture
 

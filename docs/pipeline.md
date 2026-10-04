@@ -185,8 +185,9 @@ l'OCR ne la change pas, au contraire de l'`uid` (`page.bloc.ligne`), gardé
 pour l'ordre de lecture. L'`uuid` d'une entité (étape 4) dérive de la clé de
 sa ligne racine : il est donc stable lui aussi.
 
-Les patchs d'alignement (étape 6) ne sont pas capturés depuis un CSV : on
-les édite à la main depuis le viewer. Ils suivent sinon les mêmes règles :
+Les patchs d'alignement (étape 6) ne sont pas capturés depuis un CSV :
+le patch des entrées s'écrit depuis le viewer (décisions), celui des
+rubriques à la main. Ils suivent sinon les mêmes règles :
 le patch gagne, une ligne orpheline (uuid disparu, sans réancrage possible)
 fait paniquer `numrev align dedupe`, `numrev align nw` et
 `numrev join`, et `--force` l'ignore.
@@ -520,9 +521,10 @@ flowchart TD
     AP --> F["<code>&lt;gauche&gt;__&lt;droite&gt;.csv</code><br/>résultat final"]
     S -->|"groupes de rubriques appariées"| N["numrev align nw<br/>NW + résiduelle + pair-HMM"]
     N --> NC["<code>….nw.csv</code>"]
-    DC --> V["numrev view alignment<br/>(patch appliqué en mémoire)"]
+    DC --> V["numrev view alignment<br/>(patch + journal appliqués en mémoire)"]
     NC --> V
     EP --> V
+    V -->|"Enregistrer"| EP
     DC --> X["numrev join<br/>(jointure lisible)"]
     NC --> X
     F --> X
@@ -699,11 +701,54 @@ réappliqué après chaque exécution de Dedupe.
 uv run numrev view alignment
 ```
 
-Le viewer est en lecture seule. On choisit une sortie brute (`*.dedupe.csv`,
-`*.nw.csv` ou une variante `rubriques-brutes`) ; la paire de volumes se
-déduit du nom de fichier, les deux annuaires sont relus en entier et le
-patch des entrées est appliqué en mémoire : l'écran montre le résultat
-final.
+On choisit une sortie brute (`*.dedupe.csv`, `*.nw.csv` ou une variante
+`rubriques-brutes`) ; la paire de volumes se déduit du nom de fichier, les
+deux annuaires sont relus en entier et le patch des entrées, augmenté des
+décisions en attente, est appliqué en mémoire : l'écran montre le résultat
+final, recalculé après chaque décision (≈ 1 s sur 1807/1808).
+
+**Un curseur, trois vues** (sélecteur en haut ; changer de vue garde la
+ligne courante) :
+
+- **Relecture** (`numrev/viewers/focus.py`) : une ligne à la fois (paire,
+  candidate ou entrée seule), les caractères qui diffèrent surlignés, le
+  statut, le score et les motifs ; les **rapprochements possibles** (les
+  trois entrées les plus proches de l'autre côté du segment, la concurrente
+  d'un `homonyme proche` signalée, bouton *Apparier*) ; les boutons de
+  décision au clavier : `V` même entrée (ou confirmer sans correspondance),
+  `I` incertaine, `X` pas la même entrée, `→` passer, `←` précédente,
+  `Ctrl+Z` annuler la dernière ; une note facultative ; puis le contexte
+  (vue Documents centrée sur la ligne). La **file** = les lignes filtrées,
+  par défaut seulement celles à vérifier (candidates, incertitude moyenne ou
+  forte) et pas encore décidées ; une barre de progression la suit.
+- **Table** : décrite ci-dessous ; **Relire →** ouvre une ligne dans la vue
+  Relecture.
+- **Documents** (`numrev/viewers/context.py`, `assets/context.js`) : les
+  deux annuaires côte à côte, chacun dans **son** ordre, avec titres et
+  lignes hors sujet ; une gouttière relie les entrées appariées (vert,
+  violet pour le patch, pointillés ambre pour une candidate), les liens qui
+  se croisent (inversions) en orange, une flèche ↑ ↓ pour un partenaire
+  hors de la fenêtre. Les deux lignes courantes sont alignées. Un clic sur
+  une entrée de chaque côté propose de les apparier ; ▲ ▼ (`PageUp` /
+  `PageDown`) et *Aller à la rubrique* déplacent la fenêtre.
+
+**Décisions** (`numrev/alignment/decisions.py`) : un journal ordonné,
+rejoué sur le patch versionné ; chaque décision retire les lignes du patch
+qui touchent ses uuid puis ajoute les siennes (le patch reste valide, et
+annuler revient à retirer la décision du journal). *Pas la même entrée*
+déclare les deux entrées sans correspondance (le format du patch ne sait
+pas dire « pas avec celle-là »). Le journal est gardé dans le
+`localStorage` du navigateur (`numrev/viewers/storage.py`) : il survit à un
+rechargement ; il garde l'empreinte du patch sur lequel il a été construit,
+et un bandeau prévient si le patch a changé depuis. Barre latérale,
+**Décisions** : **Enregistrer** (seulement quand le viewer est lancé par
+`numrev view alignment`, qui pose `NUMREV_PATCH_WRITABLE=1`) écrit le patch
+complet et vide le journal ; **Télécharger le patch** donne le même fichier
+(copie hébergée : c'est le seul moyen de transmettre ses décisions) ; le
+journal se consulte, s'abandonne, ou reçoit un patch importé (celui d'un
+autre relecteur).
+
+La table :
 
 - **Une table dans l'ordre naturel :** correspondances et entrées de gauche
   sans correspondance dans l'ordre de l'annuaire de gauche ; une entrée de
@@ -730,26 +775,23 @@ final.
   table par groupe de rubriques appariées (auto ou patch), puis par
   rubrique seule, avec les entrées et la part appariée de chaque côté et
   les uuid pour le patch des rubriques.
-- **Copie pour les patchs :** le bouton `uuid` d'une entrée ou d'un bandeau
-  de rubrique copie son uuid ; le bouton `copier` d'une ligne copie une
-  ligne de patch prête à coller (la paire, ou l'entrée seule) ; le bouton
-  `incertaine` d'une paire ou d'une candidate copie la même ligne avec
-  `certitude=incertaine` ; `en-tête du patch` copie l'en-tête pour créer le
-  fichier.
+- **Copie pour le patch des rubriques :** le bouton `uuid` d'une entrée ou
+  d'un bandeau de rubrique copie son uuid ; l'encart *Rubriques* copie
+  l'en-tête du patch des rubriques.
 - **Export CSV :** le bouton *Exporter en CSV* de la barre latérale
   télécharge les lignes affichées (filtres et tri appliqués) au format de
   `numrev join` (ci-dessous) ; la case *Pour un tableur en
   français* (cochée par défaut) choisit le séparateur `;` et l'UTF-8 avec
   BOM.
 
-Les patchs s'éditent à la main (tableur ou éditeur de texte) : coller une
-ligne copiée valide une paire ou confirme une absence de correspondance ;
-pour apparier deux entrées, coller la ligne de l'une et y reporter l'`uuid`
-(et le fichier) de l'autre. `numrev align dedupe --patch-only --apply` régénère
-ensuite le CSV final en quelques secondes.
+Le patch des entrées peut toujours s'éditer à la main ; celui des
+rubriques s'édite seulement ainsi. `numrev align dedupe --patch-only --apply`
+régénère ensuite le CSV final en quelques secondes.
 
-Pour tester le viewer, utiliser un wrapper qui redéfinit `ALIGNMENTS_DIR`
-et `PATCH_DIR`, jamais les dossiers réels.
+Pour tester le viewer, utiliser un wrapper qui redéfinit
+`numrev.paths.ANNUAIRES_DIR`, `ALIGNMENTS_DIR` et `ALIGNMENT_DATA_DIR`,
+jamais les dossiers réels (ou `streamlit.testing.v1.AppTest` sans
+navigateur ; les composants JS ne s'y exécutent pas).
 
 ### Étape 7 — Jointure lisible : `numrev join`
 

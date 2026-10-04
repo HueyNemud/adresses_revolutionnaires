@@ -186,10 +186,13 @@ sur les lignes corrigées.
 
 ## Corriger l'alignement entre éditions (étape 6)
 
-Ici on ne corrige pas un gros fichier : on écrit directement les décisions
+Ici on ne corrige pas un gros fichier : les décisions vont directement
 dans les patchs `data/alignment/<A>__<B>.patch.csv` (entrées) et
-`.sections.csv` (rubriques), en s'aidant des boutons « copier » du viewer
-(`numrev view alignment`). Les conventions sont dans le
+`.sections.csv` (rubriques). Le patch des entrées se remplit depuis le
+viewer (`numrev view alignment`) : boutons de décision, puis
+**Enregistrer** (en local) ou **Télécharger le patch** (copie hébergée). Le
+patch des rubriques s'édite à la main, avec les boutons `uuid` du viewer.
+Les conventions sont dans le
 [guide de relecture de l'alignement](guide_relecture_alignement.md).
 
 Les règles sont les mêmes qu'ailleurs : le patch gagne sur la machine, et
