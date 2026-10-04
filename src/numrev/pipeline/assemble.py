@@ -204,7 +204,10 @@ def _merge_into(
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("input", type=Path, help="Table des lignes corrigée (<document>.lines.csv).")
     parser.add_argument(
-        "-o", "--output", type=Path, default=None,
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
         help="CSV de sortie (défaut : <document>.entities.csv) ; le rapport est écrit à côté (<…>.entities.report.txt).",
     )
     add_apply_argument(parser)
@@ -221,16 +224,11 @@ def process_csv(input_path: Path, output_path: Path, writes: Writes | None = Non
         if not reader.fieldnames:
             raise ValueError("Le fichier CSV d'entrée est vide ou invalide.")
 
-        input_fieldnames = [
-            col for col in reader.fieldnames if col not in (CORRECTED_COLUMN, FINGERPRINT_COLUMN)
-        ]
+        input_fieldnames = [col for col in reader.fieldnames if col not in (CORRECTED_COLUMN, FINGERPRINT_COLUMN)]
 
         missing = [col for col in REQUIRED_COLUMNS if col not in input_fieldnames]
         if missing:
-            raise ValueError(
-                f"Colonne(s) absente(s) : {', '.join(missing)} "
-                "(l'entrée est la table des lignes de `numrev tabulate`)."
-            )
+            raise ValueError(f"Colonne(s) absente(s) : {', '.join(missing)} " "(l'entrée est la table des lignes de `numrev tabulate`).")
 
         output_fieldnames = ["uuid", "parent_uuid"]
         for col in input_fieldnames:
@@ -365,18 +363,14 @@ def format_title_tree(report: MergeReport) -> list[str]:
     totals: dict[str, int] = {}
 
     def total(node_id: str) -> int:
-        totals[node_id] = report.direct_entries[node_id] + sum(
-            total(child_id) for child_id, _ in children.get(node_id, [])
-        )
+        totals[node_id] = report.direct_entries[node_id] + sum(total(child_id) for child_id, _ in children.get(node_id, []))
         return totals[node_id]
 
     total(ROOT_UUID)
     lines: list[str] = []
 
     def walk(node_id: str, text: str, depth: int) -> None:
-        lines.append(
-            f"{'  ' * depth}{text} — {totals[node_id]} ({report.direct_entries[node_id]})"
-        )
+        lines.append(f"{'  ' * depth}{text} — {totals[node_id]} ({report.direct_entries[node_id]})")
         for child_id, child_text in children.get(node_id, []):
             walk(child_id, child_text, depth + 1)
 
@@ -406,10 +400,7 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
         *format_title_tree(report),
     ]
     if report.unmarked_titles:
-        lines.append(
-            f"Titres sans marqueur `#` ({len(report.unmarked_titles)}) "
-            "— placés au niveau le plus profond :"
-        )
+        lines.append(f"Titres sans marqueur `#` ({len(report.unmarked_titles)}) " "— placés au niveau le plus profond :")
         lines.extend(f"  - {uid}" for uid in report.unmarked_titles)
     lines += [
         "",
@@ -417,18 +408,14 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
     ]
 
     if report.orphan_subentries:
-        lines.append(
-            f"SUB-ENTRY sans [I|B]-ENTRY précédente ({len(report.orphan_subentries)}) "
-            "— traitées comme une nouvelle ENTRY :"
-        )
+        lines.append(f"SUB-ENTRY sans [I|B]-ENTRY précédente ({len(report.orphan_subentries)}) " "— traitées comme une nouvelle ENTRY :")
         lines.extend(f"  - {uid}" for uid in report.orphan_subentries)
     else:
         lines.append("SUB-ENTRY sans ancre précédente : aucune.")
 
     if report.orphan_entry_continuations:
         lines.append(
-            f"I-ENTRY sans [B|I|SUB]-ENTRY précédente ({len(report.orphan_entry_continuations)}) "
-            "— traitées comme une nouvelle ENTRY :"
+            f"I-ENTRY sans [B|I|SUB]-ENTRY précédente ({len(report.orphan_entry_continuations)}) " "— traitées comme une nouvelle ENTRY :"
         )
         lines.extend(f"  - {uid}" for uid in report.orphan_entry_continuations)
     else:
@@ -436,8 +423,7 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
 
     if report.orphan_title_continuations:
         lines.append(
-            f"I-TITLE sans [B|I]-TITLE précédente ({len(report.orphan_title_continuations)}) "
-            "— traitées comme un nouveau TITLE :"
+            f"I-TITLE sans [B|I]-TITLE précédente ({len(report.orphan_title_continuations)}) " "— traitées comme un nouveau TITLE :"
         )
         lines.extend(f"  - {uid}" for uid in report.orphan_title_continuations)
     else:
@@ -445,21 +431,14 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
 
     if report.unknown_labels:
         lines.append(f"Classes non reconnues ({len(report.unknown_labels)}) :")
-        lines.extend(
-            f"  - {uid} : classe '{label}'" for uid, label in report.unknown_labels
-        )
+        lines.extend(f"  - {uid} : classe '{label}'" for uid, label in report.unknown_labels)
 
     lines.append("")
     lines.append("== Ordre alphabétique (réinitialisé à chaque nouveau TITLE) ==")
     if report.alpha_violations:
-        lines.append(
-            f"Entrées rompant l'ordre alphabétique ({len(report.alpha_violations)}) :"
-        )
+        lines.append(f"Entrées rompant l'ordre alphabétique ({len(report.alpha_violations)}) :")
         for uid, key, previous_key, excerpt in report.alpha_violations:
-            lines.append(
-                f'  - {uid} : "{key}" ("{excerpt}...") suit "{previous_key}", '
-                "ordre alphabétique rompu."
-            )
+            lines.append(f'  - {uid} : "{key}" ("{excerpt}...") suit "{previous_key}", ' "ordre alphabétique rompu.")
     else:
         lines.append("Aucune rupture d'ordre alphabétique détectée.")
 

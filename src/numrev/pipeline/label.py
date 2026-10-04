@@ -78,9 +78,7 @@ def _transitions_line(crf: ActiveCRF, top_n: int = 3) -> str | None:
     """Résumé compact des transitions les plus fortes, sur une seule ligne."""
     if crf.tagger is None:
         return None
-    sorted_transitions = sorted(
-        crf.tagger.info().transitions.items(), key=lambda item: item[1], reverse=True
-    )
+    sorted_transitions = sorted(crf.tagger.info().transitions.items(), key=lambda item: item[1], reverse=True)
     parts = []
     for (from_label, to_label), weight in sorted_transitions[:top_n]:
         color = "green" if weight > 0 else "red"
@@ -90,9 +88,7 @@ def _transitions_line(crf: ActiveCRF, top_n: int = 3) -> str | None:
 
 def _legend_renderable() -> Columns:
     """Légende compacte, répartie en plusieurs colonnes plutôt qu'une ligne par touche."""
-    items = [
-        f"[bold cyan]{key}[/bold cyan] {label}" for key, label in LABEL_KEYS.items()
-    ]
+    items = [f"[bold cyan]{key}[/bold cyan] {label}" for key, label in LABEL_KEYS.items()]
     items.append("[bold cyan]u[/bold cyan] [dim]annuler[/dim]")
     items.append("[bold cyan]p[/bold cyan] [dim]page → OUT OF SCOPE[/dim]")
     items.append("[bold cyan]q[/bold cyan] [dim]arrêter[/dim]")
@@ -121,9 +117,7 @@ def _candidates_marginals_table(crf: ActiveCRF, block_indices: list[int]) -> Tab
     return table
 
 
-def _context_panel(
-    crf: ActiveCRF, target_idx: int, block_indices: list[int], margin: int = 8
-) -> Panel:
+def _context_panel(crf: ActiveCRF, target_idx: int, block_indices: list[int], margin: int = 8) -> Panel:
     """Contexte du document sous forme d'un seul renderable (pour tenir dans
     une colonne de la grille), au lieu d'une série de `console.print` séparés."""
     start = max(0, target_idx - margin)
@@ -141,16 +135,13 @@ def _context_panel(
         label = f"[{crf.records[index].data_block_label}]"
         style = "bold reverse green" if index in block_indices else "dim"
         text.append(
-            f"{prefix}"
-            f"{label:<15} {crf.lines[index]}\n",
+            f"{prefix}" f"{label:<15} {crf.lines[index]}\n",
             style=style,
         )
     return Panel(text, title="📄 Contexte du document", border_style="blue")
 
 
-def display_dashboard(
-    crf: ActiveCRF, target_idx: int, block_indices: list[int]
-) -> None:
+def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int]) -> None:
     """Dashboard sur deux colonnes côte à côte (contexte / stats) plutôt qu'un
     empilement vertical : la hauteur totale est celle de la colonne la plus
     haute, pas la somme des deux."""
@@ -159,9 +150,7 @@ def display_dashboard(
     stats: list[Any] = [_progress_panel(crf, target_idx), _legend_renderable()]
     transitions_line = _transitions_line(crf)
     if transitions_line:
-        stats.append(
-            Panel(transitions_line, title="🔗 Transitions", border_style="magenta")
-        )
+        stats.append(Panel(transitions_line, title="🔗 Transitions", border_style="magenta"))
     stats.append(_candidates_marginals_table(crf, block_indices))
 
     grid = Table.grid(expand=True, padding=(0, 1))
@@ -171,9 +160,7 @@ def display_dashboard(
     console.print(grid)
 
     if len(block_indices) == 1:
-        console.print(
-            "[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]"
-        )
+        console.print("[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]")
 
 
 # ----------------------------------------------------------------------
@@ -189,9 +176,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     add_apply_argument(parser)
 
 
-def load_session_state(
-    session_path: Path, document_hash: str
-) -> tuple[list[str | None], AnnotationHistory | None, LabelTimestamps] | None:
+def load_session_state(session_path: Path, document_hash: str) -> tuple[list[str | None], AnnotationHistory | None, LabelTimestamps] | None:
     if not session_path.exists():
         return None
     session = json.loads(session_path.read_text(encoding="utf-8"))
@@ -204,13 +189,9 @@ def load_session_state(
     annotation_history = session.get("annotation_history")
     if annotation_history is not None:
         if not isinstance(annotation_history, list):
-            raise ValueError(
-                "La session ne contient pas d'historique d'annotation valide."
-            )
+            raise ValueError("La session ne contient pas d'historique d'annotation valide.")
         validate_annotation_history(annotation_history, annotated_indices)
-    label_timestamps = parse_label_timestamps(
-        session.get("label_timestamps") or {}, annotated_indices
-    )
+    label_timestamps = parse_label_timestamps(session.get("label_timestamps") or {}, annotated_indices)
     return labels, annotation_history, label_timestamps
 
 
@@ -223,10 +204,7 @@ def save_session(session_path: Path, document_hash: str, crf: ActiveCRF) -> None
                 "source_rows": crf.source_row_numbers,
                 "labels": crf.labels,
                 "annotation_history": crf.annotation_history,
-                "label_timestamps": {
-                    str(index): timestamp
-                    for index, timestamp in crf.label_timestamps.items()
-                },
+                "label_timestamps": {str(index): timestamp for index, timestamp in crf.label_timestamps.items()},
             },
             ensure_ascii=False,
             indent=2,
@@ -265,14 +243,10 @@ def _prompt_label(crf: ActiveCRF, index: int) -> str | _Control:
             return _Control.SKIP_PAGE
         if choice in LABEL_KEYS:
             return LABEL_KEYS[choice]
-        console.print(
-            "[yellow]Touche non reconnue — voir la légende ci-dessus.[/yellow]"
-        )
+        console.print("[yellow]Touche non reconnue — voir la légende ci-dessus.[/yellow]")
 
 
-def _collect_block_labels(
-    crf: ActiveCRF, block_indices: list[int]
-) -> dict[int, str] | _Control:
+def _collect_block_labels(crf: ActiveCRF, block_indices: list[int]) -> dict[int, str] | _Control:
     """Recueille les labels humains d'un bloc, ou un signal STOP/UNDO/SKIP_PAGE.
 
     "u" a deux sens distincts selon le contexte, et ne perd jamais de saisie :
@@ -311,10 +285,7 @@ def _collect_block_labels(
                 return _Control.UNDO
             undone_index = pending_order.pop()
             del pending_labels[undone_index]
-            console.print(
-                f"[green]Saisie annulée pour la ligne "
-                f"{crf.source_row_numbers[undone_index]} ; à ressaisir.[/green]"
-            )
+            console.print(f"[green]Saisie annulée pour la ligne " f"{crf.source_row_numbers[undone_index]} ; à ressaisir.[/green]")
             position -= 1
             continue
 
@@ -325,25 +296,19 @@ def _collect_block_labels(
     return pending_labels
 
 
-def annotate_interactively(
-    crf: ActiveCRF, session_path: Path, document_hash: str
-) -> None:
+def annotate_interactively(crf: ActiveCRF, session_path: Path, document_hash: str) -> None:
     """Boucle d'annotation humaine jusqu'à épuisement des lignes ou arrêt manuel."""
     reoffer_index: int | None = None
     while True:
         selection = crf.next_block(preferred_index=reoffer_index)
         if selection is None:
-            console.print(
-                "\n[bold green]🎉 Annotation terminée pour tout le document ![/bold green]"
-            )
+            console.print("\n[bold green]🎉 Annotation terminée pour tout le document ![/bold green]")
             return
         target_idx, block_indices = selection
 
         display_dashboard(crf, target_idx, block_indices)
         if len(block_indices) == 1:
-            console.print(
-                "\n[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]"
-            )
+            console.print("\n[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]")
 
         outcome = _collect_block_labels(crf, block_indices)
 
@@ -355,36 +320,24 @@ def annotate_interactively(
             skipped = crf.mark_page_out_of_scope(page_pos)
             if skipped:
                 save_session(session_path, document_hash, crf)
-                console.print(
-                    f"[green]{len(skipped)} ligne(s) de la page {page_index} "
-                    "marquée(s) OUT OF SCOPE.[/green]"
-                )
+                console.print(f"[green]{len(skipped)} ligne(s) de la page {page_index} " "marquée(s) OUT OF SCOPE.[/green]")
             else:
-                console.print(
-                    "[yellow]Aucune ligne non annotée restante sur cette page.[/yellow]"
-                )
+                console.print("[yellow]Aucune ligne non annotée restante sur cette page.[/yellow]")
             reoffer_index = None
             continue
         if outcome is _Control.UNDO:
             reoffer_index = crf.undo_last_label()
             if reoffer_index is None:
-                console.print(
-                    "[yellow]Aucune classification humaine à annuler.[/yellow]"
-                )
+                console.print("[yellow]Aucune classification humaine à annuler.[/yellow]")
             else:
                 save_session(session_path, document_hash, crf)
-                console.print(
-                    "[green]Dernière classification annulée ; "
-                    "la ligne va être reproposée.[/green]"
-                )
+                console.print("[green]Dernière classification annulée ; " "la ligne va être reproposée.[/green]")
             continue
 
         reoffer_index = None
         crf.set_labels(outcome)
         for index in sorted(outcome):
-            console.print(
-                f"[dim]✓ Ligne {crf.source_row_numbers[index]} → {outcome[index]}[/dim]"
-            )
+            console.print(f"[dim]✓ Ligne {crf.source_row_numbers[index]} → {outcome[index]}[/dim]")
         save_session(session_path, document_hash, crf)
 
 

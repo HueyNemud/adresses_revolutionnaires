@@ -174,9 +174,7 @@ class Statistics:
             raise ValueError(f"{evaluated.name} : lignes évaluées différentes de la référence.")
         key = id(evaluated)
         if key not in self._samples:
-            self._samples[key] = self.metrics(
-                resample(evaluated.cm_pages, self.weights), resample(evaluated.entity_pages, self.weights)
-            )
+            self._samples[key] = self.metrics(resample(evaluated.cm_pages, self.weights), resample(evaluated.entity_pages, self.weights))
         return self._samples[key]
 
     def with_ci(self, evaluated: Evaluated) -> dict[str, Delta]:
@@ -230,8 +228,7 @@ def build_experiments(args: argparse.Namespace) -> dict[str, list[Experiment]]:
         families["single"] = [Experiment(f"seul:{g}", ("bias", g), description=f"bias + {g}") for g in ablatable]
     if args.candidates:
         families["candidates"] = [
-            Experiment(f"+{g}", PRODUCTION_GROUPS + (g,), description=f"Production + {g}")
-            for g in CANDIDATE_GROUPS
+            Experiment(f"+{g}", PRODUCTION_GROUPS + (g,), description=f"Production + {g}") for g in CANDIDATE_GROUPS
         ] + [Experiment("+tous_candidats", PRODUCTION_GROUPS + CANDIDATE_GROUPS, description="Production + tous les candidats")]
     configs = [TrainingConfig(max_iterations=200), TrainingConfig(max_iterations=500)]
     if args.hyperparams:
@@ -447,11 +444,52 @@ def corpus_section(report: Report, documents: Sequence[SilverDocument], out: Pat
         total.update(counts)
         s = d.stats
         n_pages = len(page_boundaries(d)) - 1
-        rows.append([d.name, n_pages, d.labeled_count, s.original_human_lines, s.label_changed_vs_original, s.text_edited, s.heading_marker_changed, s.unmatched_source_lines])
-        csv_rows.append([d.name, d.volume, n_pages, len(d), d.labeled_count, *[counts.get(c, 0) for c in CLASSES], s.original_human_lines, s.original_model_lines, s.label_changed_vs_original, s.text_edited, s.heading_marker_changed, s.unmatched_source_lines, s.added_lines])
+        rows.append(
+            [
+                d.name,
+                n_pages,
+                d.labeled_count,
+                s.original_human_lines,
+                s.label_changed_vs_original,
+                s.text_edited,
+                s.heading_marker_changed,
+                s.unmatched_source_lines,
+            ]
+        )
+        csv_rows.append(
+            [
+                d.name,
+                d.volume,
+                n_pages,
+                len(d),
+                d.labeled_count,
+                *[counts.get(c, 0) for c in CLASSES],
+                s.original_human_lines,
+                s.original_model_lines,
+                s.label_changed_vs_original,
+                s.text_edited,
+                s.heading_marker_changed,
+                s.unmatched_source_lines,
+                s.added_lines,
+            ]
+        )
     write_table(
         out / "corpus.csv",
-        ["document", "volume", "pages", "lignes", "lignes_labellisees", *CLASSES, "labels_humains_origine", "labels_modele_origine", "classes_corrigees", "textes_corriges", "marqueurs_titre_modifies", "lignes_non_alignees", "lignes_ajoutees"],
+        [
+            "document",
+            "volume",
+            "pages",
+            "lignes",
+            "lignes_labellisees",
+            *CLASSES,
+            "labels_humains_origine",
+            "labels_modele_origine",
+            "classes_corrigees",
+            "textes_corriges",
+            "marqueurs_titre_modifies",
+            "lignes_non_alignees",
+            "lignes_ajoutees",
+        ],
         csv_rows,
     )
     labeled = sum(total.values())
@@ -463,7 +501,19 @@ def corpus_section(report: Report, documents: Sequence[SilverDocument], out: Pat
         f"{len(documents)} documents ({len({d.volume for d in documents})} volumes), {labeled} lignes non vides labellisées. "
         "Les observations (texte, bloc OCR, page) sont relues dans le JSON `*.lines.json` vu par "
         "l'annotateur ; la vérité vient de la colonne `classe` du CSV corrigé, rattachée par la clé de ligne `cle`.",
-        md_table(["Document", "Pages", "Lignes lab.", "Labels humains (orig.)", "Classes corrigées", "Textes corrigés", "dont marqueur « # »", "Non alignées"], rows),
+        md_table(
+            [
+                "Document",
+                "Pages",
+                "Lignes lab.",
+                "Labels humains (orig.)",
+                "Classes corrigées",
+                "Textes corrigés",
+                "dont marqueur « # »",
+                "Non alignées",
+            ],
+            rows,
+        ),
         md_table(["Classe", "Lignes", "Part"], [[c, total[c], f"{total[c] / labeled:.2%}"] for c in CLASSES if total[c]]),
         "**Nature du silver dataset — à garder en tête pour lire tout le rapport.** "
         f"Sur {model_lines} lignes dont la classe d'origine venait du modèle (et {human} d'un humain), "
@@ -477,7 +527,11 @@ def corpus_section(report: Report, documents: Sequence[SilverDocument], out: Pat
         "produits par l'OCR, est imparfaite. Le modèle évalué ne voit pas ces corrections : il voit le texte "
         "OCR brut, comme en production.",
     )
-    return {"lignes_labellisees": labeled, "classes_corrigees": changed, "repartition": {c: total[c] / labeled for c in CLASSES if total[c]}}
+    return {
+        "lignes_labellisees": labeled,
+        "classes_corrigees": changed,
+        "repartition": {c: total[c] / labeled for c in CLASSES if total[c]},
+    }
 
 
 def performance_section(report: Report, ctx: Context) -> dict:
@@ -497,8 +551,20 @@ def performance_section(report: Report, ctx: Context) -> dict:
         rows = []
         for name in ("majoritaire", "heuristique", "production_v1", "production"):
             m = st.with_ci(ctx.ev(name, protocol))
-            rows.append([name, fmt(m["accuracy"][0]), fmt_ci(*m["macro_f1"]), fmt_ci(*m["macro_f1_freq"]), fmt_ci(*m["entry_f1"]), fmt_ci(*m["title_f1"])])
-        report.add(f"### 2.{ctx.protocols.index(protocol) + 1} {PROTOCOL_LABELS[protocol]}", md_table(["Système", "Exactitude", "macro-F1", "macro-F1 fréq.", "F1 ENTRY (entités)", "F1 TITLE (entités)"], rows))
+            rows.append(
+                [
+                    name,
+                    fmt(m["accuracy"][0]),
+                    fmt_ci(*m["macro_f1"]),
+                    fmt_ci(*m["macro_f1_freq"]),
+                    fmt_ci(*m["entry_f1"]),
+                    fmt_ci(*m["title_f1"]),
+                ]
+            )
+        report.add(
+            f"### 2.{ctx.protocols.index(protocol) + 1} {PROTOCOL_LABELS[protocol]}",
+            md_table(["Système", "Exactitude", "macro-F1", "macro-F1 fréq.", "F1 ENTRY (entités)", "F1 TITLE (entités)"], rows),
+        )
 
         production = ctx.ev("production", protocol)
         precision, recall, f1, support = prf(production.confusion)
@@ -513,7 +579,10 @@ def performance_section(report: Report, ctx: Context) -> dict:
             "Par classe (production) :",
             md_table(["Classe", "Support", "Précision", "Rappel", "F1 [IC 95 %]"], class_rows),
             "Matrice de confusion (lignes = vérité, colonnes = prédiction) :",
-            md_table(["vérité \\ prédit", *[CLASSES[p] for p in present]], [[CLASSES[g], *[int(production.confusion[g, p]) for p in present]] for g in present]),
+            md_table(
+                ["vérité \\ prédit", *[CLASSES[p] for p in present]],
+                [[CLASSES[g], *[int(production.confusion[g, p]) for p in present]] for g in present],
+            ),
         )
         detail_rows = []
         scored = production.scored
@@ -525,11 +594,25 @@ def performance_section(report: Report, ctx: Context) -> dict:
             np.add.at(cm, (scored.gold[mask], scored.pred[mask]), 1)
             pages = np.unique(scored.page_code[mask])
             ent = production.entity_pages[pages].sum(axis=0)
-            detail_rows.append([document.name, int(mask.sum()), int((scored.gold[mask] != scored.pred[mask]).sum()), fmt(float(accuracy(cm))), fmt(float(macro_f1(cm, cm.sum(1) > 0))), fmt(float(entity_f1(ent)[2][0]))])
-        report.add("Par document (macro-F1 sur les classes présentes dans le document) :", md_table(["Document", "Lignes", "Erreurs", "Exactitude", "macro-F1", "F1 ENTRY"], detail_rows))
+            detail_rows.append(
+                [
+                    document.name,
+                    int(mask.sum()),
+                    int((scored.gold[mask] != scored.pred[mask]).sum()),
+                    fmt(float(accuracy(cm))),
+                    fmt(float(macro_f1(cm, cm.sum(1) > 0))),
+                    fmt(float(entity_f1(ent)[2][0])),
+                ]
+            )
+        report.add(
+            "Par document (macro-F1 sur les classes présentes dans le document) :",
+            md_table(["Document", "Lignes", "Erreurs", "Exactitude", "macro-F1", "F1 ENTRY"], detail_rows),
+        )
         summary[protocol] = {key: {"valeur": value, "ic95": list(ci)} for key, (value, ci) in st.with_ci(production).items()}
         summary[protocol]["f1_par_classe"] = {CLASSES[k]: float(f1[k]) for k in range(N_CLASSES) if support[k]}
-    write_table(ctx.out / "classes.csv", ["protocole", "classe", "support", "precision", "rappel", "f1", "f1_ic_bas", "f1_ic_haut"], csv_rows)
+    write_table(
+        ctx.out / "classes.csv", ["protocole", "classe", "support", "precision", "rappel", "f1", "f1_ic_bas", "f1_ic_haut"], csv_rows
+    )
     return summary
 
 
@@ -551,25 +634,63 @@ def calibration_section(report: Report, ctx: Context) -> dict:
         auc_conf = roc_auc(1 - scored.confidence, errors)
         auc_margin = roc_auc(-scored.margin, errors)
         capture = review_capture(-scored.margin, errors, (0.005, 0.01, 0.02, 0.05, 0.10))
-        summary[protocol] = {"ece": ece, "auroc_confiance": auc_conf, "auroc_marge": auc_margin, "capture": {f"{b:.1%}": c for b, _, c in capture}}
+        summary[protocol] = {
+            "ece": ece,
+            "auroc_confiance": auc_conf,
+            "auroc_marge": auc_margin,
+            "capture": {f"{b:.1%}": c for b, _, c in capture},
+        }
         table = calibration_table(scored.confidence, correct)
         csv_rows += [[protocol, *row] for row in table]
         report.add(
             f"### 3.{ctx.protocols.index(protocol) + 1} {PROTOCOL_LABELS[protocol]}",
             f"ECE = **{fmt(ece, 4)}** · AUROC détection d'erreurs : confiance **{fmt(auc_conf)}**, marge **{fmt(auc_margin)}** · "
             f"{int(errors.sum())} erreurs sur {len(scored)} lignes.",
-            md_table(["Confiance", "Lignes", "Confiance moy.", "Exactitude", "Écart"], [[f"{low:.1f}–{high:.1f}", n, fmt(conf), fmt(acc), f"{acc - conf:+.3f}"] for low, high, n, conf, acc in table]),
-            md_table(["Lignes relues (les plus incertaines)", "Nombre", "Part des erreurs trouvées"], [[f"{b:.1%}", n, f"{c:.1%}" if not math.isnan(c) else "–"] for b, n, c in capture]),
+            md_table(
+                ["Confiance", "Lignes", "Confiance moy.", "Exactitude", "Écart"],
+                [[f"{low:.1f}–{high:.1f}", n, fmt(conf), fmt(acc), f"{acc - conf:+.3f}"] for low, high, n, conf, acc in table],
+            ),
+            md_table(
+                ["Lignes relues (les plus incertaines)", "Nombre", "Part des erreurs trouvées"],
+                [[f"{b:.1%}", n, f"{c:.1%}" if not math.isnan(c) else "–"] for b, n, c in capture],
+            ),
         )
-    write_table(ctx.out / "calibration.csv", ["protocole", "borne_basse", "borne_haute", "lignes", "confiance_moyenne", "exactitude"], csv_rows)
+    write_table(
+        ctx.out / "calibration.csv", ["protocole", "borne_basse", "borne_haute", "lignes", "confiance_moyenne", "exactitude"], csv_rows
+    )
     return summary
 
 
 def inventory_section(report: Report, table: FeatureTable, stats: list[dict], redundancy: list, out: Path) -> dict:
     write_table(
         out / "features_statistiques.csv",
-        ["cle", "groupe", "production", "couverture", "n_valeurs", "valeur_dominante", "part_dominante", "mi_bits", "mi_corrigee_bits", "nmi"],
-        [[s["key"], s["group"], s["production"], s["coverage"], s["n_values"], s["top_value"], s["top_share"], s["mi_bits"], s["mi_corrected"], s["nmi"]] for s in stats],
+        [
+            "cle",
+            "groupe",
+            "production",
+            "couverture",
+            "n_valeurs",
+            "valeur_dominante",
+            "part_dominante",
+            "mi_bits",
+            "mi_corrigee_bits",
+            "nmi",
+        ],
+        [
+            [
+                s["key"],
+                s["group"],
+                s["production"],
+                s["coverage"],
+                s["n_values"],
+                s["top_value"],
+                s["top_share"],
+                s["mi_bits"],
+                s["mi_corrected"],
+                s["nmi"],
+            ]
+            for s in stats
+        ],
     )
     dead = [s["key"] for s in stats if s["production"] and s["group"] != "bias" and s["n_values"] <= 1]
     rows = []
@@ -620,9 +741,15 @@ def inventory_section(report: Report, table: FeatureTable, stats: list[dict], re
         "### 4.2 Redondance entre attributs",
         "Incertitude symétrique U(X,Y) = 2·I(X;Y)/(H(X)+H(Y)) ∈ [0, 1] (1 = l'un détermine l'autre). Des "
         "attributs très redondants se partagent le poids dans le CRF et rendent l'ablation de chacun peu parlante.",
-        md_table(["Attribut A", "Attribut B", "U"], [[f"`{a}` ({table.key_group[a]})", f"`{b}` ({table.key_group[b]})", fmt(u)] for a, b, u in redundancy[:30]], "llr")
-        if redundancy
-        else "Aucune paire au-dessus du seuil.",
+        (
+            md_table(
+                ["Attribut A", "Attribut B", "U"],
+                [[f"`{a}` ({table.key_group[a]})", f"`{b}` ({table.key_group[b]})", fmt(u)] for a, b, u in redundancy[:30]],
+                "llr",
+            )
+            if redundancy
+            else "Aucune paire au-dessus du seuil."
+        ),
     )
     return {"attributs_constants": dead}
 
@@ -647,7 +774,13 @@ def evolution_section(report: Report, ctx: Context) -> dict:
             for m in ("macro_f1_freq", "macro_f1", "entry_f1", "title_f1")
         ]
         rows += [
-            [f"F1 {CLASSES[k]}", fmt(p1[f"f1_{CLASSES[k]}"]), fmt(p2[f"f1_{CLASSES[k]}"]), fmt_delta(*delta[f"f1_{CLASSES[k]}"]), verdict(delta[f"f1_{CLASSES[k]}"], ctx.floors[protocol][f"f1_{CLASSES[k]}"])]
+            [
+                f"F1 {CLASSES[k]}",
+                fmt(p1[f"f1_{CLASSES[k]}"]),
+                fmt(p2[f"f1_{CLASSES[k]}"]),
+                fmt_delta(*delta[f"f1_{CLASSES[k]}"]),
+                verdict(delta[f"f1_{CLASSES[k]}"], ctx.floors[protocol][f"f1_{CLASSES[k]}"]),
+            ]
             for k in range(N_CLASSES)
             if st.classes_mask[k]
         ]
@@ -704,7 +837,16 @@ def placebo_section(report: Report, ctx: Context, placebos: Sequence[Experiment]
             f1_ref = prf(ctx.ev("production", protocol).confusion)[2]
             diffs = [(f1_exp[k] - f1_ref[k], CLASSES[k]) for k in range(N_CLASSES) if ctx.stats[protocol].classes_mask[k]]
             biggest = max(diffs, key=lambda d: abs(d[0]))
-            rows.append([SHORT[protocol], f"`{experiment.name}`", fmt_delta(*delta["macro_f1_freq"]), fmt_delta(*delta["macro_f1"]), fmt_delta(*delta["entry_f1"]), f"{biggest[1]} {biggest[0]:+.3f}"])
+            rows.append(
+                [
+                    SHORT[protocol],
+                    f"`{experiment.name}`",
+                    fmt_delta(*delta["macro_f1_freq"]),
+                    fmt_delta(*delta["macro_f1"]),
+                    fmt_delta(*delta["entry_f1"]),
+                    f"{biggest[1]} {biggest[0]:+.3f}",
+                ]
+            )
     floors = [[SHORT[p], *[fmt(ctx.floors[p][m]) for m in ("macro_f1_freq", "macro_f1", "entry_f1")]] for p in ctx.protocols]
     report.add(
         "### 4.3 Témoins (placebos) et plancher de bruit",
@@ -719,7 +861,9 @@ def placebo_section(report: Report, ctx: Context, placebos: Sequence[Experiment]
     )
 
 
-def comparison_section(report: Report, ctx: Context, title: str, intro: str, experiments: Sequence[Experiment], reference: str = "production") -> tuple[list, dict]:
+def comparison_section(
+    report: Report, ctx: Context, title: str, intro: str, experiments: Sequence[Experiment], reference: str = "production"
+) -> tuple[list, dict]:
     report.add(title, intro)
     csv_rows, verdicts = [], {}
     for protocol in ctx.protocols:
@@ -747,10 +891,31 @@ def comparison_section(report: Report, ctx: Context, title: str, intro: str, exp
                     f"**{v}**" if v != "neutre" else v,
                 ]
             )
-            csv_rows.append([experiment.name, protocol, *[point[m] for m in METRIC_LABELS], *[x for m in METRIC_LABELS for x in (delta[m][0], *delta[m][1])], v, *[f1_exp[k] - f1_ref[k] for k in range(N_CLASSES)]])
+            csv_rows.append(
+                [
+                    experiment.name,
+                    protocol,
+                    *[point[m] for m in METRIC_LABELS],
+                    *[x for m in METRIC_LABELS for x in (delta[m][0], *delta[m][1])],
+                    v,
+                    *[f1_exp[k] - f1_ref[k] for k in range(N_CLASSES)],
+                ]
+            )
         report.add(
             f"**{PROTOCOL_LABELS[protocol]}**",
-            md_table(["Configuration", "macro-F1 fréq.", "Δ macro-F1 fréq. [IC 95 %]", "Δ macro-F1", "Δ F1 ENTRY [IC 95 %]", "Δ F1 TITLE", "Classe la plus affectée (Δ F1)", "Verdict"], rows),
+            md_table(
+                [
+                    "Configuration",
+                    "macro-F1 fréq.",
+                    "Δ macro-F1 fréq. [IC 95 %]",
+                    "Δ macro-F1",
+                    "Δ F1 ENTRY [IC 95 %]",
+                    "Δ F1 TITLE",
+                    "Classe la plus affectée (Δ F1)",
+                    "Verdict",
+                ],
+                rows,
+            ),
         )
     return csv_rows, verdicts
 
@@ -810,9 +975,11 @@ def weights_section(report: Report, state: dict, transitions: dict, group_mass: 
     total = sum(group_mass.values()) or 1
     rows = []
     for label in CLASSES:
-        items = sorted(((w, a) for (a, l), w in state.items() if l == label), reverse=True)
+        items = sorted(((w, a) for (a, name), w in state.items() if name == label), reverse=True)
         if items:
-            rows.append([label, ", ".join(f"`{a}` {w:+.2f}" for w, a in items[:6]), ", ".join(f"`{a}` {w:+.2f}" for w, a in items[-3:][::-1])])
+            rows.append(
+                [label, ", ".join(f"`{a}` {w:+.2f}" for w, a in items[:6]), ", ".join(f"`{a}` {w:+.2f}" for w, a in items[-3:][::-1])]
+            )
     labels = [c for c in CLASSES if any(c in pair for pair in transitions)]
     report.add(
         "### 4.7 Poids appris par le modèle de production (entraîné sur tout le corpus)",
@@ -824,7 +991,11 @@ def weights_section(report: Report, state: dict, transitions: dict, group_mass: 
         "Transitions apprises (ligne = classe précédente, colonne = suivante ; positif = favorisée) :",
         md_table(["de \\ vers", *labels], [[a, *[fmt(transitions.get((a, b), 0.0), 2) for b in labels]] for a in labels]),
     )
-    write_table(out / "poids_modele.csv", ["attribut", "classe", "poids"], [[a, l, w] for (a, l), w in sorted(state.items(), key=lambda x: -abs(x[1]))])
+    write_table(
+        out / "poids_modele.csv",
+        ["attribut", "classe", "poids"],
+        [[a, name, w] for (a, name), w in sorted(state.items(), key=lambda x: -abs(x[1]))],
+    )
 
 
 def learning_curve(
@@ -849,7 +1020,15 @@ def learning_curve(
         _, budget, seed = protocol.split("-")
         ev = evaluate(pred, documents)
         cm = ev.confusion
-        rows.append((name, int(budget), int(seed), float(macro_f1(cm, cm.sum(1) >= FREQUENT_CLASS_MIN_SUPPORT)), float(entity_f1(ev.entity_counts)[2][0])))
+        rows.append(
+            (
+                name,
+                int(budget),
+                int(seed),
+                float(macro_f1(cm, cm.sum(1) >= FREQUENT_CLASS_MIN_SUPPORT)),
+                float(entity_f1(ev.entity_counts)[2][0]),
+            )
+        )
     return rows
 
 
@@ -867,8 +1046,25 @@ def error_analysis_section(report: Report, ctx: Context, protocol: str, examples
         record = document.records[line]
         prev_text = document.records[line - 1].text if line > 0 else ""
         next_text = document.records[line + 1].text if line + 1 < len(document) else ""
-        csv_rows.append([document.name, record.uid, record.page_index, record.data_block_label, CLASSES[scored.gold[i]], CLASSES[scored.pred[i]], round(float(scored.confidence[i]), 4), prev_text, record.text, next_text])
-    write_table(ctx.out / file_name, ["document", "uid", "page", "bloc_ocr", "verite", "prediction", "confiance", "ligne_precedente", "ligne", "ligne_suivante"], csv_rows)
+        csv_rows.append(
+            [
+                document.name,
+                record.uid,
+                record.page_index,
+                record.data_block_label,
+                CLASSES[scored.gold[i]],
+                CLASSES[scored.pred[i]],
+                round(float(scored.confidence[i]), 4),
+                prev_text,
+                record.text,
+                next_text,
+            ]
+        )
+    write_table(
+        ctx.out / file_name,
+        ["document", "uid", "page", "bloc_ocr", "verite", "prediction", "confiance", "ligne_precedente", "ligne", "ligne_suivante"],
+        csv_rows,
+    )
 
     pairs = Counter((CLASSES[scored.gold[i]], CLASSES[scored.pred[i]]) for i in errors)
     by_doc = Counter(documents[scored.doc_index[i]].name for i in errors)
@@ -888,15 +1084,37 @@ def error_analysis_section(report: Report, ctx: Context, protocol: str, examples
             record = document.records[line]
             prev_text = document.records[line - 1].text if line > 0 else ""
             next_text = document.records[line + 1].text if line + 1 < len(document) else ""
-            rows.append([f"{document.volume} p.{record.page_index} {record.data_block_label}", md_code(prev_text, 50), f"**{md_code(record.text, 70)}**", md_code(next_text, 50), fmt(float(scored.confidence[i]), 2)])
-        report.add(f"**{gold} → {pred}** : {count} erreurs ({count / max(len(errors), 1):.1%})", md_table(["Volume, page, bloc", "Précédente", "Ligne", "Suivante", "Conf."], rows, "lllll"))
+            rows.append(
+                [
+                    f"{document.volume} p.{record.page_index} {record.data_block_label}",
+                    md_code(prev_text, 50),
+                    f"**{md_code(record.text, 70)}**",
+                    md_code(next_text, 50),
+                    fmt(float(scored.confidence[i]), 2),
+                ]
+            )
+        report.add(
+            f"**{gold} → {pred}** : {count} erreurs ({count / max(len(errors), 1):.1%})",
+            md_table(["Volume, page, bloc", "Précédente", "Ligne", "Suivante", "Conf."], rows, "lllll"),
+        )
     return {f"{g} → {p}": c for (g, p), c in pairs.most_common(10)}
 
 
 def strata_section(report: Report, ctx: Context, protocol: str) -> None:
     """Taux d'erreur par strate d'observation : où le modèle manque d'information."""
     scored = ctx.ev("production", protocol).scored
-    keys = ("ocr_data_block_label", "is_page_start", "is_heading", "first_in_block", "follows_blank", "prev_end", "end_start", "italic", "uppercase", "first_is_small_word")
+    keys = (
+        "ocr_data_block_label",
+        "is_page_start",
+        "is_heading",
+        "first_in_block",
+        "follows_blank",
+        "prev_end",
+        "end_start",
+        "italic",
+        "uppercase",
+        "first_is_small_word",
+    )
     groups = PRODUCTION_GROUPS + CANDIDATE_GROUPS
     per_doc = {d: extract_features_from_context(doc.context, groups) for d, doc in enumerate(ctx.documents)}
     total_errors = int((~scored.correct).sum())
@@ -918,9 +1136,12 @@ def strata_section(report: Report, ctx: Context, protocol: str) -> None:
     )
 
 
-def select_groups(ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, dead_groups: Sequence[str]) -> tuple[tuple[str, ...], list[str]]:
+def select_groups(
+    ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, dead_groups: Sequence[str]
+) -> tuple[tuple[str, ...], list[str]]:
     """Construit une sélection de features à partir des verdicts :
     retire les groupes constants ou nuisibles, ajoute les candidats utiles."""
+
     def improves(v: dict) -> bool:
         return "améliore" in v.values() and "dégrade" not in v.values()
 
@@ -947,15 +1168,21 @@ def select_groups(ctx: Context, ablation_verdicts: dict, candidate_verdicts: dic
 # ----------------------------------------------------------------------
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("csv_files", nargs="*", type=Path, help="CSV curés (défaut : tous les *.lines.csv sous --root).")
-    parser.add_argument("--root", type=Path, default=ANNUAIRES_DIR, help="Dossier où chercher les tables de lignes curées (défaut : annuaires).")
+    parser.add_argument(
+        "--root", type=Path, default=ANNUAIRES_DIR, help="Dossier où chercher les tables de lignes curées (défaut : annuaires)."
+    )
     parser.add_argument("-o", "--output", type=Path, default=REPORTS_DIR / "crf", help="Dossier du rapport (défaut : reports/crf).")
     parser.add_argument("--folds", type=int, default=5, help="Plis de pages contiguës par document (défaut : 5).")
     parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
     parser.add_argument("--workers", type=int, default=12, help="Processus parallèles (défaut : 12).")
     parser.add_argument("--seed", type=int, default=0, help="Graine des plis et du bootstrap (défaut : 0).")
     parser.add_argument("--no-single-groups", dest="single_groups", action="store_false", help="Ne pas évaluer chaque groupe seul.")
-    parser.add_argument("--no-candidates", dest="candidates", action="store_false", help="Ne pas évaluer les groupes candidats ni la sélection.")
-    parser.add_argument("--no-learning-curve", dest="learning_curve", action="store_false", help="Ne pas calculer la courbe d'apprentissage.")
+    parser.add_argument(
+        "--no-candidates", dest="candidates", action="store_false", help="Ne pas évaluer les groupes candidats ni la sélection."
+    )
+    parser.add_argument(
+        "--no-learning-curve", dest="learning_curve", action="store_false", help="Ne pas calculer la courbe d'apprentissage."
+    )
     parser.add_argument("--learning-curve-seeds", type=int, default=3, help="Tirages par budget de la courbe d'apprentissage (défaut : 3).")
     parser.add_argument("--hyperparams", action="store_true", help="Ajouter une grille c1 × c2 (plus long).")
     parser.add_argument("--no-cache", action="store_true", help="Ne pas réutiliser ni écrire le cache des prédictions (<sortie>/cache).")
@@ -1062,7 +1289,9 @@ def run(args: argparse.Namespace) -> None:
             families["candidates"],
         )
         all_comparisons += rows
-        summary["candidats_titres"] = title_candidates_section(report, ctx, [e for e in families["candidates"] if e.name.lstrip("+") in TITLE_CANDIDATES])
+        summary["candidats_titres"] = title_candidates_section(
+            report, ctx, [e for e in families["candidates"] if e.name.lstrip("+") in TITLE_CANDIDATES]
+        )
         selected_groups, selection_reasons = select_groups(ctx, ablation_verdicts, candidate_verdicts, dead_groups)
         if selected_groups != PRODUCTION_GROUPS:
             selection = Experiment("sélection", selected_groups, description="Sélection issue des verdicts")
@@ -1094,7 +1323,15 @@ def run(args: argparse.Namespace) -> None:
             lc_experiments.append(selection)
         if "candidates" in families:
             lc_experiments.append(families["candidates"][-1])
-        lc_rows = learning_curve(documents, [s for s in splits if s.protocol == INTRA], budgets, args.learning_curve_seeds, lc_experiments, args.workers, cache_dir)
+        lc_rows = learning_curve(
+            documents,
+            [s for s in splits if s.protocol == INTRA],
+            budgets,
+            args.learning_curve_seeds,
+            lc_experiments,
+            args.workers,
+            cache_dir,
+        )
         write_table(out / "courbe_apprentissage.csv", ["experience", "pages", "tirage", "macro_f1_freq", "f1_entry"], lc_rows)
         aggregated = defaultdict(list)
         for name, budget, _, mf1, ef1 in lc_rows:
@@ -1139,7 +1376,9 @@ def run(args: argparse.Namespace) -> None:
     # 7. Analyse d'erreurs
     report.add("## 7. Analyse d'erreurs")
     for number, protocol in enumerate(protocols, start=1):
-        summary[f"erreurs_{SHORT[protocol]}"] = error_analysis_section(report, ctx, protocol, args.examples, f"7.{number} {PROTOCOL_LABELS[protocol]}", f"erreurs_{SHORT[protocol]}.csv")
+        summary[f"erreurs_{SHORT[protocol]}"] = error_analysis_section(
+            report, ctx, protocol, args.examples, f"7.{number} {PROTOCOL_LABELS[protocol]}", f"erreurs_{SHORT[protocol]}.csv"
+        )
     strata_section(report, ctx, INTRA)
 
     # 8. Méthodologie
@@ -1179,12 +1418,14 @@ def run(args: argparse.Namespace) -> None:
     report.replace("<!-- RÉSUMÉ -->", "## Résumé\n\n" + "\n".join(executive_summary(summary, ctx, ablation_verdicts, candidate_verdicts)))
     report.replace(
         "<!-- RECOMMANDATIONS -->",
-        "## Recommandations\n\n"
-        + "\n".join(recommendations(summary, ctx, ablation_verdicts, candidate_verdicts, dead_groups, best_rules)),
+        "## Recommandations\n\n" + "\n".join(recommendations(summary, ctx, ablation_verdicts, candidate_verdicts, dead_groups, best_rules)),
     )
     (out / "rapport.md").write_text(report.render(), encoding="utf-8")
     (out / "resume.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2, default=float), encoding="utf-8")
-    console.print(f"\n[bold green]✅ Rapport :[/bold green] [yellow]{out / 'rapport.md'}[/yellow] ({time.time() - started:.0f} s ; tables CSV dans {out})")
+    console.print(
+        f"\n[bold green]✅ Rapport :[/bold green] [yellow]{out / 'rapport.md'}[/yellow] "
+        f"({time.time() - started:.0f} s ; tables CSV dans {out})"
+    )
 
 
 def executive_summary(summary: dict, ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict) -> list[str]:
@@ -1214,7 +1455,8 @@ def executive_summary(summary: dict, ctx: Context, ablation_verdicts: dict, cand
             by_verdict[v[protocol]].append(name.lstrip("−"))
         lines.append(
             f"- Ablations ({SHORT[protocol]}, plancher de bruit {ctx.floors[protocol][VERDICT_METRIC]:.3f}) — groupes **utiles** : "
-            f"{names(by_verdict['dégrade'])} ; **sans effet mesurable** : {names(by_verdict['neutre'])} ; **nuisibles** : {names(by_verdict['améliore'])}."
+            f"{names(by_verdict['dégrade'])} ; **sans effet mesurable** : {names(by_verdict['neutre'])} ; "
+            f"**nuisibles** : {names(by_verdict['améliore'])}."
         )
     if summary["features"]["attributs_constants"]:
         lines.append(f"- Attributs de production **constants** (aucune information) : {names(summary['features']['attributs_constants'])}.")
@@ -1228,12 +1470,16 @@ def executive_summary(summary: dict, ctx: Context, ablation_verdicts: dict, cand
         deltas = []
         for protocol in ctx.protocols:
             d = ctx.delta("sélection", protocol)
-            deltas.append(f"{SHORT[protocol]} Δ macro-F1 fréq. {fmt_delta(*d['macro_f1_freq'])}, Δ F1 ENTRY {d['entry_f1'][0]:+.3f} ({verdicts[protocol]})")
+            deltas.append(
+                f"{SHORT[protocol]} Δ macro-F1 fréq. {fmt_delta(*d['macro_f1_freq'])}, "
+                f"Δ F1 ENTRY {d['entry_f1'][0]:+.3f} ({verdicts[protocol]})"
+            )
         lines.append("- **Sélection proposée** : " + "; ".join(deltas) + " (estimation optimiste, voir 5.3).")
     for protocol in ctx.protocols:
         c = summary["calibration"][protocol]
         lines.append(
-            f"- Probabilités ({SHORT[protocol]}) : ECE {fmt(c['ece'], 4)}, AUROC de détection d'erreurs par la marge {fmt(c['auroc_marge'])} ; "
+            f"- Probabilités ({SHORT[protocol]}) : ECE {fmt(c['ece'], 4)}, "
+            f"AUROC de détection d'erreurs par la marge {fmt(c['auroc_marge'])} ; "
             f"relire les 5 % de lignes les plus incertaines retrouve {c['capture']['5.0%']:.0%} des erreurs."
         )
     lines.append(
@@ -1243,7 +1489,9 @@ def executive_summary(summary: dict, ctx: Context, ablation_verdicts: dict, cand
     return lines
 
 
-def recommendations(summary: dict, ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, dead_groups: Sequence[str], best_rules: dict) -> list[str]:
+def recommendations(
+    summary: dict, ctx: Context, ablation_verdicts: dict, candidate_verdicts: dict, dead_groups: Sequence[str], best_rules: dict
+) -> list[str]:
     """Recommandations dérivées mécaniquement des résultats (à discuter)."""
     items = []
     if dead_groups:
@@ -1259,11 +1507,24 @@ def recommendations(summary: dict, ctx: Context, ablation_verdicts: dict, candid
         v = ablation_verdicts[f"−{group}"]
         where = ", ".join(SHORT[p] for p, x in v.items() if x == "améliore")
         also = " mais utile en " + ", ".join(SHORT[p] for p, x in v.items() if x == "dégrade") if "dégrade" in v.values() else ""
-        items.append(f"1. **Repenser `{group}`** : le retirer améliore les résultats ({where}){also} — il encode probablement une particularité de volume plutôt qu'une régularité générale.")
-    gains = [n.lstrip("+") for n, v in candidate_verdicts.items() if n != "+tous_candidats" and "améliore" in v.values() and "dégrade" not in v.values()]
+        items.append(
+            f"1. **Repenser `{group}`** : le retirer améliore les résultats ({where}){also} — il encode probablement "
+            "une particularité de volume plutôt qu'une régularité générale."
+        )
+    gains = [
+        n.lstrip("+")
+        for n, v in candidate_verdicts.items()
+        if n != "+tous_candidats" and "améliore" in v.values() and "dégrade" not in v.values()
+    ]
     if gains:
-        items.append(f"1. **Intégrer les candidats validés** : {names(gains)} (gain significatif et supérieur au plancher de bruit dans au moins un protocole, sans perte au-delà du bruit dans l'autre — voir le détail en 5.1, une perte inférieure au plancher reste possible).")
-    neutral_everywhere = [n.lstrip("−") for n, v in ablation_verdicts.items() if all(x == "neutre" for x in v.values()) and n.lstrip("−") not in dead_groups]
+        items.append(
+            f"1. **Intégrer les candidats validés** : {names(gains)} (gain significatif et supérieur au plancher de bruit "
+            "dans au moins un protocole, sans perte au-delà du bruit dans l'autre — voir le détail en 5.1, une perte "
+            "inférieure au plancher reste possible)."
+        )
+    neutral_everywhere = [
+        n.lstrip("−") for n, v in ablation_verdicts.items() if all(x == "neutre" for x in v.values()) and n.lstrip("−") not in dead_groups
+    ]
     if neutral_everywhere:
         items.append(
             f"1. Groupes **sans effet mesurable** en régime riche : {names(neutral_everywhere)}. Ne pas les retirer sur cette "

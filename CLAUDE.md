@@ -8,7 +8,7 @@ Pipeline turning scanned historical Paris directories (annuaires, early 1800s) i
 
 ## Commands
 
-Managed with `uv` (Python ≥ 3.12). The code is the installable package `src/numrev/` (hatchling); `uv sync` installs it with the single entry point `numrev`. Run everything from the repo root (data paths are relative). No pytest; `ruff` only checks imports (`[tool.ruff]` in `pyproject.toml`, `select = ["F", "I"]`).
+Managed with `uv` (Python ≥ 3.12). The code is the installable package `src/numrev/` (hatchling); `uv sync` installs it with the single entry point `numrev`. Run everything from the repo root (data paths are relative). No pytest. Formatter: **black** (line length 140, `[tool.black]`); linter: **ruff** with flake8's default rules (pycodestyle `E`/`W` + pyflakes `F`) plus import sorting (`I`); both are in the default `dev` dependency group. flake8 itself is deliberately not used: ruff implements the same rules (checked: identical findings), so it would only duplicate the config. Run black then ruff before committing code.
 
 ```bash
 uv sync                                                    # install deps + the `numrev` command into .venv
@@ -17,7 +17,8 @@ uv run numrev <command> --help                             # options of one comm
 uv run python -m unittest discover -s tests                # all tests (unittest, not pytest)
 uv run python -m unittest tests.test_tabulate              # one test module
 uv run python -m unittest tests.test_tabulate.<Class>.<test_name>   # one test
-uvx --offline ruff check src tests [--fix]                 # import order / unused imports
+uv run black src tests                                     # format (line length 140)
+uv run ruff check src tests [--fix]                        # lint: flake8 rules (E, W, F) + import order
 
 # Steps 1–5, per page range (D = annuaires/<volume>/<range>/<volume>.<range>)
 uv run numrev extract  $D.ocr.json --apply                 # 1 → $D.lines.json

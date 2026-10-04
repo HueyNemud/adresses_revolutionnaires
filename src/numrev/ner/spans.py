@@ -244,9 +244,7 @@ def char_span_to_word_span(tokens: Sequence[Token], start_char: int, end_char: i
     mots retenus sont ceux qui *chevauchent* l'empan, ce qui élargit à la
     frontière de mot la plus proche (limitation inhérente à la NER au niveau
     mot). None si l'empan ne chevauche aucun mot."""
-    overlapping = [
-        index for index, token in enumerate(tokens) if token.start_char < end_char and token.end_char > start_char
-    ]
+    overlapping = [index for index, token in enumerate(tokens) if token.start_char < end_char and token.end_char > start_char]
     if not overlapping:
         return None
     return overlapping[0], overlapping[-1]

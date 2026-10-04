@@ -74,8 +74,7 @@ from numrev.ner.spans import (
 from numrev.paths import MODELS_DIR, NER_DATA_DIR
 
 DESCRIPTION = (
-    "Entraîne un modèle GLiNER-bi sur des pré-annotations NER "
-    "SUBJ/DESC/ADDR (format Label Studio) et évalue sur un split 80/20."
+    "Entraîne un modèle GLiNER-bi sur des pré-annotations NER " "SUBJ/DESC/ADDR (format Label Studio) et évalue sur un split 80/20."
 )
 
 DEFAULT_MODEL = "knowledgator/gliner-bi-base-v2.0"
@@ -137,11 +136,7 @@ def _dedupe_and_prune_nested(ner: list[list]) -> list[list]:
     pruned = []
     for start, end, label in unique:
         contained_in_larger = any(
-            (start2, end2) != (start, end)
-            and label2 == label
-            and start2 <= start
-            and end2 >= end
-            for start2, end2, label2 in unique
+            (start2, end2) != (start, end) and label2 == label and start2 <= start and end2 >= end for start2, end2, label2 in unique
         )
         if not contained_in_larger:
             pruned.append([start, end, label])
@@ -289,9 +284,7 @@ class LabelScore:
         return 2 * p * r / (p + r) if (p + r) else 0.0
 
 
-def evaluate(
-    model, examples: list[ConvertedExample], gliner_labels: list[str], threshold: float
-) -> dict[str, LabelScore]:
+def evaluate(model, examples: list[ConvertedExample], gliner_labels: list[str], threshold: float) -> dict[str, LabelScore]:
     """Évalue le modèle sur `examples`. Correspondance exacte (empan en mots
     + label), comme l'évaluateur NER de référence de GLiNER (un empan n'est
     correct que si ses bornes ET son label correspondent exactement).
@@ -366,7 +359,7 @@ def format_report(
         "Correspondance label -> texte envoyé au modèle :",
     ]
     for short, text in label_text.items():
-        lines.append(f"  - {short} -> \"{text}\"")
+        lines.append(f'  - {short} -> "{text}"')
 
     lines += [
         "",
@@ -397,13 +390,11 @@ def format_report(
             continue
         display_name = reverse_label_text.get(gliner_label, gliner_label)
         lines.append(
-            f"{display_name:<30}{score.precision:>12.1%}{score.recall:>12.1%}"
-            f"{score.f1:>10.1%}{score.tp:>8}{score.fp:>8}{score.fn:>8}"
+            f"{display_name:<30}{score.precision:>12.1%}{score.recall:>12.1%}" f"{score.f1:>10.1%}{score.tp:>8}{score.fp:>8}{score.fn:>8}"
         )
     micro = scores["__micro__"]
     lines.append(
-        f"{'MICRO (global)':<30}{micro.precision:>12.1%}{micro.recall:>12.1%}"
-        f"{micro.f1:>10.1%}{micro.tp:>8}{micro.fp:>8}{micro.fn:>8}"
+        f"{'MICRO (global)':<30}{micro.precision:>12.1%}{micro.recall:>12.1%}" f"{micro.f1:>10.1%}{micro.tp:>8}{micro.fp:>8}{micro.fn:>8}"
     )
     lines.append("")
     lines.append(
@@ -553,10 +544,7 @@ def run(args: argparse.Namespace) -> None:
         f"{conversion_report.max_span_width_words} mots) ; {conversion_report.excluded_gold} exemple(s) du gold exclu(s)."
     )
     if conversion_report.skipped_examples:
-        console.print(
-            f"[yellow]{len(conversion_report.skipped_examples)} exemple(s) écarté(s) "
-            "— détail dans le rapport final.[/yellow]"
-        )
+        console.print(f"[yellow]{len(conversion_report.skipped_examples)} exemple(s) écarté(s) " "— détail dans le rapport final.[/yellow]")
 
     train_examples, test_examples = split_train_test(examples, args.test_ratio, args.seed)
     console.print(f"Split : [cyan]{len(train_examples)}[/cyan] entraînement / [cyan]{len(test_examples)}[/cyan] évaluation.")
@@ -593,8 +581,7 @@ def run(args: argparse.Namespace) -> None:
     steps_per_epoch = max(1, math.ceil(len(train_dataset) / args.batch_size))
     max_steps = max(1, round(steps_per_epoch * args.epochs))
     console.print(
-        f"Entraînement : {args.epochs} époque(s) ≈ {max_steps} steps "
-        f"({steps_per_epoch} steps/époque, batch={args.batch_size})..."
+        f"Entraînement : {args.epochs} époque(s) ≈ {max_steps} steps " f"({steps_per_epoch} steps/époque, batch={args.batch_size})..."
     )
 
     try:

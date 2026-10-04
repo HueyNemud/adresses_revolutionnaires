@@ -28,7 +28,9 @@ PIPELINE: dict[str, Command | dict[str, Command]] = {
     "assemble": Command("numrev.pipeline.assemble", "4 · entités et arbre des titres            → <doc>.entities.csv"),
     "tag": Command("numrev.pipeline.tag", "5 · empans SUBJ / DESC / ADDR (GLiNER)     → <doc>.ner.csv"),
     "align": {
-        "nw": Command("numrev.pipeline.align_nw", "6 · alignement ordonné (Needleman-Wunsch + pair-HMM) → annuaires/alignments/<paire>.nw.csv"),
+        "nw": Command(
+            "numrev.pipeline.align_nw", "6 · alignement ordonné (Needleman-Wunsch + pair-HMM) → annuaires/alignments/<paire>.nw.csv"
+        ),
         "dedupe": Command("numrev.pipeline.align_dedupe", "6 · alignement par Dedupe (+ patch) → annuaires/alignments/<paire>.csv"),
     },
     "join": Command("numrev.pipeline.join", "7 · jointure lisible de deux annuaires alignés → <alignement>.join.csv"),

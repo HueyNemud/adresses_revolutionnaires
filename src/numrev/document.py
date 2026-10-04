@@ -32,19 +32,13 @@ def iter_line_locations(document: list[Any]) -> Iterator[LineLocation]:
             raise ValueError("Chaque page doit être un objet JSON.")
         data_blocks = page.get("data_blocks")
         if not isinstance(data_blocks, list):
-            raise ValueError(
-                "Le JSON ne correspond pas à la sortie de numrev extract : "
-                "clé 'data_blocks' manquante ou invalide."
-            )
+            raise ValueError("Le JSON ne correspond pas à la sortie de numrev extract : " "clé 'data_blocks' manquante ou invalide.")
         for block_pos, block in enumerate(data_blocks):
             if not isinstance(block, dict):
                 raise ValueError("Chaque bloc de données doit être un objet JSON.")
             lines = block.get("lines")
             if not isinstance(lines, list):
-                raise ValueError(
-                    "Le JSON ne correspond pas à la sortie de numrev extract : "
-                    "clé 'lines' manquante ou invalide."
-                )
+                raise ValueError("Le JSON ne correspond pas à la sortie de numrev extract : " "clé 'lines' manquante ou invalide.")
             for line_pos, line in enumerate(lines):
                 if not isinstance(line, dict):
                     raise ValueError("Chaque ligne doit être un objet JSON.")

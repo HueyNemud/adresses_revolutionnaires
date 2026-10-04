@@ -62,20 +62,52 @@ class ActiveCRFTests(unittest.TestCase):
         self.document = make_document()
         self.records = [
             SourceLine(
-                "0.1.0", 1, "## AGENS D'AFFAIRES", "0", "0", "1", "0",
-                page_pos=0, block_pos=0, line_pos=0,
+                "0.1.0",
+                1,
+                "## AGENS D'AFFAIRES",
+                "0",
+                "0",
+                "1",
+                "0",
+                page_pos=0,
+                block_pos=0,
+                line_pos=0,
             ),
             SourceLine(
-                "0.2.5", 3, "Dupont, rue A, 1.", "0", "1", "2", "5",
-                page_pos=0, block_pos=1, line_pos=0,
+                "0.2.5",
+                3,
+                "Dupont, rue A, 1.",
+                "0",
+                "1",
+                "2",
+                "5",
+                page_pos=0,
+                block_pos=1,
+                line_pos=0,
             ),
             SourceLine(
-                "0.3.6", 5, "continuation de l'entrée", "0", "2", "3", "6",
-                page_pos=0, block_pos=2, line_pos=0,
+                "0.3.6",
+                5,
+                "continuation de l'entrée",
+                "0",
+                "2",
+                "3",
+                "6",
+                page_pos=0,
+                block_pos=2,
+                line_pos=0,
             ),
             SourceLine(
-                "1.1.0", 7, "{12}----------------", "1", "0", "1", "0",
-                page_pos=1, block_pos=0, line_pos=0,
+                "1.1.0",
+                7,
+                "{12}----------------",
+                "1",
+                "0",
+                "1",
+                "0",
+                page_pos=1,
+                block_pos=0,
+                line_pos=0,
             ),
         ]
 
@@ -104,25 +136,26 @@ class ActiveCRFTests(unittest.TestCase):
 
         self.assertEqual(len(document_hash), 64)
         self.assertEqual(raw_document, document)
+        self.assertEqual(ActiveCRF(records).features[0]["ocr_data_block_label"], "text")
         self.assertEqual(
-            ActiveCRF(records).features[0]["ocr_data_block_label"], "text"
+            records,
+            [
+                SourceLine(
+                    uid="0.2.5",
+                    source_row=1,
+                    text="Dupont, rue A.",
+                    page_index="0",
+                    chunk_index="1",
+                    data_block_index="2",
+                    line_index="5",
+                    data_block_bbox="[1, 2, 3, 4]",
+                    data_block_label="Text",
+                    page_pos=0,
+                    block_pos=0,
+                    line_pos=0,
+                )
+            ],
         )
-        self.assertEqual(records, [
-            SourceLine(
-                uid="0.2.5",
-                source_row=1,
-                text="Dupont, rue A.",
-                page_index="0",
-                chunk_index="1",
-                data_block_index="2",
-                line_index="5",
-                data_block_bbox="[1, 2, 3, 4]",
-                data_block_label="Text",
-                page_pos=0,
-                block_pos=0,
-                line_pos=0,
-            )
-        ])
 
     def test_load_json_lines_rejects_an_unrelated_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -243,16 +276,10 @@ class ActiveCRFTests(unittest.TestCase):
             pages = json.loads(output.read_text(encoding="utf-8"))
 
         model_lines = [
-            line
-            for page in pages
-            for block in page["data_blocks"]
-            for line in block["lines"]
-            if line.get("provenance") == "model"
+            line for page in pages for block in page["data_blocks"] for line in block["lines"] if line.get("provenance") == "model"
         ]
         self.assertTrue(model_lines)
-        self.assertTrue(
-            all(0.0 <= line["probability"] <= 1.0 for line in model_lines)
-        )
+        self.assertTrue(all(0.0 <= line["probability"] <= 1.0 for line in model_lines))
 
     def test_close_removes_the_temporary_model_file(self) -> None:
         crf = ActiveCRF(self.records, self.document, seed_size=2)

@@ -93,15 +93,24 @@ def run(args: argparse.Namespace) -> None:
         console.print(f"[yellow]{len(dropped)} lien(s) entre rubriques non appariées écarté(s).[/yellow]")
     params = Params()
     found = review(
-        links, loaded.left_records, loaded.right_records, loaded.sections, params.threshold, params.residual_threshold,
-        params.subj_weight, args.margin, declared,
+        links,
+        loaded.left_records,
+        loaded.right_records,
+        loaded.sections,
+        params.threshold,
+        params.residual_threshold,
+        params.subj_weight,
+        args.margin,
+        declared,
     )
     rows, n_missing = natural_rows(links + (found.candidates if args.candidates else []), left, right)
     if n_missing:
         console.print(f"[bold red]⚠ {n_missing} lien(s) vers des entrées disparues, ignoré(s) : relancer l'alignement.[/bold red]")
 
     output = args.output or join_output(args.alignment)
-    writes.add(output, lambda: output.write_text(export_csv(rows, args.excel, found.reviews), encoding=export_encoding(args.excel), newline=""))
+    writes.add(
+        output, lambda: output.write_text(export_csv(rows, args.excel, found.reviews), encoding=export_encoding(args.excel), newline="")
+    )
     counts = Counter(row.kind for row in rows)
     summary = ", ".join(f"{counts[kind]} {label}" for kind, label in STATUS_LABELS.items())
     console.print(f"{len(rows)} ligne(s) ({summary}).")

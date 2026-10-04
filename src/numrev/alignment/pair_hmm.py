@@ -115,7 +115,7 @@ def window_posteriors(similarity: np.ndarray, model: PairHmm) -> WindowResult:
     entre deux ancres : départ en M en (0, 0), fin par une transition vers
     M depuis (k, l). `f[s][i, j]` : chemins ayant émis les `i` premières
     entrées de gauche et les `j` premières de droite, finissant en `s`."""
-    k, l = similarity.shape
+    k, l = similarity.shape  # noqa: E741 (notation de docs/alignement_ordonne.md)
     t = model.log_transitions()
     e = model.log_odds(similarity) if similarity.size else np.zeros((k, l))
     f = np.full((3, k + 1, l + 1), NEG_INF)

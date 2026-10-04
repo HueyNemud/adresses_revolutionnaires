@@ -112,9 +112,7 @@ def validate(entries: list[PatchEntry]) -> None:
         for key in entry.uuids():
             seen[key].append(number)
     problems += [
-        f"{side} {uuid} présent aux lignes {', '.join(map(str, numbers))}"
-        for (side, uuid), numbers in seen.items()
-        if len(numbers) > 1
+        f"{side} {uuid} présent aux lignes {', '.join(map(str, numbers))}" for (side, uuid), numbers in seen.items() if len(numbers) > 1
     ]
     if problems:
         raise ValueError("Patch incohérent :\n- " + "\n- ".join(problems))

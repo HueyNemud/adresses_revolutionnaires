@@ -19,9 +19,7 @@ class JsonToCsvTests(unittest.TestCase):
                         "bbox": [0, 0, 1, 1],
                         "label": "Section-Header",
                         "chunk_index": 0,
-                        "lines": [
-                            {"uid": "0.1.0", "line_index": 0, "markdown": "## TITRE"}
-                        ],
+                        "lines": [{"uid": "0.1.0", "line_index": 0, "markdown": "## TITRE"}],
                     },
                     {
                         "index": 2,

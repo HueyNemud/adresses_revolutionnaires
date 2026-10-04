@@ -112,8 +112,14 @@ def validate_section_patch(entries: list[SectionPatchEntry]) -> None:
                 paired[key].append(number)
         elif entry.uuids():
             alone[entry.uuids()[0]].append(number)
-    problems += [f"paire {left} ↔ {right} aux lignes {', '.join(map(str, numbers))}" for (left, right), numbers in pairs.items() if len(numbers) > 1]
-    problems += [f"{side} {uuid} sans correspondance aux lignes {', '.join(map(str, numbers))}" for (side, uuid), numbers in alone.items() if len(numbers) > 1]
+    problems += [
+        f"paire {left} ↔ {right} aux lignes {', '.join(map(str, numbers))}" for (left, right), numbers in pairs.items() if len(numbers) > 1
+    ]
+    problems += [
+        f"{side} {uuid} sans correspondance aux lignes {', '.join(map(str, numbers))}"
+        for (side, uuid), numbers in alone.items()
+        if len(numbers) > 1
+    ]
     problems += [
         f"{side} {uuid} apparié (lignes {', '.join(map(str, paired[(side, uuid)]))}) et sans correspondance (ligne {numbers[0]})"
         for (side, uuid), numbers in alone.items()

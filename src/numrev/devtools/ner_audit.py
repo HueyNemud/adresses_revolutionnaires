@@ -221,8 +221,7 @@ def breakdown(entries: Sequence[GoldEntry], systems: Sequence[System], key: str,
     for name, indices in ordered:
         weights = [float(entries[i].data.get("weight", 1.0)) for i in indices]
         rows.append(
-            [md_code(name, 40), len(indices)]
-            + [fmt(weighted_rate([s.comparisons[i].exact for i in indices], weights)) for s in systems]
+            [md_code(name, 40), len(indices)] + [fmt(weighted_rate([s.comparisons[i].exact for i in indices], weights)) for s in systems]
         )
     return md_table([key, "n", *(s.name for s in systems)], rows)
 
@@ -263,7 +262,13 @@ def write_report(
             rows.append([system.name, *(fmt_delta(v, ci) for v, ci in paired_delta(scored[reference], score, bootstrap))])
     lines += [md_table(["système", *(f"Δ {m}" for m in METRICS)], rows) if rows else "_Un seul système._", ""]
 
-    lines += ["## Types d'erreurs", "", "Part pondérée des entrées. *Signature* : segment manquant, en trop ou mal classé ; *frontière* : mêmes classes, bornes différentes.", ""]
+    lines += [
+        "## Types d'erreurs",
+        "",
+        "Part pondérée des entrées. *Signature* : segment manquant, en trop ou mal classé ; "
+        "*frontière* : mêmes classes, bornes différentes.",
+        "",
+    ]
     weights = [float(entry.data.get("weight", 1.0)) for entry in entries]
     rows = []
     for system in systems:
@@ -272,7 +277,14 @@ def write_report(
     lines += [md_table(["système", "correct", "signature", "frontière"], rows), ""]
 
     lines += ["## Exactitude par volume", "", breakdown(entries, systems, "volume"), ""]
-    lines += ["## Exactitude par strate du tirage", "", "Au sein d'une strate, toutes les entrées ont le même poids.", "", breakdown(entries, systems, "stratum"), ""]
+    lines += [
+        "## Exactitude par strate du tirage",
+        "",
+        "Au sein d'une strate, toutes les entrées ont le même poids.",
+        "",
+        breakdown(entries, systems, "stratum"),
+        "",
+    ]
     lines += ["## Exactitude par profil typographique (15 plus fréquents)", "", breakdown(entries, systems, "profile", 15), ""]
 
     scored_systems = [s for s in systems if s.has_scores]
@@ -304,7 +316,13 @@ def write_report(
     rows = []
     for entry, spans, comparison in zip(entries, systems[reference].predictions, systems[reference].comparisons):
         if not comparison.exact and len(rows) < 15:
-            rows.append([comparison.error_kind, md_code(render_tagged_text(entry.text, entry.gold), 160), md_code(render_tagged_text(entry.text, spans or []), 160)])
+            rows.append(
+                [
+                    comparison.error_kind,
+                    md_code(render_tagged_text(entry.text, entry.gold), 160),
+                    md_code(render_tagged_text(entry.text, spans or []), 160),
+                ]
+            )
     lines += [md_table(["type", "gold", "prédit"], rows, align="lll") if rows else "_Aucune erreur._", ""]
 
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -337,14 +355,29 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD, help=f"Gold Label Studio (défaut : {DEFAULT_GOLD}).")
     parser.add_argument("--split", choices=("test", "dev", "all"), default="test", help="Partie du gold évaluée (défaut : test).")
     parser.add_argument("--model", type=Path, action="append", default=[], help="Dossier d'un modèle GLiNER à évaluer (répétable).")
-    parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD}).")
+    parser.add_argument(
+        "--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD})."
+    )
     parser.add_argument("--sweep", action="store_true", help=f"Évalue aussi les seuils {SWEEP_THRESHOLDS}.")
-    parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE, help=f"Seuil « score bas » du drapeau ner_suspect (défaut : {DEFAULT_MIN_SCORE}).")
-    parser.add_argument("--predictions", action="append", default=[], metavar="NOM=FICHIER", help="Prédictions précalculées (JSON Label Studio ou CSV tagged_text), répétable.")
+    parser.add_argument(
+        "--min-score",
+        type=float,
+        default=DEFAULT_MIN_SCORE,
+        help=f"Seuil « score bas » du drapeau ner_suspect (défaut : {DEFAULT_MIN_SCORE}).",
+    )
+    parser.add_argument(
+        "--predictions",
+        action="append",
+        default=[],
+        metavar="NOM=FICHIER",
+        help="Prédictions précalculées (JSON Label Studio ou CSV tagged_text), répétable.",
+    )
     parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier système).")
     parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
     parser.add_argument("--seed", type=int, default=0, help="Graine du bootstrap (défaut : 0).")
-    parser.add_argument("-o", "--output", type=Path, default=DEFAULT_OUTPUT_DIR, help=f"Dossier du rapport (défaut : {DEFAULT_OUTPUT_DIR}).")
+    parser.add_argument(
+        "-o", "--output", type=Path, default=DEFAULT_OUTPUT_DIR, help=f"Dossier du rapport (défaut : {DEFAULT_OUTPUT_DIR})."
+    )
 
 
 def run(args: argparse.Namespace) -> None:

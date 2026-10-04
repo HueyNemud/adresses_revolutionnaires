@@ -20,8 +20,8 @@ class ExtractChandraLinesTests(unittest.TestCase):
                 "raw": (
                     '<div data-bbox="0 0 330 1000" data-label="Text">Avant</div>'
                     '<div data-bbox="330 0 660 1000" data-label="Table">'
-                    '<table><tr><th>En-tête</th><td><b>Gauche</b></td></tr>'
-                    '<tr><td>Bas gauche</td><td>Bas<br/>droite</td></tr></table></div>'
+                    "<table><tr><th>En-tête</th><td><b>Gauche</b></td></tr>"
+                    "<tr><td>Bas gauche</td><td>Bas<br/>droite</td></tr></table></div>"
                     '<div data-bbox="660 0 1000 1000" data-label="Text">Après</div>'
                 ),
             }
@@ -54,27 +54,19 @@ class ExtractChandraLinesTests(unittest.TestCase):
     def test_maps_data_blocks_to_chunks_by_source_order(self) -> None:
         pages = load_document(self.json_path)
 
-        self.assertEqual(
-            [block.chunk_index for block in pages[0].data_blocks], [0, 1, 2]
-        )
+        self.assertEqual([block.chunk_index for block in pages[0].data_blocks], [0, 1, 2])
 
     def test_tables_are_exploded_into_cells_and_their_lines_in_reading_order(self) -> None:
         pages = self.export_pages()
-        table_block = next(
-            block for block in pages[0]["data_blocks"] if block["label"] == "Table"
-        )
+        table_block = next(block for block in pages[0]["data_blocks"] if block["label"] == "Table")
 
         self.assertEqual(
             [line["markdown"] for line in table_block["lines"]],
             # `Bas<br/>droite` : chaque ligne d'une cellule devient une ligne.
             ["En-tête", "**Gauche**", "Bas gauche", "Bas", "droite"],
         )
-        self.assertEqual(
-            [line["line_index"] for line in table_block["lines"]], [0, 1, 2, 3, 4]
-        )
-        self.assertTrue(
-            all("|" not in line["markdown"] for line in table_block["lines"])
-        )
+        self.assertEqual([line["line_index"] for line in table_block["lines"]], [0, 1, 2, 3, 4])
+        self.assertTrue(all("|" not in line["markdown"] for line in table_block["lines"]))
 
     def test_table_explosion_preserves_non_table_content_and_provenance(self) -> None:
         pages = self.export_pages()

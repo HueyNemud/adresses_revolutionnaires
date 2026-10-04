@@ -96,8 +96,9 @@ uv run numrev audit crf                           # CRF de l'étape 2 → report
 uv run numrev gold alignment annuaires/<A> annuaires/<B> --apply   # gold d'inversions à étiqueter (une fois)
 uv run numrev audit alignment data/alignment/<A>__<B>.gold-inversions.csv   # → reports/alignment/
 
-# Tests (unittest)
+# Tests (unittest) et mise en forme du code
 uv run python -m unittest discover -s tests
+uv run black src tests && uv run ruff check src tests
 ```
 
 ## Documentation

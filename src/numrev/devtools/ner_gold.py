@@ -194,7 +194,9 @@ def run(args: argparse.Namespace) -> None:
         table.add_column(column, justify="right" if column != "strate" else "left")
     splits = Counter((task["data"]["stratum"], task["data"]["split"]) for task in tasks)
     for name, n in allocation.items():
-        table.add_row(name, str(population[name]), str(n), f"{population[name] / n:.1f}", str(splits[name, "dev"]), str(splits[name, "test"]))
+        table.add_row(
+            name, str(population[name]), str(n), f"{population[name] / n:.1f}", str(splits[name, "dev"]), str(splits[name, "test"])
+        )
     console.print(table)
     volumes = Counter(task["data"]["volume"] for task in tasks)
     console.print("Par volume : " + ", ".join(f"{v} {n}" for v, n in sorted(volumes.items())))

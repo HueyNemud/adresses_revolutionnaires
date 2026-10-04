@@ -152,8 +152,7 @@ def train(
 
     if needs_labelling(training_path, label):
         console.print(
-            "[bold]Étiquetage :[/bold] y = même entrée, n = différentes, u = incertain, "
-            "f = terminer, p = annuler la précédente."
+            "[bold]Étiquetage :[/bold] y = même entrée, n = différentes, u = incertain, " "f = terminer, p = annuler la précédente."
         )
         dedupe.console_label(linker)
 
@@ -243,8 +242,7 @@ def run(args: argparse.Namespace) -> None:
     writes = Writes(args.apply)
     if not args.patch_only and needs_labelling(pair.training, args.label) and not args.apply:
         raise CommandError(
-            f"l'étiquetage en console écrit {pair.training} : relancez avec {APPLY_FLAG} "
-            "(sinon les paires étiquetées seraient perdues)."
+            f"l'étiquetage en console écrit {pair.training} : relancez avec {APPLY_FLAG} " "(sinon les paires étiquetées seraient perdues)."
         )
 
     loaded = load_pair(pair, force=args.force, writes=writes)
@@ -256,7 +254,9 @@ def run(args: argparse.Namespace) -> None:
     refuse_orphans(orphan_descriptions(resolution), args.force, "ligne orpheline du patch")
 
     if args.patch_only:
-        links, dropped = restrict_to_corresponding(read_raw_links(raw_path, left_records, right_records), left_records, right_records, sections)
+        links, dropped = restrict_to_corresponding(
+            read_raw_links(raw_path, left_records, right_records), left_records, right_records, sections
+        )
     else:
         print_sections(sections)
         links, dropped = restrict_to_corresponding(

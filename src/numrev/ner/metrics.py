@@ -97,8 +97,8 @@ def _f1(tp: np.ndarray, fp: np.ndarray, fn: np.ndarray) -> np.ndarray:
 def metrics_from_sums(sums: np.ndarray, total_weight: np.ndarray) -> np.ndarray:
     """(…, VECTOR_COLUMNS) sommes pondérées → (…, METRICS)."""
     columns = {name: sums[..., i] for i, name in enumerate(VECTOR_COLUMNS)}
-    per_label = [_f1(columns[f"tp_{l}"], columns[f"fp_{l}"], columns[f"fn_{l}"]) for l in LABELS]
-    micro = _f1(*(sum(columns[f"{kind}_{l}"] for l in LABELS) for kind in ("tp", "fp", "fn")))
+    per_label = [_f1(columns[f"tp_{label}"], columns[f"fp_{label}"], columns[f"fn_{label}"]) for label in LABELS]
+    micro = _f1(*(sum(columns[f"{kind}_{label}"] for label in LABELS) for kind in ("tp", "fp", "fn")))
     return np.stack(
         [_divide(columns["exact"], total_weight), *per_label, micro, _divide(columns["tok_ok"], columns["tok_n"])],
         axis=-1,
@@ -140,9 +140,7 @@ def summarize(scored: Scored, bootstrap: np.ndarray) -> list[tuple[float, tuple[
     return [(float(point[m]), _nan_interval(samples[:, m])) for m in range(len(METRICS))]
 
 
-def paired_delta(
-    reference: Scored, candidate: Scored, bootstrap: np.ndarray
-) -> list[tuple[float, tuple[float, float]]]:
+def paired_delta(reference: Scored, candidate: Scored, bootstrap: np.ndarray) -> list[tuple[float, tuple[float, float]]]:
     """Δ (candidat − référence) et IC 95 % sur les mêmes rééchantillonnages."""
     point = candidate.point() - reference.point()
     samples = candidate.samples(bootstrap) - reference.samples(bootstrap)

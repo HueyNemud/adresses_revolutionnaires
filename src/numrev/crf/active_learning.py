@@ -65,9 +65,7 @@ class SourceLine:
     follows_blank: bool = False
 
     @classmethod
-    def from_location(
-        cls, location: LineLocation, source_row: int, text: str, follows_blank: bool = False
-    ) -> "SourceLine":
+    def from_location(cls, location: LineLocation, source_row: int, text: str, follows_blank: bool = False) -> "SourceLine":
         """Create an annotatable record from a validated Chandra line location."""
         return cls(
             uid=str(location.line.get("uid", "")),
@@ -101,9 +99,7 @@ def load_json_lines(input_path: Path) -> tuple[list[SourceLine], Any, str]:
     for location in iter_line_locations(document):
         markdown = location.line.get("markdown")
         if markdown is None:
-            raise ValueError(
-                f"La ligne {location.line.get('uid', '?')} ne contient pas de Markdown."
-            )
+            raise ValueError(f"La ligne {location.line.get('uid', '?')} ne contient pas de Markdown.")
         text = markdown.strip()
         if not text:
             previous_blank = True
@@ -137,17 +133,13 @@ def annotated_indices(labels: list[str | None]) -> set[int]:
 def validate_labels(labels: list[str | None]) -> set[int]:
     if not all(label is None or isinstance(label, str) for label in labels):
         raise ValueError("La session ne contient pas de liste de labels valide.")
-    invalid_labels = {
-        label for label in labels if label is not None and label not in CLASSES
-    }
+    invalid_labels = {label for label in labels if label is not None and label not in CLASSES}
     if invalid_labels:
         raise ValueError(f"Labels de session invalides : {sorted(invalid_labels)}")
     return annotated_indices(labels)
 
 
-def validate_annotation_history(
-    annotation_history: AnnotationHistory, annotated: set[int]
-) -> None:
+def validate_annotation_history(annotation_history: AnnotationHistory, annotated: set[int]) -> None:
     if (
         len(annotation_history) != len(set(annotation_history))
         or set(annotation_history) != annotated
@@ -163,9 +155,7 @@ def parse_label_timestamps(raw_timestamps: object, annotated: set[int]) -> Label
         timestamps = {int(index): value for index, value in raw_timestamps.items()}
     except (TypeError, ValueError) as error:
         raise ValueError("La session ne contient pas d'horodatages valides.") from error
-    if not set(timestamps).issubset(annotated) or not all(
-        isinstance(timestamp, str) for timestamp in timestamps.values()
-    ):
+    if not set(timestamps).issubset(annotated) or not all(isinstance(timestamp, str) for timestamp in timestamps.values()):
         raise ValueError("La session ne contient pas d'horodatages valides.")
     return timestamps
 
@@ -199,23 +189,14 @@ class ActiveCRF:
         self.page_positions = [record.page_pos for record in records]
         self.feature_groups = tuple(feature_groups)
         self.training_config = training_config
-        self.features = extract_features_from_context(
-            context_from_records(records), self.feature_groups
-        )
+        self.features = extract_features_from_context(context_from_records(records), self.feature_groups)
         self.labels: list[str | None] = [None] * len(records)
         self.annotation_history: AnnotationHistory = []
         self.label_timestamps: LabelTimestamps = {}
-        self.heuristic_labels = [
-            get_heuristic_label(line, self.lines[index - 1] if index else "")
-            for index, line in enumerate(self.lines)
-        ]
+        self.heuristic_labels = [get_heuristic_label(line, self.lines[index - 1] if index else "") for index, line in enumerate(self.lines)]
         self.seed_size = seed_size
-        self.model_path = (
-            Path(tempfile.gettempdir()) / f"crf_{uuid.uuid4().hex}.crfsuite"
-        )
-        self._model_file_finalizer = weakref.finalize(
-            self, self.model_path.unlink, missing_ok=True
-        )
+        self.model_path = Path(tempfile.gettempdir()) / f"crf_{uuid.uuid4().hex}.crfsuite"
+        self._model_file_finalizer = weakref.finalize(self, self.model_path.unlink, missing_ok=True)
         self.tagger: Any | None = None
         self.known_classes: set[str] = set()
 
@@ -234,9 +215,7 @@ class ActiveCRF:
         label_timestamps: dict[int, str] | None = None,
     ) -> None:
         if len(labels) != len(self.labels):
-            raise ValueError(
-                "Le nombre de labels de session ne correspond pas au document."
-            )
+            raise ValueError("Le nombre de labels de session ne correspond pas au document.")
         annotated = validate_labels(labels)
         if annotation_history is None:
             annotation_history = sorted(annotated)
@@ -286,11 +265,7 @@ class ActiveCRF:
         l'historique (via `set_labels`) : `undo_last_label` peut donc
         toujours défaire ce geste, une ligne à la fois.
         """
-        indices = [
-            index
-            for index, position in enumerate(self.page_positions)
-            if position == page_pos and self.labels[index] is None
-        ]
+        indices = [index for index, position in enumerate(self.page_positions) if position == page_pos and self.labels[index] is None]
         if indices:
             self.set_labels({index: AnnotationLabel.OOS.value for index in indices})
         return indices
@@ -298,17 +273,11 @@ class ActiveCRF:
     def retrain(self) -> None:
         """Entraîne le CRF sur les segments contigus validés par un humain."""
         self.known_classes = {label for label in self.labels if label is not None}
-        self.tagger = train_tagger(
-            self.features, self.labels, self.model_path, self.training_config
-        )
+        self.tagger = train_tagger(self.features, self.labels, self.model_path, self.training_config)
 
     def _next_exploration_index(self, unannotated: list[int]) -> int:
         """Échantillonne des strates heuristiques sous-représentées au démarrage."""
-        observed = Counter(
-            self.heuristic_labels[index]
-            for index, label in enumerate(self.labels)
-            if label is not None
-        )
+        observed = Counter(self.heuristic_labels[index] for index, label in enumerate(self.labels) if label is not None)
         return min(
             unannotated,
             key=lambda index: (
@@ -321,23 +290,15 @@ class ActiveCRF:
     def _annotation_block(self, target_index: int, unannotated: list[int]) -> list[int]:
         """Retourne le candidat et un voisin non annoté, si disponible."""
         available = set(unannotated)
-        neighbours = [
-            index
-            for index in (target_index - 1, target_index + 1)
-            if index in available
-        ]
+        neighbours = [index for index in (target_index - 1, target_index + 1) if index in available]
         if not neighbours:
             return [target_index]
         # Préférer la ligne précédente : le candidat a ainsi un contexte CRF humain.
-        neighbour = (
-            target_index - 1 if target_index - 1 in neighbours else neighbours[0]
-        )
+        neighbour = target_index - 1 if target_index - 1 in neighbours else neighbours[0]
         return sorted([target_index, neighbour])
 
-    def next_block(
-        self, preferred_index: int | None = None
-    ) -> tuple[int, list[int]] | None:
-        unannotated = [i for i, l in enumerate(self.labels) if l is None]
+    def next_block(self, preferred_index: int | None = None) -> tuple[int, list[int]] | None:
+        unannotated = [i for i, label in enumerate(self.labels) if label is None]
         if not unannotated:
             return None
 
@@ -391,13 +352,9 @@ class ActiveCRF:
     ) -> LineAnnotation:
         human_label = self.labels[index]
         if human_label:
-            return LineAnnotation(
-                human_label, "human", 1.0, self.label_timestamps[index]
-            )
+            return LineAnnotation(human_label, "human", 1.0, self.label_timestamps[index])
         if model_label:
-            return LineAnnotation(
-                model_label, "model", model_probability, export_timestamp
-            )
+            return LineAnnotation(model_label, "model", model_probability, export_timestamp)
         return LineAnnotation("", "unclassified", 0.0, "")
 
     def export_json(self, output_path: str | Path) -> None:
@@ -405,24 +362,19 @@ class ActiveCRF:
 
         output_document = copy.deepcopy(self.raw_document)
         output_lines = {
-            (location.page_pos, location.block_pos, location.line_pos): location.line
-            for location in iter_line_locations(output_document)
+            (location.page_pos, location.block_pos, location.line_pos): location.line for location in iter_line_locations(output_document)
         }
         for index, record in enumerate(self.records):
             position = (record.page_pos, record.block_pos, record.line_pos)
             try:
                 line = output_lines[position]
             except KeyError as error:
-                raise ValueError(
-                    f"La ligne source {record.uid!r} est introuvable dans le document."
-                ) from error
+                raise ValueError(f"La ligne source {record.uid!r} est introuvable dans le document.") from error
             if self.labels[index] is not None:
                 model_label, model_probability = None, 0.0
             else:
                 model_label, model_probability = self._model_prediction(index)
-            annotation = self._line_annotation(
-                index, model_label, model_probability, export_timestamp
-            )
+            annotation = self._line_annotation(index, model_label, model_probability, export_timestamp)
             line.update(
                 prediction=annotation.prediction,
                 provenance=annotation.provenance,

@@ -113,10 +113,7 @@ def load_silver_document(csv_path: Path) -> SilverDocument:
         raise ValueError(f"{csv_path} : colonne '{GOLD_COLUMN}' absente.")
     for row in rows:
         if (row.get(GOLD_COLUMN) or "").strip() not in CLASSES:
-            raise ValueError(
-                f"{csv_path} : ligne {row.get('uid')!r} sans classe curée valide "
-                f"({row.get(GOLD_COLUMN)!r})."
-            )
+            raise ValueError(f"{csv_path} : ligne {row.get('uid')!r} sans classe curée valide " f"({row.get(GOLD_COLUMN)!r}).")
 
     name, volume = document_names(csv_path)
     json_path = step_path(csv_path, LINES)
@@ -147,13 +144,8 @@ def load_silver_document(csv_path: Path) -> SilverDocument:
         unmatched_source_lines=len(records) - len(pairs),
         added_lines=len(rows) - len(used),
         text_edited=sum(record.text != row["markdown"].strip() for record, row in pairs),
-        heading_marker_changed=sum(
-            _heading_prefix(record.text) != _heading_prefix(row["markdown"])
-            for record, row in pairs
-        ),
-        label_changed_vs_original=sum(
-            original(row) != row[GOLD_COLUMN].strip() for _, row in pairs
-        ),
+        heading_marker_changed=sum(_heading_prefix(record.text) != _heading_prefix(row["markdown"]) for record, row in pairs),
+        label_changed_vs_original=sum(original(row) != row[GOLD_COLUMN].strip() for _, row in pairs),
         original_model_lines=sum(row.get("provenance") == "model" for _, row in pairs),
         original_human_lines=sum(row.get("provenance") == "human" for _, row in pairs),
     )

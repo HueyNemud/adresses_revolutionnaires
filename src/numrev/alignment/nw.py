@@ -98,9 +98,7 @@ def residual_pairs(similarity: np.ndarray, pairs: list[tuple[int, int]], thresho
     return sorted((rows[i], cols[j]) for i, j in zip(*linear_sum_assignment(sub, maximize=True)) if sub[i, j] > 0)
 
 
-def windows(
-    anchors: list[tuple[int, int]], n: int, m: int, excluded: list[tuple[int, int]] = ()
-) -> list[tuple[list[int], list[int]]]:
+def windows(anchors: list[tuple[int, int]], n: int, m: int, excluded: list[tuple[int, int]] = ()) -> list[tuple[list[int], list[int]]]:
     """Fenêtres (lignes, colonnes) entre deux ancres consécutives, avec des
     ancres fictives avant et après le segment, y compris les fenêtres vides
     ou d'un seul côté ; sans les entrées des paires `excluded` (inversions
@@ -203,5 +201,3 @@ def align(
         pairs = pairs + [(i, j, float(segment.similarity[i, j]), SOURCE_NW_RESIDUAL) for i, j in segment.residual]
         links += [Link(segment.left[i].uuid, segment.right[j].uuid, score, source) for i, j, score, source in sorted(pairs)]
     return Result(links=links, sections=sections, fit=fitted)
-
-

@@ -93,10 +93,7 @@ def find_containing_chunk(block_bbox: BBox, chunks: list[BBox]) -> int | None:
     for index, chunk_bbox in enumerate(chunks):
         chunk_x0, chunk_y0, chunk_x1, chunk_y1 = chunk_bbox
         block_x0, block_y0, block_x1, block_y1 = block_bbox
-        if (
-            chunk_x0 <= block_x0 <= block_x1 <= chunk_x1
-            and chunk_y0 <= block_y0 <= block_y1 <= chunk_y1
-        ):
+        if chunk_x0 <= block_x0 <= block_x1 <= chunk_x1 and chunk_y0 <= block_y0 <= block_y1 <= chunk_y1:
             return index
     return None
 
@@ -109,9 +106,7 @@ def parse_page(raw_page: dict[str, Any]) -> Page:
         raise ValueError("Each chunk must be a JSON object.")
 
     page_bbox = parse_bbox(raw_page["page_box"])
-    chunk_bboxes = [
-        normalize_bbox(parse_bbox(chunk["bbox"]), page_bbox) for chunk in raw_chunks
-    ]
+    chunk_bboxes = [normalize_bbox(parse_bbox(chunk["bbox"]), page_bbox) for chunk in raw_chunks]
 
     raw_soup = BeautifulSoup(str(raw_page.get("raw", "")), "html.parser")
     block_elements = raw_soup.find_all("div", recursive=False)
@@ -119,11 +114,7 @@ def parse_page(raw_page: dict[str, Any]) -> Page:
     map_by_order = len(block_elements) == len(raw_chunks)
     for index, element in enumerate(block_elements, start=1):
         block_bbox = parse_bbox(get_required_attribute(element, "data-bbox"))
-        chunk_index = (
-            index - 1
-            if map_by_order
-            else find_containing_chunk(block_bbox, chunk_bboxes)
-        )
+        chunk_index = index - 1 if map_by_order else find_containing_chunk(block_bbox, chunk_bboxes)
         data_blocks.append(
             DataBlock(
                 index=index,
@@ -149,9 +140,7 @@ def load_document(json_path: str | Path) -> list[Page]:
     return parse_document(load_raw_pages(json_path))
 
 
-def generate_line_uid(
-    page_index: int, block_index: int, line_index: int, sep="."
-) -> str:
+def generate_line_uid(page_index: int, block_index: int, line_index: int, sep=".") -> str:
     """Return a unique identifier for a Markdown line in a data block."""
     return sep.join(str(i) for i in (page_index, block_index, line_index))
 
@@ -197,9 +186,7 @@ def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
     yield from _markdown_fragment_lines(non_table_fragments)
 
 
-def _line_record(
-    page: Page, block: DataBlock, line_index: int, line: str
-) -> dict[str, object]:
+def _line_record(page: Page, block: DataBlock, line_index: int, line: str) -> dict[str, object]:
     """Build one JSON record for a Markdown line and its Chandra provenance."""
     return {
         "uid": generate_line_uid(page.index, block.index, line_index),
@@ -224,16 +211,11 @@ def build_data_block_record(page: Page, block: DataBlock) -> dict[str, object]:
         "bbox": list(block.bbox),
         "label": block.label,
         "chunk_index": block.chunk_index,
-        "lines": [
-            _line_record(page, block, line_index, line)
-            for line_index, line in enumerate(no_table_markdown_lines(block.raw_html))
-        ],
+        "lines": [_line_record(page, block, line_index, line) for line_index, line in enumerate(no_table_markdown_lines(block.raw_html))],
     }
 
 
-def process_json_to_json(
-    json_path: str | Path, output_path: str | Path, writes: Writes | None = None
-) -> tuple[int, int, int]:
+def process_json_to_json(json_path: str | Path, output_path: str | Path, writes: Writes | None = None) -> tuple[int, int, int]:
     """Copy a Chandra OCR JSON document, adding parsed data blocks and lines to each page.
 
     Retourne (nombre de pages, nombre de blocs de données, nombre de lignes).
@@ -245,10 +227,7 @@ def process_json_to_json(
     block_count = 0
     line_count = 0
     for raw_page, page in zip(raw_pages, pages):
-        block_records = [
-            build_data_block_record(page, block)
-            for block in page.data_blocks
-        ]
+        block_records = [build_data_block_record(page, block) for block in page.data_blocks]
         output_page = dict(raw_page)
         output_page["data_blocks"] = block_records
         output_pages.append(output_page)

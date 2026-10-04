@@ -41,7 +41,9 @@ class SpansTests(unittest.TestCase):
         normalized = normalize_markdown(raw)
         self.assertEqual(normalized.text, "Cetto (minist.), R. de Clichy, 356.")
         projected = project_spans(spans, normalized)
-        self.assertEqual(render_tagged_text(normalized.text, projected), "<SUBJ>Cetto</SUBJ> <DESC>(minist.)</DESC>, <ADDR>R. de Clichy, 356.</ADDR>")
+        self.assertEqual(
+            render_tagged_text(normalized.text, projected), "<SUBJ>Cetto</SUBJ> <DESC>(minist.)</DESC>, <ADDR>R. de Clichy, 356.</ADDR>"
+        )
         back = unproject_spans(projected, normalized)
         self.assertEqual([raw[s.start : s.end] for s in back], ["Cetto", "(minist.)", "R. de Clichy, 356."])
 

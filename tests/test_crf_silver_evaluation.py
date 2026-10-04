@@ -25,21 +25,57 @@ from numrev.crf.silver import document_names, load_silver_document
 from numrev.pipeline.extract import assign_line_keys
 from numrev.stats import roc_auc
 
-FIELDS = ["cle", "uid", "page_index", "chunk_index", "data_block_index", "line_index", "data_block_bbox", "data_block_label", "markdown", "classe", "provenance"]
+FIELDS = [
+    "cle",
+    "uid",
+    "page_index",
+    "chunk_index",
+    "data_block_index",
+    "line_index",
+    "data_block_bbox",
+    "data_block_label",
+    "markdown",
+    "classe",
+    "provenance",
+]
 
 
 def write_volume(folder: Path, name: str, pages: int, edit_first_title: bool = False) -> Path:
     """Écrit le JSON vu par l'annotateur, celui qu'il a exporté et le CSV curé."""
     document, rows = [], []
     for page in range(pages):
-        lines = [("# TITRE", "B-TITLE"), ("Dupont, rue A, 1.", "B-ENTRY"), ("rue B, 2.", "I-ENTRY"), ("Durand, rue C, 3.", "B-ENTRY"), (str(page), "OUT OF SCOPE")]
+        lines = [
+            ("# TITRE", "B-TITLE"),
+            ("Dupont, rue A, 1.", "B-ENTRY"),
+            ("rue B, 2.", "I-ENTRY"),
+            ("Durand, rue C, 3.", "B-ENTRY"),
+            (str(page), "OUT OF SCOPE"),
+        ]
         block_lines = []
         for index, (text, label) in enumerate(lines):
             uid = f"{page}.1.{index}"
             block_lines.append({"uid": uid, "line_index": index, "markdown": text, "prediction": label})
             curated_text = "## TITRE" if edit_first_title and index == 0 else text
-            rows.append({"uid": uid, "page_index": page, "chunk_index": 0, "data_block_index": 1, "line_index": index, "data_block_bbox": "[0, 0, 1, 1]", "data_block_label": "Text", "markdown": curated_text, "classe": label, "provenance": "model"})
-        document.append({"page_index": page, "data_blocks": [{"index": 1, "bbox": [0, 0, 1, 1], "label": "Text", "chunk_index": 0, "lines": block_lines}]})
+            rows.append(
+                {
+                    "uid": uid,
+                    "page_index": page,
+                    "chunk_index": 0,
+                    "data_block_index": 1,
+                    "line_index": index,
+                    "data_block_bbox": "[0, 0, 1, 1]",
+                    "data_block_label": "Text",
+                    "markdown": curated_text,
+                    "classe": label,
+                    "provenance": "model",
+                }
+            )
+        document.append(
+            {
+                "page_index": page,
+                "data_blocks": [{"index": 1, "bbox": [0, 0, 1, 1], "label": "Text", "chunk_index": 0, "lines": block_lines}],
+            }
+        )
     assign_line_keys(document)
     for row, line in zip(rows, (line for page in document for block in page["data_blocks"] for line in block["lines"])):
         row["cle"] = line["cle"]

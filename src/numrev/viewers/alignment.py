@@ -203,21 +203,35 @@ def load_alignment(
     records = {"left": load_records(left_dir), "right": load_records(right_dir)}
     entries, resolution = load_patch(Path(patch_path), records["left"], records["right"])
     links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
-    sections = load_section_alignment(
-        list(records["left"].values()), list(records["right"].values()), Path(section_patch_path)
-    )
+    sections = load_section_alignment(list(records["left"].values()), list(records["right"].values()), Path(section_patch_path))
     links, dropped = restrict_to_corresponding(links, records["left"], records["right"], sections)
     declared = declared_unmatched(resolution)
     params = Params()
     found = review(
-        links, list(records["left"].values()), list(records["right"].values()), sections,
-        candidate_low, params.residual_threshold, params.subj_weight, margin, declared,
+        links,
+        list(records["left"].values()),
+        list(records["right"].values()),
+        sections,
+        candidate_low,
+        params.residual_threshold,
+        params.subj_weight,
+        margin,
+        declared,
     )
     joined, n_missing = natural_rows(links + found.candidates, records["left"], records["right"])
     rows = build_rows(joined, found.reviews)
     return Alignment(
-        rows, joined, found.reviews, len(entries), n_missing, len(resolution.reanchored), resolution.orphans, declared, sections,
-        len(read_section_patch(Path(section_patch_path))), dropped,
+        rows,
+        joined,
+        found.reviews,
+        len(entries),
+        n_missing,
+        len(resolution.reanchored),
+        resolution.orphans,
+        declared,
+        sections,
+        len(read_section_patch(Path(section_patch_path))),
+        dropped,
     )
 
 
@@ -252,7 +266,6 @@ def build_rows(joined: list[JoinedRow], reviews: dict[tuple[str, str], Review]) 
     )
     rows["score"] = pd.to_numeric(rows["score"])
     return rows
-
 
 
 # ----------------------------------------------------------------------
@@ -416,8 +429,15 @@ def section_table(alignment: SectionAlignment, rows: pd.DataFrame) -> pd.DataFra
         return [total, paired, round(paired / total, 3) if total else None]
 
     lines = [
-        [joined(group.left, "title"), joined(group.right, "title"), "patch" if group.source != SOURCE_AUTO else "auto",
-         *counts("left", group.left), *counts("right", group.right), joined(group.left, "uuid"), joined(group.right, "uuid")]
+        [
+            joined(group.left, "title"),
+            joined(group.right, "title"),
+            "patch" if group.source != SOURCE_AUTO else "auto",
+            *counts("left", group.left),
+            *counts("right", group.right),
+            joined(group.left, "uuid"),
+            joined(group.right, "uuid"),
+        ]
         for group in alignment.groups
     ]
     for side, unmatched in (("left", alignment.unmatched_left), ("right", alignment.unmatched_right)):
@@ -431,10 +451,17 @@ def section_table(alignment: SectionAlignment, rows: pd.DataFrame) -> pd.DataFra
     table = pd.DataFrame(
         lines,
         columns=[
-            "gauche", "droite", "correspondance",
-            "gauche : entrées", "gauche : appariées", "gauche : taux",
-            "droite : entrées", "droite : appariées", "droite : taux",
-            "uuid gauche", "uuid droite",
+            "gauche",
+            "droite",
+            "correspondance",
+            "gauche : entrées",
+            "gauche : appariées",
+            "gauche : taux",
+            "droite : entrées",
+            "droite : appariées",
+            "droite : taux",
+            "uuid gauche",
+            "uuid droite",
         ],
     )
     for column in ("gauche : entrées", "gauche : appariées", "droite : entrées", "droite : appariées"):
@@ -462,8 +489,12 @@ def kpis(left_name: str, right_name: str, rows: pd.DataFrame, n_patch: int, n_dr
     n_left, n_right = matched + candidates_kept + counts.get(LEFT_ONLY, 0), matched + candidates_kept + counts.get(RIGHT_ONLY, 0)
     columns = st.columns(6)
     columns[0].metric("Correspondances", f"{matched:,}".replace(",", " "))
-    columns[1].metric(f"Appariées à gauche ({left_name})", f"{matched / n_left:.1%}", f"{n_left - matched} sans correspondance", delta_color="off")
-    columns[2].metric(f"Appariées à droite ({right_name})", f"{matched / n_right:.1%}", f"{n_right - matched} sans correspondance", delta_color="off")
+    columns[1].metric(
+        f"Appariées à gauche ({left_name})", f"{matched / n_left:.1%}", f"{n_left - matched} sans correspondance", delta_color="off"
+    )
+    columns[2].metric(
+        f"Appariées à droite ({right_name})", f"{matched / n_right:.1%}", f"{n_right - matched} sans correspondance", delta_color="off"
+    )
     columns[3].metric(
         "Liens écartés",
         str(n_dropped),
@@ -507,7 +538,11 @@ def main() -> None:
             help=f"Zone grise [seuil ; {params.residual_threshold}[ : par défaut le seuil de Needleman-Wunsch d'`numrev align nw`.",
         )
         margin = st.number_input(
-            "Écart « homonyme proche »", 0.0, 0.5, DEFAULT_MARGIN, step=0.01,
+            "Écart « homonyme proche »",
+            0.0,
+            0.5,
+            DEFAULT_MARGIN,
+            step=0.01,
             help="Signale une paire si une autre entrée du segment est à moins de cet écart de similarité.",
         )
     try:
@@ -554,7 +589,10 @@ def main() -> None:
             "ignorées ; relancer `numrev align dedupe`."
         )
     if alignment.reanchored:
-        st.info(f"↻ {alignment.reanchored} ligne(s) du patch réancrée(s) par le texte ; `numrev align dedupe --patch-only --apply` réécrira le patch.")
+        st.info(
+            f"↻ {alignment.reanchored} ligne(s) du patch réancrée(s) par le texte ; "
+            "`numrev align dedupe --patch-only --apply` réécrira le patch."
+        )
     if alignment.orphans:
         with st.expander(f"⚠ {len(alignment.orphans)} ligne(s) orpheline(s) du patch, non appliquée(s)"):
             st.dataframe(pd.DataFrame([asdict(entry) for entry in alignment.orphans]), width="stretch")
@@ -629,8 +667,18 @@ def main() -> None:
 
     # Retour à la première page quand la sélection change.
     selection = (
-        alignment_path.name, tuple(kinds), section, query, low, high, only_manual, order, page_size,
-        min_level, candidate_low, margin,
+        alignment_path.name,
+        tuple(kinds),
+        section,
+        query,
+        low,
+        high,
+        only_manual,
+        order,
+        page_size,
+        min_level,
+        candidate_low,
+        margin,
     )
     if st.session_state.get("_selection") != selection:
         st.session_state["_selection"] = selection
@@ -639,7 +687,9 @@ def main() -> None:
     export_box.download_button(
         f"Exporter en CSV ({len(view):,} lignes)".replace(",", " "),
         # Généré au clic seulement : lignes affichées, dans l'ordre affiché.
-        lambda: export_csv([alignment.joined[index] for index in view.index], excel=excel, reviews=alignment.reviews).encode(export_encoding(excel)),
+        lambda: export_csv([alignment.joined[index] for index in view.index], excel=excel, reviews=alignment.reviews).encode(
+            export_encoding(excel)
+        ),
         file_name=f"{pair_name}{JOIN_SUFFIX}",
         mime="text/csv",
         icon=":material/download:",

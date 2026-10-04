@@ -71,7 +71,12 @@ def counts_table(groups: dict[str, list[dict]], order: list[str]) -> str:
 def unmatched_section_table(sections, left_name: str, right_name: str) -> str:
     """Rubriques sans correspondance de chaque côté, avec leur nombre d'entrées."""
     rows = [
-        [name, section.title or "(sans rubrique)", "déclarée au patch" if (side, section.uuid) in sections.declared else "non alignée", len(section.records)]
+        [
+            name,
+            section.title or "(sans rubrique)",
+            "déclarée au patch" if (side, section.uuid) in sections.declared else "non alignée",
+            len(section.records),
+        ]
         for side, name, unmatched in (("left", left_name, sections.unmatched_left), ("right", right_name, sections.unmatched_right))
         for section in unmatched
     ]
@@ -80,7 +85,9 @@ def unmatched_section_table(sections, left_name: str, right_name: str) -> str:
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("gold", type=Path, help="Gold étiqueté (data/alignment/<gauche>__<droite>.gold-inversions.csv).")
-    parser.add_argument("--alignment", type=Path, default=None, help=f"Sortie d'alignement (défaut : annuaires/alignments/<paire>{NW_SUFFIX}).")
+    parser.add_argument(
+        "--alignment", type=Path, default=None, help=f"Sortie d'alignement (défaut : annuaires/alignments/<paire>{NW_SUFFIX})."
+    )
     parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN, help=f"Écart « homonyme proche » (défaut : {DEFAULT_MARGIN}).")
     parser.add_argument("-o", "--output", type=Path, default=None, help=f"Rapport (défaut : {REPORT_DIR}/<paire>.md).")
 
@@ -130,7 +137,8 @@ def run(args: argparse.Namespace) -> None:
         f"# Audit de la relecture — {left_name} ⟷ {right_name}",
         "",
         f"Gold : `{args.gold}` ({len(gold)} paires étiquetées). Alignement : `{alignment_path}` ({len(links)} liens, sans patch). "
-        f"Seuils : candidates non appariées dans [{params.threshold} ; {params.residual_threshold}[, écart « homonyme proche » {args.margin}.",
+        f"Seuils : candidates non appariées dans [{params.threshold} ; {params.residual_threshold}[, "
+        f"écart « homonyme proche » {args.margin}.",
         "",
         "## 1. Règle actuelle de la passe résiduelle (sim ≥ 0,85, affectation optimale)",
         "",

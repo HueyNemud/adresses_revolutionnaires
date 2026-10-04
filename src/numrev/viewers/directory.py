@@ -131,7 +131,6 @@ def reasons_of(series: pd.Series) -> pd.Series:
     return series.fillna("").map(lambda value: [r for r in value.split(SEPARATOR) if r])
 
 
-
 # ----------------------------------------------------------------------
 # Interface
 # ----------------------------------------------------------------------
@@ -166,9 +165,7 @@ def sidebar_filters(df: pd.DataFrame) -> tuple[pd.Series, dict]:
 
     if "rubrique" in columns:
         sections = list(dict.fromkeys(df["rubrique"]))
-        section = st.sidebar.selectbox(
-            "Rubrique (sous-rubriques comprises)", ["(toutes)", *sections], format_func=section_label
-        )
+        section = st.sidebar.selectbox("Rubrique (sous-rubriques comprises)", ["(toutes)", *sections], format_func=section_label)
         if section != "(toutes)":
             mask &= df["rubrique"].eq(section) | df["rubrique"].str.startswith(section + " › ")
         state["section"] = section
@@ -247,14 +244,18 @@ def statistics(df: pd.DataFrame) -> None:
             st.markdown("**Signatures**")
             table = entries["signature"].value_counts().rename_axis("signature").reset_index(name="entrées")
             table["part"] = table["entrées"] / len(entries)
-            st.dataframe(table, hide_index=True, column_config={"part": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)})
+            st.dataframe(
+                table, hide_index=True, column_config={"part": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)}
+            )
     if "ner_suspect" in entries.columns:
         with right:
             st.markdown("**Motifs de suspicion**")
             reasons = reasons_of(entries["ner_suspect"]).explode().dropna()
             table = reasons.value_counts().rename_axis("motif").reset_index(name="entrées")
             table["part"] = table["entrées"] / len(entries)
-            st.dataframe(table, hide_index=True, column_config={"part": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)})
+            st.dataframe(
+                table, hide_index=True, column_config={"part": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)}
+            )
     if "rubrique" in entries.columns and "ner_suspect" in entries.columns:
         st.markdown("**Rubriques, par nombre d'entrées suspectes**")
         grouped = entries.assign(suspecte=entries["ner_suspect"].ne("")).groupby("rubrique", sort=False)
@@ -366,7 +367,8 @@ def main() -> None:
     page_size = st.sidebar.selectbox("Lignes par page", PAGE_SIZE_OPTIONS, index=1)
     derived = {"page", "rubrique", "signature"}
     extra_columns = st.sidebar.multiselect(
-        "Colonnes supplémentaires", [c for c in df.columns if c not in derived | {"markdown", "tagged_text", "uuid", "entity", "ner_suspect", "ner_confidence"}]
+        "Colonnes supplémentaires",
+        [c for c in df.columns if c not in derived | {"markdown", "tagged_text", "uuid", "entity", "ner_suspect", "ner_confidence"}],
     )
 
     # Retour à la première page quand la sélection change.

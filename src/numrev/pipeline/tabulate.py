@@ -138,9 +138,7 @@ def run(args: argparse.Namespace) -> None:
     output_path = args.output or default_output(args.input, LINES_CSV)
     writes = Writes(args.apply)
     try:
-        curation = process_json_to_csv(
-            require_file(args.input), output_path, force=args.force, capture=not args.no_capture, writes=writes
-        )
+        curation = process_json_to_csv(require_file(args.input), output_path, force=args.force, capture=not args.no_capture, writes=writes)
     except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
         raise CommandError(f"JSON {args.input} : {error}") from error
     if curation is not None:

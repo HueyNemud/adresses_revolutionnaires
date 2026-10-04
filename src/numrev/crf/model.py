@@ -31,9 +31,7 @@ class TrainingConfig:
 DEFAULT_CONFIG = TrainingConfig()
 
 
-def iter_labeled_segments(
-    features: FeatureSequence, labels: Sequence[str | None]
-) -> Iterator[tuple[FeatureSequence, list[str]]]:
+def iter_labeled_segments(features: FeatureSequence, labels: Sequence[str | None]) -> Iterator[tuple[FeatureSequence, list[str]]]:
     """Groupe les (feature, label) en segments contigus entièrement labellisés."""
     segment_features: FeatureSequence = []
     segment_labels: list[str] = []
@@ -90,9 +88,7 @@ def train_tagger(
     return tagger
 
 
-def normalized_marginals(
-    tagger: Any, index: int, known_classes: Iterable[str], all_classes: Sequence[str]
-) -> dict[str, float]:
+def normalized_marginals(tagger: Any, index: int, known_classes: Iterable[str], all_classes: Sequence[str]) -> dict[str, float]:
     """Marginales de `known_classes` renormalisées, étendues à `all_classes`.
 
     Suppose que `tagger.set(...)` a déjà été appelé sur la séquence voulue.
@@ -104,16 +100,11 @@ def normalized_marginals(
     return {label: scores.get(label, 0.0) / total for label in all_classes}
 
 
-def sequence_marginals(
-    tagger: Any, features: FeatureSequence, all_classes: Sequence[str]
-) -> list[dict[str, float]]:
+def sequence_marginals(tagger: Any, features: FeatureSequence, all_classes: Sequence[str]) -> list[dict[str, float]]:
     """Marginales normalisées de chaque position d'une séquence."""
     tagger.set(features)
     known = tagger.labels()
-    return [
-        normalized_marginals(tagger, index, known, all_classes)
-        for index in range(len(features))
-    ]
+    return [normalized_marginals(tagger, index, known, all_classes) for index in range(len(features))]
 
 
 def posterior_decode(marginals: dict[str, float]) -> tuple[str | None, float]:

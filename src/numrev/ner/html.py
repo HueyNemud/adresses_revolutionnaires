@@ -24,8 +24,7 @@ SPAN_CSS = """
 def badge(label: str, colors: tuple[str, str] = DEFAULT_COLORS) -> str:
     background, foreground = colors
     return (
-        f'<span class="badge" style="background:{background};color:{foreground};border-color:{foreground}">'
-        f"{html.escape(label)}</span>"
+        f'<span class="badge" style="background:{background};color:{foreground};border-color:{foreground}">' f"{html.escape(label)}</span>"
     )
 
 

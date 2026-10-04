@@ -33,8 +33,19 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     defaults = Params()
     parser.add_argument("left", type=Path, help="Dossier de l'annuaire de gauche (ex. annuaires/1807_AD75-PER292).")
     parser.add_argument("right", type=Path, help="Dossier de l'annuaire de droite (ex. annuaires/1808_AD75-PER292).")
-    parser.add_argument("-o", "--output", type=Path, default=None, help=f"CSV des correspondances (défaut : annuaires/alignments/<gauche>__<droite>{NW_SUFFIX}).")
-    parser.add_argument("--threshold", type=float, default=defaults.threshold, help=f"Similarité minimale d'une paire alignée (défaut : {defaults.threshold}).")
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help=f"CSV des correspondances (défaut : annuaires/alignments/<gauche>__<droite>{NW_SUFFIX}).",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=defaults.threshold,
+        help=f"Similarité minimale d'une paire alignée (défaut : {defaults.threshold}).",
+    )
     parser.add_argument(
         "--residual-threshold",
         type=float,

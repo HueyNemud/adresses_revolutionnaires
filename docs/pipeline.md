@@ -944,5 +944,9 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
   typées plutôt que des `except Exception` génériques, sauf pour
   l'inférence GLiNER par lots (`ner/gliner.py`), qui doit résister aux
   erreurs imprévisibles de torch.
-- Tests : `unittest` (pas pytest), lancés depuis la racine ;
-  `ruff check src tests` (imports triés, pas d'import inutile).
+- Tests : `unittest` (pas pytest), lancés depuis la racine. Mise en forme
+  par **black** (`uv run black src tests`, lignes de 140 caractères), puis
+  `uv run ruff check src tests` (règles de flake8 — pycodestyle et
+  pyflakes — et tri des imports ; ruff les implémente, flake8 serait un
+  doublon) ; les deux outils sont dans le groupe `dev`, installé par
+  `uv sync`.

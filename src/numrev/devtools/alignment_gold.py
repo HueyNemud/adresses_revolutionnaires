@@ -148,7 +148,9 @@ def run(args: argparse.Namespace) -> None:
 
     strata: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for candidate in found:
-        strata[(displacement_label(candidate["deplacement"]), similarity_label(candidate["similarite"], args.min_similarity))].append(candidate)
+        strata[(displacement_label(candidate["deplacement"]), similarity_label(candidate["similarite"], args.min_similarity))].append(
+            candidate
+        )
     rng = random.Random(args.seed)
     sample = []
     for key in sorted(strata):
@@ -194,4 +196,3 @@ def run(args: argparse.Namespace) -> None:
     console.print(table)
     console.print("À étiqueter : colonne meme_entree (OUI / NON / INCERTAIN).")
     writes.finish(console)
-

@@ -79,16 +79,12 @@ class Split:
 def page_boundaries(document: SilverDocument) -> list[int]:
     """Indices de début de chaque page (plus la fin du document)."""
     starts = [
-        index
-        for index, record in enumerate(document.records)
-        if index == 0 or record.page_pos != document.records[index - 1].page_pos
+        index for index, record in enumerate(document.records) if index == 0 or record.page_pos != document.records[index - 1].page_pos
     ]
     return starts + [len(document)]
 
 
-def within_document_splits(
-    documents: Sequence[SilverDocument], folds: int = 5
-) -> list[Split]:
+def within_document_splits(documents: Sequence[SilverDocument], folds: int = 5) -> list[Split]:
     """K plis de pages contiguës par document."""
     splits: list[Split] = []
     for doc_index, document in enumerate(documents):
@@ -98,12 +94,8 @@ def within_document_splits(
         cuts = [bounds[round(i * n_pages / k)] for i in range(k + 1)]
         for fold in range(k):
             start, end = cuts[fold], cuts[fold + 1]
-            train = tuple(
-                (doc_index, a, b) for a, b in ((0, start), (end, len(document))) if b > a
-            )
-            splits.append(
-                Split("intra-document", f"{document.name}/pli{fold + 1}", train, ((doc_index, start, end),))
-            )
+            train = tuple((doc_index, a, b) for a, b in ((0, start), (end, len(document))) if b > a)
+            splits.append(Split("intra-document", f"{document.name}/pli{fold + 1}", train, ((doc_index, start, end),)))
     return splits
 
 
@@ -114,17 +106,13 @@ def cross_volume_splits(documents: Sequence[SilverDocument]) -> list[Split]:
     if len(volumes) < 2:
         return splits
     for volume in volumes:
-        train = tuple(
-            (i, 0, len(d)) for i, d in enumerate(documents) if d.volume != volume
-        )
+        train = tuple((i, 0, len(d)) for i, d in enumerate(documents) if d.volume != volume)
         test = tuple((i, 0, len(d)) for i, d in enumerate(documents) if d.volume == volume)
         splits.append(Split("inter-volumes", volume, train, test))
     return splits
 
 
-def subsample_training_pages(
-    split: Split, documents: Sequence[SilverDocument], n_pages: int, seed: int
-) -> Split:
+def subsample_training_pages(split: Split, documents: Sequence[SilverDocument], n_pages: int, seed: int) -> Split:
     """Réduit l'entraînement d'un pli à `n_pages` pages tirées au hasard
     (chaque page devient une séquence d'entraînement indépendante)."""
     pages: list[LineRange] = []
@@ -178,9 +166,7 @@ def _run_task(task: _Task) -> list[tuple[int, int, np.ndarray]]:
         for doc_index, start, end in task.split.test:
             features = _document_features(doc_index, groups)[start:end]
             marginals = sequence_marginals(tagger, features, CLASSES)
-            matrix = np.array(
-                [[line[label] for label in CLASSES] for line in marginals], dtype=np.float32
-            )
+            matrix = np.array([[line[label] for label in CLASSES] for line in marginals], dtype=np.float32)
             results.append((doc_index, start, matrix))
         tagger.close()
     return results

@@ -30,7 +30,15 @@ def page(index: int, blocks: list[list[tuple[str, str]]]) -> dict:
                 "label": "Text",
                 "chunk_index": block_index,
                 "lines": [
-                    {"uid": f"{index}.{block_index}.{line_index}", "line_index": line_index, "markdown": text, "prediction": label, "provenance": "model", "probability": 0.9, "timestamp": ""}
+                    {
+                        "uid": f"{index}.{block_index}.{line_index}",
+                        "line_index": line_index,
+                        "markdown": text,
+                        "prediction": label,
+                        "provenance": "model",
+                        "probability": 0.9,
+                        "timestamp": "",
+                    }
                     for line_index, (text, label) in enumerate(lines)
                 ],
             }
@@ -40,7 +48,13 @@ def page(index: int, blocks: list[list[tuple[str, str]]]) -> dict:
 
 
 DOCUMENT = [
-    page(6, [[("## PAPETIERS.", "B-TITLE")], [("Auzou, rue d'Anjou, 19.", "B-ENTRY"), ("Badet, rue Helvétius, 37.", "B-ENTRY"), ("et cartier", "B-ENTRY")]]),
+    page(
+        6,
+        [
+            [("## PAPETIERS.", "B-TITLE")],
+            [("Auzou, rue d'Anjou, 19.", "B-ENTRY"), ("Badet, rue Helvétius, 37.", "B-ENTRY"), ("et cartier", "B-ENTRY")],
+        ],
+    ),
     page(7, [[("---", "OUT OF SCOPE"), ("Bertaux, rue St.-Jacques.", "B-ENTRY"), ("---", "OUT OF SCOPE")]]),
 ]
 assign_line_keys(DOCUMENT)
@@ -105,6 +119,7 @@ class LinesCurationTests(unittest.TestCase):
         def change(rows):
             rows[3].update(classe="I-ENTRY", markdown="*et cartier*", corrige="oui")
             rows[1]["corrige"] = "oui"  # validée telle quelle
+
         self.edit(change)
         self.export(DOCUMENT)
         rows = self.rows()
@@ -140,6 +155,7 @@ class LinesCurationTests(unittest.TestCase):
             added = {**rows[1], "cle": "", "markdown": "Auzou fils, rue d'Anjou, 21.", "classe": "B-ENTRY"}
             duplicate = {**rows[5], "markdown": "Bertaux (Ve.), rue St.-Jacques."}
             return [*rows[:2], added, *rows[2:6], duplicate, *rows[6:]]
+
         self.edit(change)
         self.export(DOCUMENT)
         rows = self.rows()
@@ -175,7 +191,13 @@ class LinesCurationTests(unittest.TestCase):
         self.export(DOCUMENT)
         resegmented = [
             page(5, [[("Page de garde", "OUT OF SCOPE")]]),
-            page(7, [[("## PAPETIERS.", "B-TITLE"), ("Auzou, rue d'Anjou, 19.", "B-ENTRY")], [("Badet, rue Helvétius, 37.", "B-ENTRY"), ("et cartier", "B-ENTRY")]]),
+            page(
+                7,
+                [
+                    [("## PAPETIERS.", "B-TITLE"), ("Auzou, rue d'Anjou, 19.", "B-ENTRY")],
+                    [("Badet, rue Helvétius, 37.", "B-ENTRY"), ("et cartier", "B-ENTRY")],
+                ],
+            ),
             DOCUMENT[1],
         ]
         with self.assertRaises(CurationConflict):  # nouvelle ligne absente du fichier édité
@@ -235,7 +257,16 @@ class NerCurationTests(unittest.TestCase):
         return [
             {"uuid": "t1", "parent_uuid": ROOT, "uid": "1", "entity": "TITLE", "markdown": "## A", "tagged_text": ""},
             {"uuid": "t2", "parent_uuid": ROOT, "uid": "2", "entity": "TITLE", "markdown": "## B", "tagged_text": ""},
-            {"uuid": "e1", "parent_uuid": "t2", "uid": "3", "entity": "ENTRY", "markdown": "Dupont, rue A.", "tagged_text": "<SUBJ>Dupont, rue A.</SUBJ>", "subject_count": "1", "address_count": "0"},
+            {
+                "uuid": "e1",
+                "parent_uuid": "t2",
+                "uid": "3",
+                "entity": "ENTRY",
+                "markdown": "Dupont, rue A.",
+                "tagged_text": "<SUBJ>Dupont, rue A.</SUBJ>",
+                "subject_count": "1",
+                "address_count": "0",
+            },
         ]
 
     def run_ner(self, directory: Path, rows, **options) -> list[dict[str, str]]:

@@ -110,7 +110,9 @@ class AlignSectionsTests(unittest.TestCase):
     def test_patch_rewritten_after_reanchoring(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "paire.sections.csv"
-            write_section_patch(path, [SectionPatchEntry(left_uuid="ancien", right_uuid="d:marchands d arbres", left_title="JARDINIERS FLEURISTES")])
+            write_section_patch(
+                path, [SectionPatchEntry(left_uuid="ancien", right_uuid="d:marchands d arbres", left_title="JARDINIERS FLEURISTES")]
+            )
             load_section_alignment(records("g", LEFT), records("d", RIGHT), path, writes=Writes())
             self.assertEqual(read_section_patch(path)[0].left_uuid, "g:jardiniers fleuristes")
 
@@ -127,16 +129,20 @@ class OnlyPairedSectionsTests(unittest.TestCase):
     def test_links_between_unpaired_sections_are_dropped(self):
         left, right = records("g", LEFT), records("d", RIGHT)
         alignment = align_sections(left, right)
-        by_uuid = lambda items: {record.uuid: record for record in items}
         good, bad, unknown = Link("g0", "d0", 0.9), Link("g2", "d2", 0.9), Link("g9", "d0", 0.9)
-        kept, dropped = restrict_to_corresponding([good, bad, unknown], by_uuid(left), by_uuid(right), alignment)
+        left_by_uuid, right_by_uuid = ({record.uuid: record for record in items} for items in (left, right))
+        kept, dropped = restrict_to_corresponding([good, bad, unknown], left_by_uuid, right_by_uuid, alignment)
         self.assertEqual((kept, dropped), ([good, unknown], [bad]))
 
 
 class ValidateTests(unittest.TestCase):
     def test_accepts_groups_and_singletons(self):
         validate_section_patch(
-            [SectionPatchEntry(left_uuid="a", right_uuid="x"), SectionPatchEntry(left_uuid="b", right_uuid="x"), SectionPatchEntry(right_uuid="y")]
+            [
+                SectionPatchEntry(left_uuid="a", right_uuid="x"),
+                SectionPatchEntry(left_uuid="b", right_uuid="x"),
+                SectionPatchEntry(right_uuid="y"),
+            ]
         )
 
     def test_rejects_inconsistencies(self):
@@ -166,7 +172,10 @@ class CanonicalTests(unittest.TestCase):
         self.assertEqual(dedupe_records(right)["d1"]["section"], "listes de non commercans")
 
     def test_training_pairs_rewritten_by_side(self):
-        pair = [{"section": "liste de non commercans", "subj": "a", "text": "a"}, {"section": "listes de non commercans", "subj": "a", "text": "a"}]
+        pair = [
+            {"section": "liste de non commercans", "subj": "a", "text": "a"},
+            {"section": "listes de non commercans", "subj": "a", "text": "a"},
+        ]
         data = {"match": [{"__class__": "tuple", "__value__": pair}], "distinct": [[pair[0], {"section": None, "subj": "b", "text": "b"}]]}
         rewritten = canonical_training(data, self.left_keys, self.right_keys)
         self.assertEqual([record["section"] for record in rewritten["match"][0]["__value__"]], ["liste de non commercans"] * 2)

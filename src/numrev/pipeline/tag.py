@@ -146,9 +146,7 @@ def recount(row: dict[str, str]) -> None:
 # --------------------------------------------------------------------------
 
 
-def insert_columns_after(
-    fieldnames: list[str], after: str, new_columns: list[str]
-) -> list[str]:
+def insert_columns_after(fieldnames: list[str], after: str, new_columns: list[str]) -> list[str]:
     """Insère `new_columns` juste après la colonne `after`, sans dupliquer
     une colonne déjà présente (ré-exécution idempotente sur un fichier déjà
     traité : les colonnes existantes gardent leur position, leur contenu
@@ -194,7 +192,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help=f"Nombre de textes par lot d'inférence (défaut : {DEFAULT_BATCH_SIZE})."
     )
-    parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD}).")
+    parser.add_argument(
+        "--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD})."
+    )
     parser.add_argument(
         "--min-score",
         type=float,
@@ -202,7 +202,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         help=f"Score minimal d'empan sous lequel une entrée est signalée « score bas » (défaut : {DEFAULT_MIN_SCORE}).",
     )
     add_capture_arguments(parser)
-    parser.add_argument("--verbose", action="store_true", help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier).")
+    parser.add_argument(
+        "--verbose", action="store_true", help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier)."
+    )
     add_apply_argument(parser)
 
 
@@ -216,9 +218,7 @@ def apply_corrections(curation: Curation, rows: list[dict[str, str]]) -> list[di
     return rows
 
 
-def write_output(
-    curation: Curation, rows: list[dict[str, str]], output_path: Path, fieldnames: list[str], writes: Writes
-) -> None:
+def write_output(curation: Curation, rows: list[dict[str, str]], output_path: Path, fieldnames: list[str], writes: Writes) -> None:
     """Corrections réappliquées puis écriture (si `--apply`) ; en cas de
     panique (CurationConflict), rien n'est écrit."""
     rows = apply_corrections(curation, rows)
@@ -272,13 +272,25 @@ def run(args: argparse.Namespace) -> None:
         errors.append(indices[position])
         console.print(f"[red]✗[/red] ligne {indices[position]} : {error}")
 
-    columns = (TextColumn("[progress.description]{task.description}"), BarColumn(), MofNCompleteColumn(),
-               TextColumn("•"), TimeElapsedColumn(), TextColumn("restant :"), TimeRemainingColumn())
+    columns = (
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("•"),
+        TimeElapsedColumn(),
+        TextColumn("restant :"),
+        TimeRemainingColumn(),
+    )
     with Progress(*columns, console=console) as progress:
         task = progress.add_task("Inférence", total=len(indices))
         predictions = predict_spans(
-            model, config, texts, args.threshold, args.batch_size,
-            on_batch=lambda n: progress.update(task, advance=n), on_error=report_error,
+            model,
+            config,
+            texts,
+            args.threshold,
+            args.batch_size,
+            on_batch=lambda n: progress.update(task, advance=n),
+            on_error=report_error,
         )
 
     span_counts: Counter[str] = Counter()
@@ -318,4 +330,3 @@ def run(args: argparse.Namespace) -> None:
     if errors:
         console.print(f"[red]✗ {len(errors)} ligne(s) en échec (voir le détail ci-dessus).[/red]")
     writes.finish(console)
-

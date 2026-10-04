@@ -182,9 +182,7 @@ class Curation:
     """Une exécution du protocole pour un fichier de sortie : `capture` (à
     la création), puis `apply` sur la sortie machine, puis `save_patch`."""
 
-    def __init__(
-        self, step: Step, output_path: Path, patch_file: Path | None = None, *, force: bool = False, capture: bool = True
-    ) -> None:
+    def __init__(self, step: Step, output_path: Path, patch_file: Path | None = None, *, force: bool = False, capture: bool = True) -> None:
         """`patch_file` : par défaut, le patch versionné du document
         (`numrev.paths.curation_patch`)."""
         self.step = step
@@ -342,9 +340,7 @@ class Curation:
                         problems.append(message)
 
         if problems:
-            raise CurationConflict(
-                problems, "corrigez le fichier ou le patch, ou relancez avec --force pour reprendre la sortie machine."
-            )
+            raise CurationConflict(problems, "corrigez le fichier ou le patch, ou relancez avec --force pour reprendre la sortie machine.")
 
         self.report.corrections = len(kept)
         new_keys = {correction.get(step.key) for correction in kept}
@@ -366,9 +362,7 @@ class Curation:
         """Réécrit le patch (créé seulement s'il y a des corrections), selon
         `writes` (numrev/command.py ; défaut : écrit)."""
         if self.corrections or self.patch_file.exists():
-            (writes or Writes()).add(
-                self.patch_file, lambda: write_csv(self.patch_file, self.step.patch_fields, self.corrections)
-            )
+            (writes or Writes()).add(self.patch_file, lambda: write_csv(self.patch_file, self.step.patch_fields, self.corrections))
 
 
 def refuse_orphans(orphans: list[str], force: bool, what: str) -> None:

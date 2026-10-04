@@ -22,6 +22,10 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    "black>=26.10.0",
+    "ruff>=0.16.9",
+]
 explorations = [
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
@@ -39,9 +43,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/numrev"]
 
+[tool.black]
+line-length = 140
+target-version = ["py312"]
+
 [tool.ruff]
 line-length = 140
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["F", "I"]
+select = ["E", "W", "F", "I"]  # = règles par défaut de flake8 (pycodestyle + pyflakes), plus le tri des imports
