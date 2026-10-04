@@ -15,7 +15,8 @@ dans chaque segment (`numrev.alignment.sections.segments`, même similarité que
   probabilité a posteriori < `CONTEXT_REVIEW` ;
 - `homonyme proche` : paire décidée sur sa seule similarité (`nw`,
   `nw-residuel`, `dedupe`) alors qu'une autre entrée du segment, de l'un ou
-  l'autre côté, est presque aussi proche (écart < `margin`) ;
+  l'autre côté, est presque aussi proche (écart < `margin`) ; ces
+  concurrentes sont gardées (`Review.rivals`) pour que le relecteur les voie ;
 - `candidate non appariée` : deux entrées restées sans correspondance,
   chacune la plus proche de l'autre dans le segment, de similarité dans la
   zone grise [`low` ; `high`[ — par défaut entre le seuil de
@@ -65,6 +66,7 @@ SIMILARITY_SOURCES = {SOURCE_NW, SOURCE_NW_RESIDUAL, SOURCE_DEDUPE}  # paires d�
 class Review:
     reasons: tuple[str, ...]
     level: int  # clé de LEVEL_LABELS : 0 faible, 1 moyenne, 2 forte
+    rivals: tuple[tuple[str, str, float], ...] = ()  # homonyme proche : (côté, uuid, similarité) des concurrentes
 
 
 @dataclass
@@ -99,6 +101,7 @@ def review(
     busy_left = {link.left_uuid for link in links} | set(declared)
     busy_right = {link.right_uuid for link in links} | set(declared)
     reasons: dict[tuple[str, str], list[str]] = {}
+    rivals: dict[tuple[str, str], list[tuple[str, str, float]]] = {}
     candidates = []
     for left_records, right_records in segment_entries(sections):
         if not left_records or not right_records:
@@ -119,6 +122,10 @@ def review(
                 rival = max(np.delete(similarity[i], j).max(initial=0.0), np.delete(similarity[:, j], i).max(initial=0.0))
                 if similarity[i, j] - rival < margin:
                     found.append(REASON_HOMONYM)
+                    floor = similarity[i, j] - margin
+                    close = [("right", right_records[k].uuid, float(similarity[i, k])) for k in range(len(right_records)) if k != j]
+                    close += [("left", left_records[k].uuid, float(similarity[k, j])) for k in range(len(left_records)) if k != i]
+                    rivals[link.left_uuid, link.right_uuid] = sorted((c for c in close if c[2] > floor), key=lambda c: -c[2])
             if found:
                 reasons[link.left_uuid, link.right_uuid] = found
 
@@ -132,5 +139,5 @@ def review(
                 reasons[record.uuid, partner.uuid] = [REASON_CANDIDATE]
     by_pair = {(link.left_uuid, link.right_uuid): link for link in links}
     every = {**by_pair, **{(link.left_uuid, link.right_uuid): link for link in candidates}}
-    reviews = {key: Review(tuple(found), level(tuple(found), every[key])) for key, found in reasons.items()}
+    reviews = {key: Review(tuple(found), level(tuple(found), every[key]), tuple(rivals.get(key, ()))) for key, found in reasons.items()}
     return ReviewResult(reviews, candidates)

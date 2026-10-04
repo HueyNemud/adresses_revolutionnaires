@@ -37,6 +37,7 @@ class ReviewTests(unittest.TestCase):
         result = run(left, right, [Link("g0", "d0", 1.0, SOURCE_NW)])
         self.assertEqual(result.reviews["g0", "d0"].reasons, (REASON_HOMONYM,))
         self.assertEqual(result.reviews["g0", "d0"].level, 1)
+        self.assertEqual([(side, uuid) for side, uuid, _ in result.reviews["g0", "d0"].rivals], [("left", "g1")])
 
     def test_distinct_pair_is_not_flagged(self):
         left = records("g", ["Martin, rue A, 1.", "Bernard, quai Voltaire, 30."])
