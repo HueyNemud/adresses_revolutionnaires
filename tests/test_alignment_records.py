@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from numrev.alignment.records import clean_title, dedupe_records, load_volume, ner_csv, subject_text
+from numrev.alignment.records import clean_title, dedupe_records, load_lines, load_volume, ner_csv, subject_text
 from numrev.paths import NER, range_dirs
 
 FIELDS = ["uuid", "parent_uuid", "entity", "markdown", "tagged_text", "page_index"]
@@ -83,6 +83,13 @@ class LoadVolumeTests(unittest.TestCase):
         self.assertEqual(records[1].text, "Dupont, rue A.")
         self.assertEqual(records[1].subj, "Dupont")
         self.assertEqual(records[1].page, "3")
+
+    def test_lines_keep_every_row_in_page_order(self):
+        lines = load_lines(self.volume)
+        self.assertEqual([line.uuid for line in lines], ["e0", "t0", "t1b", "e1", "o1", "e2", "t1", "t2", "e3"])
+        self.assertEqual([line.level for line in lines if line.entity == "TITLE"], [1, 2, 1, 3])
+        self.assertEqual(lines[3].page, "3")
+        self.assertIsNone(lines[0].level)
 
     def test_dedupe_records(self):
         data = dedupe_records(load_volume(self.volume))

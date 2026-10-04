@@ -151,6 +151,40 @@ def load_volume(volume_dir: Path) -> list[Record]:
     return records
 
 
+@dataclass(frozen=True)
+class DocLine:
+    """Une ligne d'un annuaire telle qu'imprimée (TITLE, ENTRY ou OUT OF
+    SCOPE), pour la vue « Documents » du viewer d'alignement."""
+
+    uuid: str
+    entity: str  # TITLE, ENTRY ou OUT OF SCOPE
+    page: str
+    markdown: str
+    tagged_text: str
+    level: int | None = None  # niveau de titre (nombre de `#`), TITLE seulement
+
+
+def load_lines(volume_dir: Path) -> list[DocLine]:
+    """Toutes les lignes d'un annuaire, plages concaténées dans l'ordre des
+    pages (comme `load_volume`)."""
+    lines: list[DocLine] = []
+    for range_dir in range_dirs(volume_dir):
+        for row in read_csv(ner_csv(range_dir))[1]:
+            markdown = row.get("markdown", "")
+            entity = row.get("entity", "")
+            lines.append(
+                DocLine(
+                    uuid=row["uuid"],
+                    entity=entity,
+                    page=row.get("page_index", "").split(",")[0],
+                    markdown=markdown,
+                    tagged_text=row.get("tagged_text", ""),
+                    level=title_level(markdown) if entity == "TITLE" else None,
+                )
+            )
+    return lines
+
+
 def dedupe_records(records: list[Record], section_keys: dict[str, str] | None = None) -> dict[str, dict[str, str | None]]:
     """Données au format Dedupe (uuid → champs), en minuscules (la casse des
     noms varie d'une édition à l'autre : « ARCHÉDÉACON » / « Archédéacon »),
