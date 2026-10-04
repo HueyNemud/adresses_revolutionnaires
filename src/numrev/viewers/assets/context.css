@@ -57,9 +57,12 @@
 .ctx-grid { display: grid; grid-template-columns: 1fr var(--gutter) 1fr; position: relative; padding: 6px 0 40vh; }
 .ctx-col { min-width: 0; }
 .ctx-gutter { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.ctx-more { display: block; width: calc(100% - 8px); margin: 2px 4px 6px; font: inherit; font-size: 0.75em; color: var(--muted);
-            text-align: center; padding: 3px 0; background: transparent; border: 1px dashed var(--line); border-radius: 4px; cursor: pointer; }
-.ctx-more:hover { color: var(--fg); border-color: var(--muted); }
+.ctx-nav { display: flex; gap: 6px; margin: 2px 4px 6px; }
+.ctx-more, .ctx-page { font: inherit; font-size: 0.75em; color: var(--muted); text-align: center; padding: 3px 8px;
+                       background: transparent; border: 1px dashed var(--line); border-radius: 4px; cursor: pointer; }
+.ctx-more { flex: 1; }
+.ctx-page { border-style: solid; white-space: nowrap; }
+.ctx-more:hover, .ctx-page:hover { color: var(--fg); border-color: var(--muted); }
 .ctx-banner { font-size: 0.85em; padding: 6px 10px; margin-bottom: 8px; border-radius: 6px; font-weight: 500;
               background: var(--focus); color: var(--accent); border: 1px solid var(--focus-edge); }
 

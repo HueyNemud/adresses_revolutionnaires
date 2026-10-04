@@ -144,7 +144,7 @@ MANUAL_SOURCES = {SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN}
 ROW_COLUMNS = ("uuid", "section", "section_title", "section_uuid", "markdown")  # champs de Record gardés par ligne, de chaque côté
 WINDOW = {DOCUMENTS: (80, 120), REVIEW: (8, 8)}  # lignes affichées avant / après la ligne courante
 HEIGHT = {DOCUMENTS: "68vh", REVIEW: "430px"}
-MORE_STEP = 100  # lignes ajoutées par « ⋯ » (assets/context.js)
+MORE_STEP = 10  # lignes ajoutées par « ⋯ » (assets/context.js)
 DOCUMENTS_ORDER, LEVEL_ORDER = "ordre des documents", "incertitude décroissante"
 
 # Clés de st.session_state
@@ -152,7 +152,7 @@ CURSOR = "cursor"  # (uuid gauche, uuid droit) de la ligne courante
 VIEW = "view"
 PENDING_VIEW = "pending_view"  # vue à afficher au prochain tour (posée hors rappel)
 PAIRING = "pairing"  # mode « choisir le partenaire »
-WINDOW_EXTRA = "window_extra"  # lignes ajoutées par « ⋯ » autour de la ligne courante
+VIEWPORT = "viewport"  # fenêtre des documents : centre (après « Page ») et lignes ajoutées par « ⋯ »
 SEARCH = "search"
 
 CSS = f"""<style>
@@ -906,12 +906,37 @@ def on_pairing(active: bool) -> None:
     st.session_state[PAIRING] = active
 
 
-def window_extra(cursor: tuple[str, str]) -> tuple[int, int]:
-    """Lignes ajoutées par « ⋯ » (avant, après), tant que le curseur ne bouge pas."""
-    extra = st.session_state.get(WINDOW_EXTRA)
-    if not extra or tuple(extra["cursor"]) != tuple(cursor):
-        return 0, 0
-    return extra["before"], extra["after"]
+def viewport(cursor: tuple[str, str]) -> tuple[tuple[str, str], int, int]:
+    """(paire sur laquelle la fenêtre est centrée, lignes ajoutées avant,
+    après) : la ligne courante et aucune ligne ajoutée, sauf après « Page »
+    ou « ⋯ », tant que la ligne courante ne change pas."""
+    state = st.session_state.get(VIEWPORT)
+    if not state or tuple(state["cursor"]) != tuple(cursor):
+        return tuple(cursor), 0, 0
+    return tuple(state["center"]), state["before"], state["after"]
+
+
+def window_bounds(docs: context.Documents, cursor: tuple[str, str], view_name: str) -> tuple[tuple[str, str], dict[str, tuple[int, int]]]:
+    """(centre, bornes de la fenêtre de chaque côté)."""
+    center, more_before, more_after = viewport(cursor)
+    before, after = WINDOW[view_name]
+    return center, context.window(docs, context.centers(docs, *center), before + more_before, after + more_after)
+
+
+def page_center(
+    docs: context.Documents, alignment: Alignment, bounds: dict[str, tuple[int, int]], direction: int
+) -> tuple[str, str] | None:
+    """Centre de la page suivante (`direction` 1) ou précédente (-1) : la
+    dernière (première) entrée de la fenêtre de gauche, à défaut de droite,
+    qui ait une ligne dans l'alignement."""
+    for side in context.SIDES:
+        start, end = bounds[side]
+        indexes = range(end - 1, start - 1, -1) if direction > 0 else range(start, end)
+        for index in indexes:
+            row = alignment.by_uuid[side].get(docs.lines[side][index].uuid)
+            if row is not None:
+                return row_key(alignment.rows, row)
+    return None
 
 
 def eligible(alignment: Alignment, cursor: tuple[str, str]) -> dict[str, set[str]]:
@@ -926,8 +951,10 @@ def eligible(alignment: Alignment, cursor: tuple[str, str]) -> dict[str, set[str
     return found
 
 
-def handle_event(event: tuple[str, dict], alignment: Alignment, records: dict, pair_name: str, digest: str) -> None:
-    """Clic dans les documents : ligne courante, appariement ou fenêtre agrandie."""
+def handle_event(
+    event: tuple[str, dict], alignment: Alignment, records: dict, docs: context.Documents, view_name: str, pair_name: str, digest: str
+) -> None:
+    """Clic dans les documents : ligne courante, appariement, fenêtre agrandie ou page."""
     name, value = event
     value = value if isinstance(value, dict) else {}
     cursor = tuple(st.session_state.get(CURSOR) or ("", ""))
@@ -945,22 +972,25 @@ def handle_event(event: tuple[str, dict], alignment: Alignment, records: dict, p
     elif name == "zoom":
         st.session_state[PENDING_VIEW] = REVIEW
     elif name == "more":
-        before, after = window_extra(cursor)
+        center, before, after = viewport(cursor)
         if value.get("dir", 1) < 0:
             before += MORE_STEP
         else:
             after += MORE_STEP
-        st.session_state[WINDOW_EXTRA] = {"cursor": list(cursor), "before": before, "after": after}
+        st.session_state[VIEWPORT] = {"cursor": list(cursor), "center": list(center), "before": before, "after": after}
+    elif name == "page":
+        _, bounds = window_bounds(docs, cursor, view_name)
+        center = page_center(docs, alignment, bounds, value.get("dir", 1))
+        if center is not None:
+            st.session_state[VIEWPORT] = {"cursor": list(cursor), "center": list(center), "before": 0, "after": 0}
     st.rerun()
 
 
 def documents_panel(
     docs: context.Documents, cursor: tuple[str, str], view_name: str, marks: context.Marks, titles: tuple[str, str], info: str
 ) -> tuple[str, dict] | None:
-    before, after = WINDOW[view_name]
-    more_before, more_after = window_extra(cursor)
-    bounds = context.window(docs, context.centers(docs, *cursor), before + more_before, after + more_after)
-    data = context.payload(docs, bounds, cursor, marks, HEIGHT[view_name], info)
+    center, bounds = window_bounds(docs, cursor, view_name)
+    data = context.payload(docs, bounds, cursor, marks, HEIGHT[view_name], info, center)
     return context.documents_diff(data, "documents_diff", titles)
 
 
@@ -1166,7 +1196,7 @@ def main() -> None:
     )
     event = documents_panel(docs, cursor, view_name, marks, (left_name, right_name), focus.summary(focused))
     if event:
-        handle_event(event, alignment, records, pair_name, digest)
+        handle_event(event, alignment, records, docs, view_name, pair_name, digest)
 
 
 if __name__ == "__main__":

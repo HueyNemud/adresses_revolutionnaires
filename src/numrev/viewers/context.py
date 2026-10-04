@@ -114,9 +114,19 @@ def section_before(lines: list[DocLine], start: int) -> str:
     return ""
 
 
-def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[str, str], marks: Marks, height: str, info: str = "") -> dict:
+def payload(
+    docs: Documents,
+    bounds: dict[str, tuple[int, int]],
+    focus: tuple[str, str],
+    marks: Marks,
+    height: str,
+    info: str = "",
+    center: tuple[str, str] | None = None,
+) -> dict:
     """Données du composant : lignes des deux fenêtres, ligne courante,
-    marqueurs (tâches, recherche) et mode d'appariement."""
+    marqueurs (tâches, recherche) et mode d'appariement. `center` : la paire
+    sur laquelle la fenêtre est alignée (la ligne courante par défaut, une
+    autre après « Page »)."""
     sides = {}
     for side in SIDES:
         start, end = bounds[side]
@@ -142,6 +152,7 @@ def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[st
         "left": sides["left"],
         "right": sides["right"],
         "focus": list(focus),
+        "center": list(center or focus),
         "info": info,  # la ligne courante en une phrase (infobulle de la loupe)
         "pairing": marks.eligible is not None,
         "height": height,
@@ -163,15 +174,15 @@ def _diff_component():
     return _component
 
 
-EVENTS = ("focus", "pair", "more", "zoom")  # déclencheurs du composant
+EVENTS = ("focus", "pair", "more", "page", "zoom")  # déclencheurs du composant
 
 
 def documents_diff(data: dict, key: str, titles: tuple[str, str]) -> tuple[str, dict] | None:
     """Monte le composant ; renvoie (événement, valeur) au tour qui suit un
     clic, sinon None. Événements : `focus` ({side, uuid} : entrée cliquée),
     `pair` ({side, uuid} : partenaire choisi en mode d'appariement), `more`
-    ({dir} : -1 lignes précédentes, 1 lignes suivantes), `zoom` (loupe de la
-    ligne courante)."""
+    ({dir} : -1 lignes précédentes, 1 lignes suivantes), `page` ({dir} :
+    page précédente ou suivante), `zoom` (loupe de la ligne courante)."""
     callbacks = {f"on_{event}_change": (lambda: None) for event in EVENTS}
     result = _diff_component()(key=key, data=data | {"titles": list(titles)}, **callbacks)
     for event in EVENTS:

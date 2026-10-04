@@ -8,7 +8,7 @@
 // tout, puis place la ligne courante (voir `place`).
 
 const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const STEP = 100;
+const STEP = 10;
 const CENTER = 0.4;
 const LOUPE_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ` +
   `stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`; // hauteur, dans la fenêtre, où l'on place une nouvelle ligne courante
@@ -37,8 +37,13 @@ function lineHtml(line, side, data) {
 
 function column(lines, side, data) {
   const [before, after] = data.more[side];
-  const top = before ? `<button class="ctx-more" data-dir="-1">⋯ ${STEP} lignes précédentes</button>` : "";
-  const bottom = after ? `<button class="ctx-more" data-dir="1">⋯ ${STEP} lignes suivantes</button>` : "";
+  // « ⋯ » ajoute quelques lignes ; « Page » recentre la fenêtre sur son bord,
+  // ce qui réaligne les deux colonnes (sans changer la ligne courante).
+  const nav = (dir, more, page) =>
+    `<div class="ctx-nav"><button class="ctx-more" data-dir="${dir}">⋯ ${STEP} ${more}</button>` +
+    `<button class="ctx-page" data-dir="${dir}">${page}</button></div>`;
+  const top = before ? nav(-1, "lignes précédentes", "⇡ Page précédente") : "";
+  const bottom = after ? nav(1, "lignes suivantes", "Page suivante ⇣") : "";
   return `<div class="ctx-col ${side}">${top}${lines.map((line) => lineHtml(line, side, data)).join("")}${bottom}</div>`;
 }
 
@@ -184,12 +189,13 @@ function scrollBy(scroll, delta, spacer) {
   }
 }
 
-// Place la nouvelle vue : 1. après un clic dans les documents, l'élément
-// cliqué reste où il était ; 2. si la ligne courante n'a pas changé (une
-// décision, une fenêtre agrandie) et qu'elle était visible, elle reste où
-// elle était ; 3. sinon (tâche suivante, recherche, rubrique…), elle est
-// centrée.
-function place(root, data, previous, previousFocus) {
+// Place la nouvelle vue : 1. après un clic dans les documents (entrée,
+// lien, « ⋯ »), l'élément cliqué ou la ligne voisine du bouton reste où il
+// était ; 2. si ni la ligne courante ni le centre de la fenêtre n'ont changé
+// (une décision), la vue ne bouge pas : la ligne courante, sinon la
+// première ligne visible, reste où elle était ; 3. sinon (tâche suivante,
+// recherche, rubrique, page…), le centre de la fenêtre est centré.
+function place(root, data, previous, previousKey) {
   const scroll = root.querySelector(".ctx-scroll");
   if (!scroll) return;
   const top = () => scroll.getBoundingClientRect().top;
@@ -203,17 +209,23 @@ function place(root, data, previous, previousFocus) {
     scrollBy(scroll, find(anchor).getBoundingClientRect().top - top() - previous.get(anchor), true);
     return;
   }
-  const focusKey = data.focus.join("|");
-  if (focusKey === previousFocus) {
-    const keys = ["left", "right"].map((side, index) => `${side}:${data.focus[index]}`).filter((key) => previous.has(key) && find(key));
-    const visible = keys.find((key) => previous.get(key) >= 0 && previous.get(key) <= scroll.clientHeight);
-    if (visible) {
-      scrollBy(scroll, find(visible).getBoundingClientRect().top - top() - previous.get(visible), false);
+  if (viewKey(data) === previousKey) {
+    const isVisible = (key) => previous.has(key) && previous.get(key) >= 0 && previous.get(key) <= scroll.clientHeight && find(key);
+    const focused = ["left", "right"].map((side, index) => `${side}:${data.focus[index]}`);
+    const kept = focused.find(isVisible) || [...previous.keys()].find(isVisible);
+    if (kept) {
+      scrollBy(scroll, find(kept).getBoundingClientRect().top - top() - previous.get(kept), false);
       return;
     }
   }
-  const focus = root.querySelector(".ln.focus");
-  if (focus) scrollBy(scroll, focus.getBoundingClientRect().top - top() - scroll.clientHeight * CENTER, false);
+  const center = data.center || data.focus;
+  const target = (center[0] && find(`left:${center[0]}`)) || (center[1] && find(`right:${center[1]}`)) || root.querySelector(".ln.focus");
+  if (target) scrollBy(scroll, target.getBoundingClientRect().top - top() - scroll.clientHeight * CENTER, false);
+}
+
+// Ligne courante et centre de la fenêtre : la vue n'est recentrée que s'ils changent.
+function viewKey(data) {
+  return [...data.focus, ...(data.center || data.focus)].join("|");
 }
 
 // Rubrique courante de chaque colonne, à côté du nom de la liste : celle de
@@ -262,7 +274,17 @@ export default function (component) {
       if (event.target.closest("button.loupe")) { setTriggerValue("zoom", { view: "detail" }); return; }
       const more = event.target.closest("button.ctx-more");
       if (more) {
+        // La ligne voisine du bouton reste en place : les lignes ajoutées
+        // apparaissent sans que la vue saute.
+        const lines = more.closest(".ctx-col").querySelectorAll(".ln[data-uuid]");
+        const neighbour = Number(more.dataset.dir) < 0 ? lines[0] : lines[lines.length - 1];
+        if (neighbour) root.__anchor = `${neighbour.dataset.side}:${neighbour.dataset.uuid}`;
         setTriggerValue("more", { dir: Number(more.dataset.dir) });
+        return;
+      }
+      const page = event.target.closest("button.ctx-page");
+      if (page) {
+        setTriggerValue("page", { dir: Number(page.dataset.dir) });
         return;
       }
       const current = root.__data;
@@ -288,7 +310,7 @@ export default function (component) {
     });
   }
   const previous = screenPositions(root);
-  const previousFocus = root.__focus || "";
+  const previousKey = root.__viewKey || "";
   root.dataset.scheme = isDark(root) ? "dark" : "light";
   const [leftTitle, rightTitle] = data.titles || ["gauche", "droite"];
   const height = typeof data.height === "number" ? `${data.height}px` : data.height;
@@ -318,10 +340,10 @@ export default function (component) {
 
 
   root.__data = data;
-  root.__focus = data.focus.join("|");
+  root.__viewKey = viewKey(data);
   const redraw = () => draw(root, root.__data);
   redraw();
-  place(root, data, previous, previousFocus);
+  place(root, data, previous, previousKey);
   showSections(root, data);
   const scroll = root.querySelector(".ctx-scroll");
   let pending = false;

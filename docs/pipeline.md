@@ -765,7 +765,12 @@ gardant.
     annule.
   - **Navigation** : *Aller à la rubrique* ; **Rechercher** dans le texte
     des deux annuaires (résultats surlignés, ◀ ▶ d'un résultat à l'autre) ;
-    « ⋯ 100 lignes précédentes / suivantes » agrandit la fenêtre.
+    en haut et en bas de chaque colonne, « ⋯ 10 lignes précédentes /
+    suivantes » ajoute quelques lignes sans faire bouger la vue, et
+    « Page précédente / suivante » recentre la fenêtre sur son bord : les
+    deux colonnes, qui se décalent peu à peu loin de la ligne alignée, sont
+    réalignées, sans changer la ligne courante (un clic ou une tâche
+    ramène la fenêtre sur la ligne courante).
   - Au survol d'un titre, **uuid** copie l'uuid de la rubrique (patch des
     rubriques).
 - **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne
