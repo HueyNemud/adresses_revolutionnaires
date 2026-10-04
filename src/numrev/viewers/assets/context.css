@@ -1,0 +1,45 @@
+/* Vue « Documents » : deux colonnes et une gouttière de liens (context.js). */
+.ctx { --gutter: 72px; --pair: #16a34a; --candidate: #d97706; --manual: #7c3aed; --cross: #ea580c;
+       --muted: color-mix(in srgb, var(--st-text-color, #1e293b) 55%, transparent);
+       --line: color-mix(in srgb, var(--st-text-color, #1e293b) 12%, transparent);
+       --focus: rgba(37, 99, 235, 0.12); --focus-edge: rgba(37, 99, 235, 0.5);
+       color: var(--st-text-color, #1e293b); font-size: 0.9rem; font-family: inherit; }
+.ctx-head { display: grid; grid-template-columns: 1fr var(--gutter) 1fr; font-weight: 600; font-size: 0.85em;
+            color: var(--muted); padding: 0 0 6px; }
+.ctx-head div:last-child { padding-left: 4px; }
+.ctx-scroll { overflow-y: auto; border: 1px solid var(--line); border-radius: var(--st-base-radius, 6px); position: relative; }
+.ctx-grid { display: grid; grid-template-columns: 1fr var(--gutter) 1fr; position: relative; padding: 6px 0; }
+.ctx-col { min-width: 0; }
+.ctx-gutter { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.ctx-more { font-size: 0.75em; color: var(--muted); text-align: center; padding: 2px 0 6px; }
+.ln { position: relative; padding: 3px 10px; border-radius: 4px; margin: 1px 4px; line-height: 1.35; overflow-wrap: anywhere; }
+.ln.title { font-weight: 700; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+.ln.title.l1 { font-size: 1.05em; text-transform: none; }
+.ln.title.l3, .ln.title.l4 { font-weight: 600; font-style: italic; }
+.ln.out { color: var(--muted); font-size: 0.8em; font-style: italic; }
+.ln.entry { cursor: pointer; }
+.ln.entry:hover { background: color-mix(in srgb, var(--st-text-color, #1e293b) 5%, transparent); }
+.ln.focus { background: var(--focus); box-shadow: inset 0 0 0 1px var(--focus-edge); }
+.ln.picked { box-shadow: inset 0 0 0 2px var(--manual); }
+.ln .pg { float: right; font-size: 0.72em; color: var(--muted); margin-left: 6px; font-family: monospace; }
+.right .ln .pg { float: left; margin: 0 6px 0 0; }
+.left .ln.entry { padding-right: 18px; }
+.right .ln.entry { padding-left: 18px; }
+.dot { position: absolute; top: 0.65em; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box;
+       border: 2px solid var(--muted); background: transparent; }
+.left .dot { right: 3px; }
+.right .dot { left: 3px; }
+.dot.pair { background: var(--pair); border-color: var(--pair); }
+.dot.candidate { background: var(--candidate); border-color: var(--candidate); }
+.dot.manual { box-shadow: 0 0 0 2px var(--manual); }
+.dot.local { box-shadow: 0 0 0 2px var(--manual); border-style: dashed; }
+.ln .tag { font-size: 0.7em; font-weight: 600; padding: 0 5px; border-radius: 8px; margin-left: 4px; white-space: nowrap;
+           background: color-mix(in srgb, var(--manual) 15%, transparent); color: var(--manual); }
+path.link { fill: none; stroke: var(--pair); stroke-width: 1.5; opacity: 0.75; }
+path.link.candidate { stroke: var(--candidate); stroke-dasharray: 4 3; }
+path.link.manual { stroke: var(--manual); }
+path.link.cross { stroke: var(--cross); stroke-width: 2.2; opacity: 0.95; }
+path.link.focus { stroke-width: 3.5; opacity: 1; }
+text.stub { font-size: 11px; fill: var(--muted); }
+.ctx-legend { font-size: 0.75em; color: var(--muted); padding-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+.ctx-legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 4px; }

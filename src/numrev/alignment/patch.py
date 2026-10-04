@@ -28,6 +28,8 @@ jamais appliquée, et les scripts qui produisent un alignement paniquent
 (numrev/curation.py).
 """
 
+import csv
+import io
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
@@ -95,6 +97,15 @@ def read_patch(path: Path) -> list[PatchEntry]:
 def write_patch(path: Path, entries: list[PatchEntry]) -> None:
     """Écriture atomique (numrev/curation.py)."""
     write_csv(path, PATCH_FIELDS, (asdict(entry) for entry in entries))
+
+
+def patch_csv(entries: list[PatchEntry]) -> str:
+    """Le patch en texte CSV, comme `write_patch` l'écrirait (téléchargement du viewer)."""
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=PATCH_FIELDS, lineterminator="\r\n")
+    writer.writeheader()
+    writer.writerows(asdict(entry) for entry in entries)
+    return buffer.getvalue()
 
 
 def validate(entries: list[PatchEntry]) -> None:
