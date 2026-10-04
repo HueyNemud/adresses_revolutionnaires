@@ -68,8 +68,8 @@ correspondance** (`V`).
   décide sur place avec les boutons du haut. **⇄ Autre partenaire…** (`A`) fait
   choisir le partenaire dans les documents : seules les entrées des
   rubriques appariées restent cliquables.
-- **Relecture** (bouton **Relire en détail**, `Entrée`, ou la loupe 🔍 du
-  lien courant ; `Échap` pour revenir) : la ligne courante en
+- **Relecture** (onglet, ou la loupe du lien courant ; l'onglet
+  **Documents** pour revenir) : la ligne courante en
   grand. Les caractères qui diffèrent entre les deux textes sont surlignés.
   Les **rapprochements possibles** donnent les entrées les plus proches de
   l'autre côté (la concurrente d'un `homonyme proche` y est signalée). La

@@ -26,51 +26,50 @@ from numrev.ner.html import SPAN_CSS, render_tagged_html
 SIDE_NAMES = {"left": "gauche", "right": "droite"}
 ALTERNATIVES = 3  # rapprochements proposés par côté
 
-# Couleurs Alucard (clair) et Dracula (sombre), comme le thème
-# (assets/theme.toml) et la vue Documents (assets/context.css).
+# Mêmes couleurs que le thème (assets/theme.toml) et la vue Documents
+# (assets/context.css) : neutres « zinc », accent indigo, états désaturés.
 CARD_CSS = f"""<style>
-  .nr {{ --comment: #6c664b; --cyan: #036a96; --green: #14710a; --orange: #a34d14; --pink: #a3144d; --purple: #644ac9;
-         --red: #cb3a2a; --yellow: #846e15; --muted: color-mix(in srgb, currentColor 58%, transparent);
-         --line: color-mix(in srgb, currentColor 16%, transparent); }}
+  .nr {{ --accent: #4f46e5; --ok: #059669; --warn: #d97706; --danger: #e11d48; --subj: #0284c7; --desc: #7c3aed; --addr: #0d9488;
+         --muted: color-mix(in srgb, currentColor 55%, transparent); --faint: color-mix(in srgb, currentColor 40%, transparent);
+         --line: color-mix(in srgb, currentColor 12%, transparent); }}
   @media (prefers-color-scheme: dark) {{
-    .nr {{ --comment: #6272a4; --cyan: #8be9fd; --green: #50fa7b; --orange: #ffb86c; --pink: #ff79c6; --purple: #bd93f9;
-           --red: #ff5555; --yellow: #f1fa8c; }}
+    .nr {{ --accent: #818cf8; --ok: #34d399; --warn: #fbbf24; --danger: #fb7185; --subj: #38bdf8; --desc: #a78bfa; --addr: #2dd4bf; }}
   }}
   .card {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
   .card .side {{ border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }}
   .card .side.empty {{ border-style: dashed; color: var(--muted); font-style: italic; display: flex; align-items: center;
                       justify-content: center; }}
-  .card .label {{ font-size: .75em; text-transform: uppercase; letter-spacing: .04em; color: var(--purple); }}
+  .card .label {{ font-size: .72em; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }}
   .card .text {{ font-size: 1.25em; line-height: 1.45; margin: 6px 0 8px; overflow-wrap: anywhere; }}
   .card .ner {{ font-size: .85em; line-height: 1.6; }}
-  .nr .meta {{ font-family: monospace; font-size: .78em; color: var(--comment); }}
-  .card mark.diff {{ background: color-mix(in srgb, var(--pink) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px;
-                     text-decoration: underline; text-decoration-color: var(--pink); }}
-  .verdict {{ margin: 10px 0 4px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .92em; }}
-  .verdict .status {{ font-weight: 600; padding: 2px 10px; border-radius: 12px; }}
-  .verdict .pair {{ background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }}
-  .verdict .manual {{ background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }}
-  .verdict .candidate {{ background: color-mix(in srgb, var(--orange) 16%, transparent); color: var(--orange);
-                         border: 1px dashed var(--orange); }}
-  .verdict .alone {{ background: color-mix(in srgb, var(--comment) 18%, transparent); color: var(--muted); }}
+  .nr .meta {{ font-size: .78em; color: var(--faint); font-variant-numeric: tabular-nums; }}
+  .card mark.diff {{ background: color-mix(in srgb, var(--danger) 14%, transparent); color: inherit; border-radius: 2px; padding: 0 1px;
+                     box-shadow: inset 0 -2px 0 var(--danger); }}
+  .verdict {{ margin: 10px 0 4px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .9em; }}
+  .verdict .status {{ font-weight: 600; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--line); }}
+  .verdict .pair {{ color: var(--muted); }}
+  .verdict .manual {{ background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); border-color: transparent; }}
+  .verdict .candidate {{ background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn);
+                         border: 1px dashed var(--warn); }}
+  .verdict .alone {{ color: var(--muted); border-style: dashed; }}
   .verdict .level {{ padding: 1px 8px; border-radius: 10px; font-size: .85em; }}
-  .verdict .level-1 {{ background: color-mix(in srgb, var(--orange) 16%, transparent); color: var(--orange); }}
-  .verdict .level-2 {{ background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }}
+  .verdict .level-1 {{ background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); }}
+  .verdict .level-2 {{ background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }}
   .verdict .reasons {{ color: var(--muted); }}
-  .verdict .local {{ color: var(--purple); font-weight: 600; }}
+  .verdict .local {{ color: var(--ok); font-weight: 600; }}
   .alt {{ font-size: .92em; line-height: 1.5; }}
   .alt .meta {{ font-size: .8em; }}
   {SPAN_CSS}
   .nr mark.span {{ color: inherit !important; }}
-  .nr mark.span[title="SUBJ"] {{ background: color-mix(in srgb, var(--cyan) 16%, transparent) !important;
-                                 border-color: var(--cyan) !important; }}
-  .nr mark.span[title="DESC"] {{ background: color-mix(in srgb, var(--yellow) 18%, transparent) !important;
-                                 border-color: var(--yellow) !important; }}
-  .nr mark.span[title="ADDR"] {{ background: color-mix(in srgb, var(--green) 14%, transparent) !important;
-                                 border-color: var(--green) !important; }}
-  .nr mark.span[title="SUBJ"] sub {{ color: var(--cyan) !important; }}
-  .nr mark.span[title="DESC"] sub {{ color: var(--yellow) !important; }}
-  .nr mark.span[title="ADDR"] sub {{ color: var(--green) !important; }}
+  .nr mark.span[title="SUBJ"] {{ background: color-mix(in srgb, var(--subj) 10%, transparent) !important;
+                                 border-color: var(--subj) !important; }}
+  .nr mark.span[title="DESC"] {{ background: color-mix(in srgb, var(--desc) 10%, transparent) !important;
+                                 border-color: var(--desc) !important; }}
+  .nr mark.span[title="ADDR"] {{ background: color-mix(in srgb, var(--addr) 10%, transparent) !important;
+                                 border-color: var(--addr) !important; }}
+  .nr mark.span[title="SUBJ"] sub {{ color: var(--subj) !important; }}
+  .nr mark.span[title="DESC"] sub {{ color: var(--desc) !important; }}
+  .nr mark.span[title="ADDR"] sub {{ color: var(--addr) !important; }}
 </style>"""
 
 
@@ -192,10 +191,10 @@ def verdict_html(focus: Focus) -> str:
     return f"<div class='verdict'>{''.join(parts)}</div>"
 
 
-def task_bar(controls: Controls, back: str | None = None) -> None:
-    """Bandeau commun aux deux vues : tâches voisines, progression, annulation
-    et, en relecture détaillée, retour à la vue `back` (Échap)."""
-    previous, progress, following, undo, zoom = st.columns([1.2, 3.4, 1.2, 1.5, 1.6], vertical_alignment="center")
+def task_bar(controls: Controls) -> None:
+    """Bandeau commun aux deux vues : tâches voisines, progression et
+    annulation de la dernière décision (les onglets changent de vue)."""
+    previous, progress, following, undo = st.columns([1.2, 4.6, 1.2, 1.4], vertical_alignment="center")
     previous.button(
         "◀ Tâche",
         shortcut="P",
@@ -230,24 +229,12 @@ def task_bar(controls: Controls, back: str | None = None) -> None:
         on_click=controls.undo_last,
         help="Annule la dernière décision du journal et revient sur sa ligne.",
     )
-    if back:
-        zoom.button(
-            "Vue d'ensemble",
-            icon=":material/zoom_out:",
-            shortcut=None if controls.pairing_active else "Esc",
-            width="stretch",
-            on_click=controls.move,
-            args=(None, back),
-            help="Retour aux documents, sur la même ligne.",
-        )
 
 
-def decision_buttons(focus: Focus, controls: Controls, note_key: str | None, zoom: str | None = None) -> None:
-    """Boutons de décision sur la ligne courante (mêmes raccourcis dans les deux
-    vues) ; `zoom` : vue de la relecture détaillée, bouton en bout de ligne."""
+def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> None:
+    """Boutons de décision sur la ligne courante (mêmes raccourcis dans les deux vues)."""
     both = focus.left is not None and focus.right is not None
-    widths = [1.3, 1.1, 1.1, 1.5, 1.1] if both else [2.4, 1.5, 1.1]
-    columns = st.columns(widths + ([1.6] if zoom else []))
+    columns = st.columns([1.3, 1.1, 1.1, 1.5, 1.1, 1.6] if both else [2.4, 1.5, 1.1, 3.6])
     if both:
         columns[0].button(
             "✓ Même entrée",
@@ -312,16 +299,6 @@ def decision_buttons(focus: Focus, controls: Controls, note_key: str | None, zoo
             on_click=controls.decide,
             args=(UNDO, focus.left, focus.right, None),
             help="Annule la décision sur ces entrées (retire leurs lignes du patch) : l'alignement automatique reprend la main.",
-        )
-    if zoom:
-        columns[-1].button(
-            "Relire en détail",
-            icon=":material/zoom_in:",
-            shortcut=None if controls.pairing_active else "Enter",
-            width="stretch",
-            on_click=controls.move,
-            args=(None, zoom),
-            help="Ouvre la ligne courante en grand : différences surlignées, rapprochements possibles, note (aussi : 🔍 sur le lien).",
         )
 
 

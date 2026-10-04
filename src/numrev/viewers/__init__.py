@@ -16,7 +16,7 @@ import tomllib
 from pathlib import Path
 
 VIEWERS = ("directory", "alignment")
-THEME = Path(__file__).with_name("assets") / "theme.toml"  # thème du viewer d'alignement (Dracula / Alucard)
+THEME = Path(__file__).with_name("assets") / "theme.toml"  # thème du viewer d'alignement
 
 
 def theme_options(path: Path = THEME) -> list[str]:

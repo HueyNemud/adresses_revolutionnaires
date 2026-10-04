@@ -125,7 +125,7 @@ def code_files() -> dict[str, Path]:
     for asset in sorted((package_dir() / "viewers" / "assets").iterdir()):
         if asset.is_file():
             published[f"{ASSETS}/{asset.name}"] = asset
-    # Le thème (Dracula / Alucard) devient la configuration Streamlit du dépôt publié.
+    # Le thème devient la configuration Streamlit du dépôt publié.
     published[STREAMLIT_CONFIG] = package_dir() / "viewers" / "assets" / "theme.toml"
     return published
 

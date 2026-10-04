@@ -24,12 +24,10 @@ affiché est le résultat final.
 - **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne courante —
   différences de texte surlignées, rapprochements possibles, note — et
   l'avance automatique à la tâche suivante après chaque décision. On y entre
-  par le bouton « Relire en détail » (Entrée), à côté des décisions, ou par
-  la loupe 🔍 posée sur le lien courant.
+  par l'onglet ou par la loupe posée sur le lien courant.
 
 Le bandeau de tâches, commun, mène d'une tâche à l'autre (P / N), annule la
-dernière décision (Ctrl+Z) et bascule d'une vue à l'autre (Entrée : zoom,
-Échap : vue d'ensemble). Les décisions : V même entrée (ou confirmer sans
+dernière décision (Ctrl+Z) ; les onglets en haut changent de vue. Les décisions : V même entrée (ou confirmer sans
 correspondance), I incertaine, X pas la même entrée, A apparier autrement.
 La **file de tâches** se règle dans la barre latérale (candidates,
 incertitude moyenne ou forte, entrées seules, paires de score faible,
@@ -1005,11 +1003,11 @@ def main() -> None:
         can_undo=bool(journal_of(pair_name)),
         pairing_active=pairing_active,
     )
-    focus.task_bar(controls, back=DOCUMENTS if view_name == REVIEW else None)
+    focus.task_bar(controls)
 
     focused = focus_of(alignment, records, current, params.subj_weight, with_alternatives=view_name == REVIEW)
     if view_name == DOCUMENTS:
-        focus.decision_buttons(focused, controls, None, zoom=REVIEW)
+        focus.decision_buttons(focused, controls, None)
         jump, search, matches_box = st.columns([2.2, 2.2, 1.6], vertical_alignment="bottom")
         firsts = rows.drop_duplicates("left_section").query("left_uuid != ''")
         jumps = {f"{row.left_section_title or NO_SECTION}": (row.left_uuid, row.right_uuid) for row in firsts.itertuples()}

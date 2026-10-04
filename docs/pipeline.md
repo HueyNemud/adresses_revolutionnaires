@@ -709,7 +709,7 @@ final, recalculé après chaque décision (≈ 1 s sur 1807/1808).
 
 **Deux niveaux de lecture, un curseur et une file de tâches communs.** La
 **ligne courante** est une paire, une candidate ou une entrée seule ; un
-sélecteur en haut, ou `Entrée` / `Échap`, passe d'une vue à l'autre en la
+onglet en haut, ou la loupe du lien courant, passe d'une vue à l'autre en la
 gardant.
 
 - **Documents** (vue d'accueil ; `numrev/viewers/context.py`,
@@ -725,8 +725,8 @@ gardant.
     courante, sans bouger à l'écran ; son partenaire vient en face. Le lien
     courant (cyan) porte une **loupe 🔍** qui ouvre la relecture détaillée ;
     son infobulle résume statut, score et motifs.
-  - **Boutons de décision**, au-dessus (ci-dessous), et **Relire en détail**
-    (`Entrée`). On décide sur place ; la ligne courante ne change pas.
+  - **Boutons de décision**, au-dessus (ci-dessous). On décide sur place ;
+    la ligne courante ne change pas.
   - **⇄ Autre partenaire…** (`A`) : mode « choisir le partenaire ». Seules
     les entrées des rubriques appariées avec celles de la ligne courante
     restent cliquables (les autres sont estompées) ; un clic crée la paire
@@ -748,19 +748,19 @@ gardant.
 
 **Bandeau de tâches**, commun : progression (tâches restantes, lignes
 décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`P` / `N`),
-`↶ Annuler` la dernière décision (`Ctrl+Z`) et, en relecture détaillée,
-`Vue d'ensemble` (`Échap`). **Décisions** : `V` ✓ même entrée (ou, pour une
+`↶ Annuler` la dernière décision (`Ctrl+Z`). **Décisions** : `V` ✓ même entrée (ou, pour une
 entrée seule, confirmer sans correspondance), `I` ≈ incertaine (paire
 retenue, `certitude = incertaine`), `X` ✗ différentes, `A` ⇄ autre
 partenaire, `↺ Défaire` (l'alignement automatique reprend la main).
 
-**Thème** : Dracula en sombre, Alucard (sa variante claire officielle) en
-clair, dans `viewers/assets/theme.toml`, passé en options de
+**Thème** : neutres « zinc » et un seul accent indigo (palette Tailwind),
+en clair et en sombre, dans `viewers/assets/theme.toml`, passé en options de
 `streamlit run` par `numrev view alignment` et publié en
 `.streamlit/config.toml` par `numrev publish-viewer` ; les mêmes couleurs
-dans `assets/context.css` et `viewers/focus.py` (liens appariés discrets,
-lien courant cyan, décisions du patch violettes, candidates orange,
-inversions roses).
+dans `assets/context.css` et `viewers/focus.py`. Les couleurs d'état sont
+rares et désaturées : liens automatiques gris, ligne et lien courants
+indigo, décisions du patch vertes, candidates et tâches ambre, inversions
+et tâches fortes rouges. La légende est au-dessus des documents.
 
 **File de tâches** (barre latérale, *Tâches de relecture*) : candidates non
 appariées, paires d'incertitude moyenne, paires d'incertitude forte (cochées

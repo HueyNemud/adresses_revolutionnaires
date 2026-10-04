@@ -106,8 +106,8 @@ class TaskQueueTests(unittest.TestCase):
 class ThemeTests(unittest.TestCase):
     def test_theme_becomes_streamlit_options(self):
         options = theme_options()
-        self.assertIn("--theme.dark.backgroundColor=#282a36", options)  # Dracula
-        self.assertIn("--theme.light.backgroundColor=#fffbeb", options)  # Alucard
+        self.assertIn("--theme.dark.backgroundColor=#111113", options)
+        self.assertIn("--theme.light.backgroundColor=#ffffff", options)
         self.assertIn("--theme.showWidgetBorder=true", options)
         self.assertTrue(all(option.startswith("--theme.") for option in options))
 

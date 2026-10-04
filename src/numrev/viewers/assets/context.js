@@ -1,6 +1,6 @@
 // Vue « Documents » (numrev/viewers/context.py) : deux colonnes, chacune dans
 // l'ordre de son annuaire, et une gouttière SVG qui relie les entrées
-// appariées. Les liens qui se croisent (inversions) sont en rose.
+// appariées. Les liens qui se croisent (inversions) sont en rouge.
 // Événements renvoyés à Python : `focus` (clic sur une entrée ou un lien),
 // `pair` (clic en mode « choisir le partenaire »), `more` (clic sur « ⋯ »),
 // `zoom` (loupe de la ligne courante : vue Relecture).
@@ -9,7 +9,9 @@
 
 const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const STEP = 40;
-const CENTER = 0.4; // hauteur, dans la fenêtre, où l'on place une nouvelle ligne courante
+const CENTER = 0.4;
+const LOUPE_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ` +
+  `stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`; // hauteur, dans la fenêtre, où l'on place une nouvelle ligne courante
 
 function lineHtml(line, side, data) {
   const classes = ["ln", line.t];
@@ -39,7 +41,7 @@ function column(lines, side, data) {
   return `<div class="ctx-col ${side}">${top}${lines.map((line) => lineHtml(line, side, data)).join("")}${bottom}</div>`;
 }
 
-// Fond sombre ou clair, d'après le thème Streamlit (Dracula / Alucard).
+// Fond sombre ou clair, d'après le thème Streamlit (clair / sombre).
 function isDark(root) {
   const value = getComputedStyle(root).getPropertyValue("--st-background-color").trim();
   let rgb = null;
@@ -143,8 +145,8 @@ function draw(root, data) {
   if (loupe && !data.pairing) {
     const button = document.createElement("button");
     button.className = "loupe";
-    button.textContent = "🔍";
-    button.title = `Relire en détail (Entrée)${data.info ? " — " + data.info : ""}`;
+    button.innerHTML = LOUPE_ICON;
+    button.title = `Relire en détail${data.info ? " — " + data.info : ""}`;
     button.style.left = `${loupe.x}px`;
     button.style.top = `${loupe.y}px`;
     grid.appendChild(button);
@@ -264,21 +266,24 @@ export default function (component) {
     ? `<div class="ctx-banner">Choisir le partenaire : cliquer l’entrée correspondante (les entrées estompées sont hors des rubriques appariées).</div>`
     : "";
   const span = (label) => `<mark class="span" title="${label}">${label}</mark>`;
+  const legend =
+    `<div class="ctx-legend">${span("SUBJ")}${span("DESC")}${span("ADDR")}` +
+    `<span><i style="border-color:var(--neutral)"></i>appariées</span>` +
+    `<span><i style="border-color:var(--ok)"></i>décision du patch</span>` +
+    `<span><i style="border-color:var(--warn);border-top-style:dashed"></i>candidate</span>` +
+    `<span><i style="border-color:var(--danger)"></i>inversion</span>` +
+    `<span><b class="task t1">!</b><b class="task t2">!</b> tâche de relecture</span>` +
+    `<span class="hint">clic : ligne courante · loupe : relire en détail · ↑ ↓ partenaire hors fenêtre</span></div>`;
   root.innerHTML =
     banner +
+    legend +
     `<div class="ctx-head"><div>${esc(leftTitle)}</div><div></div><div>${esc(rightTitle)}</div></div>` +
     `<div class="ctx-scroll${data.pairing ? " pairing" : ""}" style="height:${height}"><div class="ctx-grid">` +
     column(data.left, "left", data) +
     `<div></div>` +
     column(data.right, "right", data) +
-    `<svg class="ctx-gutter"></svg></div></div>` +
-    `<div class="ctx-legend">${span("SUBJ")}${span("DESC")}${span("ADDR")}` +
-    `<span><i style="border-color:var(--link)"></i>appariées</span>` +
-    `<span><i style="border-color:var(--orange);border-top-style:dashed"></i>candidate</span>` +
-    `<span><i style="border-color:var(--purple)"></i>décision du patch</span>` +
-    `<span><i style="border-color:var(--pink)"></i>inversion (liens croisés)</span>` +
-    `<span><b class="task t1">!</b><b class="task t2">!</b> tâche de relecture</span>` +
-    `<span>clic sur une entrée ou un lien : ligne courante · 🔍 relire en détail · ↑ ↓ partenaire hors de la fenêtre</span></div>`;
+    `<svg class="ctx-gutter"></svg></div></div>`;
+
 
   root.__data = data;
   root.__focus = data.focus.join("|");
