@@ -707,82 +707,90 @@ deux annuaires sont relus en entier et le patch des entrées, augmenté des
 décisions en attente, est appliqué en mémoire : l'écran montre le résultat
 final, recalculé après chaque décision (≈ 1 s sur 1807/1808).
 
-**Un curseur, trois vues** (sélecteur en haut ; changer de vue garde la
-ligne courante) :
+**Deux niveaux de lecture, un curseur et une file de tâches communs.** La
+**ligne courante** est une paire, une candidate ou une entrée seule ; un
+sélecteur en haut, ou `Entrée` / `Échap`, passe d'une vue à l'autre en la
+gardant.
 
-- **Relecture** (`numrev/viewers/focus.py`) : une ligne à la fois (paire,
-  candidate ou entrée seule), les caractères qui diffèrent surlignés, le
-  statut, le score et les motifs ; les **rapprochements possibles** (les
-  trois entrées les plus proches de l'autre côté du segment, la concurrente
-  d'un `homonyme proche` signalée, bouton *Apparier*) ; les boutons de
-  décision au clavier : `V` même entrée (ou confirmer sans correspondance),
-  `I` incertaine, `X` pas la même entrée, `→` passer, `←` précédente,
-  `Ctrl+Z` annuler la dernière ; une note facultative ; puis le contexte
-  (vue Documents centrée sur la ligne). La **file** = les lignes filtrées,
-  par défaut seulement celles à vérifier (candidates, incertitude moyenne ou
-  forte) et pas encore décidées ; une barre de progression la suit.
-- **Table** : décrite ci-dessous ; **Relire →** ouvre une ligne dans la vue
-  Relecture.
-- **Documents** (`numrev/viewers/context.py`, `assets/context.js`) : les
-  deux annuaires côte à côte, chacun dans **son** ordre, avec titres et
-  lignes hors sujet ; une gouttière relie les entrées appariées (vert,
-  violet pour le patch, pointillés ambre pour une candidate), les liens qui
-  se croisent (inversions) en orange, une flèche ↑ ↓ pour un partenaire
-  hors de la fenêtre. Les deux lignes courantes sont alignées. Un clic sur
-  une entrée de chaque côté propose de les apparier ; ▲ ▼ (`PageUp` /
-  `PageDown`) et *Aller à la rubrique* déplacent la fenêtre.
+- **Documents** (vue d'accueil ; `numrev/viewers/context.py`,
+  `assets/context.js`) : les deux annuaires côte à côte, chacun dans
+  **son** ordre, avec titres et lignes hors sujet. Une gouttière relie les
+  entrées appariées (vert ; violet pour le patch ; pointillés ambre pour une
+  candidate) ; les liens qui se croisent (inversions) sont en orange, une
+  flèche ↑ ↓ signale un partenaire hors de la fenêtre ; les tâches de
+  relecture portent un « ! » (orange : incertitude moyenne ; rouge : forte
+  ou candidate). Les deux lignes courantes sont alignées.
+  - **Clic sur une entrée** : elle devient la ligne courante, sans bouger à
+    l'écran ; son partenaire vient en face.
+  - **Inspecteur**, au-dessus : les deux textes, le statut, le score, les
+    motifs, et les boutons de décision (ci-dessous). On décide sur place ;
+    la ligne courante ne change pas.
+  - **⇄ Apparier autrement…** (`A`) : mode « choisir le partenaire ». Seules
+    les entrées des rubriques appariées avec celles de la ligne courante
+    restent cliquables (les autres sont estompées) ; un clic crée la paire
+    (les lignes du patch qui touchaient ces entrées sont retirées). `Échap`
+    annule.
+  - **Navigation** : *Aller à la rubrique* ; **Rechercher** dans le texte
+    des deux annuaires (résultats surlignés, ◀ ▶ d'un résultat à l'autre) ;
+    « ⋯ 40 lignes précédentes / suivantes » agrandit la fenêtre.
+  - Au survol d'un titre, **uuid** copie l'uuid de la rubrique (patch des
+    rubriques).
+- **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne
+  courante. Les caractères qui diffèrent entre les deux textes sont
+  surlignés, sous les textes avec leurs empans ; puis le statut, le score
+  et les motifs, les mêmes boutons de décision, une note facultative
+  (colonne `note` du patch), les **rapprochements possibles** (les trois
+  entrées les plus proches de l'autre côté du segment, la concurrente d'un
+  `homonyme proche` signalée, bouton *Apparier*), et le contexte dans les
+  documents. Après une décision, on passe à la tâche suivante.
+
+**Bandeau de tâches**, commun : progression (tâches restantes, lignes
+décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`P` / `N`),
+`↶ Annuler la dernière` (`Ctrl+Z`), bascule de vue. **Décisions** : `V` même
+entrée (ou, pour une entrée seule, confirmer sans correspondance), `I`
+probablement (`certitude = incertaine`), `X` pas la même entrée, `A`
+apparier autrement, `↺` annuler la décision (l'alignement automatique
+reprend la main).
+
+**File de tâches** (barre latérale, *Tâches de relecture*) : candidates non
+appariées, paires d'incertitude moyenne, paires d'incertitude forte (cochées
+par défaut), entrées seules à gauche ou à droite, paires automatiques de
+score inférieur à un seuil ; une rubrique ; *Revoir aussi les lignes
+décidées* ; ordre des documents ou incertitude décroissante. Les lignes
+déjà décidées (paires relues, entrées confirmées seules) n'en font pas
+partie. La première tâche est la ligne courante à l'ouverture.
 
 **Décisions** (`numrev/alignment/decisions.py`) : un journal ordonné,
 rejoué sur le patch versionné ; chaque décision retire les lignes du patch
 qui touchent ses uuid puis ajoute les siennes (le patch reste valide, et
 annuler revient à retirer la décision du journal). *Pas la même entrée*
 déclare les deux entrées sans correspondance (le format du patch ne sait
-pas dire « pas avec celle-là »). Le journal est gardé dans le
-`localStorage` du navigateur (`numrev/viewers/storage.py`) : il survit à un
-rechargement ; il garde l'empreinte du patch sur lequel il a été construit,
-et un bandeau prévient si le patch a changé depuis. Barre latérale,
-**Décisions** : **Enregistrer** (seulement quand le viewer est lancé par
+pas dire « pas avec celle-là ») ; on ré-apparie ensuite celle qui a un
+autre partenaire. Le journal est gardé dans le `localStorage` du
+navigateur (`numrev/viewers/storage.py`) : il survit à un rechargement ; il
+garde l'empreinte du patch sur lequel il a été construit, et un bandeau
+prévient si le patch a changé depuis. Barre latérale, **Décisions** :
+**Enregistrer** (seulement quand le viewer est lancé par
 `numrev view alignment`, qui pose `NUMREV_PATCH_WRITABLE=1`) écrit le patch
 complet et vide le journal ; **Télécharger le patch** donne le même fichier
 (copie hébergée : c'est le seul moyen de transmettre ses décisions) ; le
 journal se consulte, s'abandonne, ou reçoit un patch importé (celui d'un
 autre relecteur).
 
-La table :
+**Synthèse** (bouton de l'en-tête) : les indicateurs (correspondances, taux
+d'appariement de chaque côté, liens écartés entre rubriques non appariées,
+lignes du patch, lignes à vérifier) et la table des rubriques : un groupe
+de rubriques appariées (auto ou patch) par ligne, puis les rubriques seules,
+avec les entrées et la part appariée de chaque côté et les uuid pour le
+patch des rubriques. **Seulement entre rubriques appariées :** un lien entre
+rubriques non appariées est écarté ; un encart liste les paires du patch
+concernées, d'autres les lignes orphelines des deux patchs.
 
-- **Une table dans l'ordre naturel :** correspondances et entrées de gauche
-  sans correspondance dans l'ordre de l'annuaire de gauche ; une entrée de
-  droite sans correspondance vient après la paire qui contient l'entrée de
-  droite appariée qui la précède. Un bandeau marque chaque changement de
-  rubrique.
-- **Statut de chaque ligne, en clair** (dernière colonne) : `✓ appariée`
-  (bordure verte ; `relue` ou `relue, incertaine` pour un lien du patch),
-  `? non appariée · candidate à décider` (fond ambre : deux entrées **non**
-  appariées, soumises au relecteur), `✗ sans correspondance` (bordure
-  grise). Viennent ensuite le score, et pour une ligne à vérifier un badge
-  d'incertitude (moyenne en orange, forte en rouge) avec son motif. Le
-  bouton **Légende**, à côté de la pagination, rappelle ces conventions.
-- **Barre latérale, du plus courant au plus fin :** alignement ; *Filtres*
-  (statut des lignes, incertitude, rubrique, recherche, plage de scores,
-  corrections manuelles) ; *Affichage* (tri, dont *incertitude
-  décroissante*, lignes par page, score signalé en rouge) ; *Export* ; et,
-  repliés en bas, les *Réglages fins de la relecture* (similarité minimale
-  d'une candidate, écart « homonyme proche »).
-- **Seulement entre rubriques appariées :** un lien entre rubriques non
-  appariées est écarté ; l'indicateur *Liens écartés* les compte, et un
-  encart liste les paires du patch concernées.
-- **Encarts :** lignes orphelines des deux patchs ; **Rubriques** : une
-  table par groupe de rubriques appariées (auto ou patch), puis par
-  rubrique seule, avec les entrées et la part appariée de chaque côté et
-  les uuid pour le patch des rubriques.
-- **Copie pour le patch des rubriques :** le bouton `uuid` d'une entrée ou
-  d'un bandeau de rubrique copie son uuid ; l'encart *Rubriques* copie
-  l'en-tête du patch des rubriques.
-- **Export CSV :** le bouton *Exporter en CSV* de la barre latérale
-  télécharge les lignes affichées (filtres et tri appliqués) au format de
-  `numrev join` (ci-dessous) ; la case *Pour un tableur en
-  français* (cochée par défaut) choisit le séparateur `;` et l'UTF-8 avec
-  BOM.
+**Export CSV** (barre latérale) : la jointure au format de `numrev join`
+(ci-dessous), complète ou réduite aux tâches de la file ; *Pour un tableur
+en français* (coché par défaut) choisit le séparateur `;` et l'UTF-8 avec
+BOM. *Réglages fins de la relecture*, repliés en bas : similarité minimale
+d'une candidate, écart « homonyme proche ».
 
 Le patch des entrées peut toujours s'éditer à la main ; celui des
 rubriques s'édite seulement ainsi. `numrev align dedupe --patch-only --apply`

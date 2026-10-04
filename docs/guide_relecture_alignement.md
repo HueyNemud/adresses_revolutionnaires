@@ -1,6 +1,6 @@
 # Guide de relecture de l'alignement entre éditions
 
-Ce guide sert à relire les paires à vérifier dans `numrev view alignment` (vue **Relecture**, dont la file contient par défaut les lignes à vérifier, pas encore décidées) et à étiqueter un gold d'inversions (`numrev gold alignment`, colonne `meme_entree`). La question est toujours la même :
+Ce guide sert à relire les paires à vérifier dans `numrev view alignment` (sa file de tâches contient par défaut les candidates et les paires d'incertitude moyenne ou forte, pas encore décidées) et à étiqueter un gold d'inversions (`numrev gold alignment`, colonne `meme_entree`). La question est toujours la même :
 
 > Ces deux entrées désignent-elles **la même entrée de l'annuaire**, d'une édition à l'autre ?
 
@@ -21,8 +21,8 @@ L'incertitude (faible, moyenne, forte) ne sert qu'à ordonner la relecture : ell
 | Réponse | Gold (`meme_entree`) | Bouton du viewer (raccourci) | Ligne(s) de patch produites |
 |---|---|---|---|
 | Même entrée | `OUI` | **✓ Même entrée** (`V`) | la paire |
-| Pas la même entrée | `NON` | **✗ Pas la même entrée** (`X`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (*Rapprochements possibles* ou vue Documents) |
-| On ne peut pas trancher | `INCERTAIN` | **≈ Probablement (incertaine)** (`I`) si la paire est plausible ; sinon **↷ Passer** (`→`) | la paire avec `certitude=incertaine` |
+| Pas la même entrée | `NON` | **✗ Pas la même entrée** (`X`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (**⇄ Apparier autrement…**, `A`, ou *Rapprochements possibles*) |
+| On ne peut pas trancher | `INCERTAIN` | **≈ Probablement (incertaine)** (`I`) si la paire est plausible ; sinon **Tâche ▶** (`N`) | la paire avec `certitude=incertaine` |
 
 Le patch ne sait pas dire « pas avec celle-là » : *Pas la même entrée*
 déclare les deux entrées sans correspondance, ce qui retire aussi la
@@ -61,19 +61,22 @@ correspondance** (`V`).
 
 ## Relire dans le viewer
 
-- **Relecture** : une ligne à la fois. Les caractères qui diffèrent entre
-  les deux textes sont surlignés. Sous la carte, les **rapprochements
-  possibles** donnent les entrées les plus proches de l'autre côté (la
-  concurrente d'un `homonyme proche` y est signalée), chacune avec un bouton
-  **Apparier**. Le **contexte** montre les deux annuaires autour de la ligne,
-  chacun dans son ordre. Après une décision, on passe à la ligne suivante ;
-  `←` revient en arrière, `Ctrl+Z` annule la dernière décision. La note
-  facultative va dans la colonne `note` du patch.
-- **Table** : toutes les lignes filtrées ; **Relire →** ouvre une ligne dans
-  la vue Relecture.
-- **Documents** : les deux annuaires côte à côte, titres et lignes hors
-  sujet compris. Les liens qui se croisent (orange) signalent une inversion.
-  Cliquer une entrée de chaque côté propose de les apparier.
+- **Documents** (vue d'accueil) : les deux annuaires côte à côte, chacun
+  dans son ordre, titres et lignes hors sujet compris. Les tâches portent
+  un « ! » ; les liens qui se croisent (orange) signalent une inversion.
+  Un clic sur une entrée en fait la ligne courante ; on décide sur place
+  avec les boutons de l'inspecteur. **⇄ Apparier autrement…** (`A`) fait
+  choisir le partenaire dans les documents : seules les entrées des
+  rubriques appariées restent cliquables.
+- **Relecture** (`Entrée` ; `Échap` pour revenir) : la ligne courante en
+  grand. Les caractères qui diffèrent entre les deux textes sont surlignés.
+  Les **rapprochements possibles** donnent les entrées les plus proches de
+  l'autre côté (la concurrente d'un `homonyme proche` y est signalée). La
+  note facultative va dans la colonne `note` du patch. Après une décision,
+  on passe à la tâche suivante.
+- Dans les deux vues : `N` / `P` tâche suivante / précédente, `Ctrl+Z`
+  annule la dernière décision. La file de tâches se règle dans la barre
+  latérale (*Tâches de relecture*).
 
 Les décisions vont dans un journal gardé par le navigateur (il survit à un
 rechargement). En local, **Enregistrer** écrit le patch
