@@ -1,7 +1,11 @@
 import unittest
 
-from numrev.alignment.records import DocLine, Record
-from numrev.viewers.context import EntryState, centers, documents, payload, window
+import pandas as pd
+
+from numrev.alignment.export import CANDIDATE, LEFT_ONLY, PAIR, RIGHT_ONLY
+from numrev.alignment.records import SOURCE_MANUAL, DocLine, Record
+from numrev.viewers.alignment import TaskOptions, task_levels, task_marks, task_queue
+from numrev.viewers.context import EntryState, Marks, centers, documents, payload, window
 from numrev.viewers.focus import alternatives, char_diff
 
 
@@ -35,17 +39,67 @@ class DocumentsTests(unittest.TestCase):
     def test_window_and_payload(self):
         bounds = window(self.docs, {"left": 4, "right": 2}, 1, 1)
         self.assertEqual(bounds, {"left": (3, 5), "right": (1, 3)})
-        data = payload(self.docs, bounds, ("g2", "d1"), {}, 400)
+        data = payload(self.docs, bounds, ("g2", "d1"), Marks(), "400px")
         self.assertEqual([item["u"] for item in data["left"]], ["g1", "g2"])
         self.assertEqual(data["more"]["left"], [True, False])
         bounds = window(self.docs, {"left": 4, "right": 2}, 0, 0)
-        data = payload(self.docs, bounds, ("g2", "d1"), {}, 400)
+        data = payload(self.docs, bounds, ("g2", "d1"), Marks(), "400px")
         self.assertEqual(data["left"][0]["o"], 0)  # partenaire d1 visible
         bounds = {"left": (0, 2), "right": (2, 3)}
-        data = payload(self.docs, bounds, ("g0", ""), {}, 400)
+        data = payload(self.docs, bounds, ("g0", ""), Marks(), "400px")
         self.assertEqual(data["left"][1]["o"], -1)  # partenaire d0 au-dessus de la fenêtre de droite
         self.assertEqual(data["left"][0]["t"], "title")
         self.assertNotIn("s", data["left"][0])
+
+    def test_marks(self):
+        marks = Marks(
+            tasks={"left": {"g1": 2}, "right": {}}, hits={"left": set(), "right": {"d0"}}, eligible={"left": set(), "right": {"d0"}}
+        )
+        data = payload(self.docs, {"left": (0, 5), "right": (0, 3)}, ("g1", ""), marks, "400px")
+        by_uuid = {item["u"]: item for item in data["left"] + data["right"]}
+        self.assertEqual(by_uuid["g1"]["k"], 2)
+        self.assertTrue(by_uuid["d0"]["f"])
+        self.assertTrue(data["pairing"])
+        self.assertTrue(by_uuid["d0"]["e"])
+        self.assertFalse(by_uuid["d1"]["e"])
+        self.assertNotIn("e", by_uuid["tg"])  # un titre n'est jamais cliquable
+
+
+class TaskQueueTests(unittest.TestCase):
+    def setUp(self):
+        self.rows = pd.DataFrame(
+            {
+                "kind": [PAIR, PAIR, CANDIDATE, LEFT_ONLY, RIGHT_ONLY, PAIR, PAIR],
+                "level": [0, 1, 2, 0, 0, 2, 0],
+                "source": ["nw", "nw", "candidate", "", "", "nw", SOURCE_MANUAL],
+                "score": [0.95, 0.8, 0.7, None, None, 0.6, None],
+                "left_uuid": ["g0", "g1", "g2", "g3", "", "g5", "g6"],
+                "right_uuid": ["d0", "d1", "d2", "", "d4", "d5", "d6"],
+                "left_section": ["vins"] * 6 + ["bois"],
+                "right_section": ["vins"] * 6 + ["bois"],
+            }
+        )
+
+    def test_default_tasks_are_candidates_and_uncertain_pairs(self):
+        levels = task_levels(self.rows, set(), TaskOptions())
+        self.assertEqual(levels.tolist(), [0, 1, 2, 0, 0, 2, 0])
+        self.assertEqual(task_queue(levels, by_level=False), [1, 2, 5])
+        self.assertEqual(task_queue(levels, by_level=True), [2, 5, 1])
+        self.assertEqual(task_marks(self.rows, levels), {"left": {"g1": 1, "g2": 2, "g5": 2}, "right": {"d1": 1, "d2": 2, "d5": 2}})
+
+    def test_optional_tasks(self):
+        options = TaskOptions(candidates=False, medium=False, high=False, left_only=True, right_only=True, below=0.97)
+        # g6 : paire relue (patch), jamais une tâche de score faible
+        self.assertEqual(task_levels(self.rows, set(), options).tolist(), [1, 1, 0, 1, 1, 1, 0])
+
+    def test_decided_rows(self):
+        levels = task_levels(self.rows, {"g3"}, TaskOptions(left_only=True))
+        self.assertEqual(levels[3], 0)  # confirmée seule : décidée
+        levels = task_levels(self.rows, {"g3"}, TaskOptions(include_decided=True))
+        self.assertEqual(levels[[3, 6]].tolist(), [1, 1])
+
+    def test_section(self):
+        self.assertEqual(task_queue(task_levels(self.rows, set(), TaskOptions(section="bois", include_decided=True)), False), [6])
 
 
 class FocusTests(unittest.TestCase):

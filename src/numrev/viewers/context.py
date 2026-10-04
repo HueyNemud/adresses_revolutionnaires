@@ -6,12 +6,13 @@ vue à part entière.
 
 Ce module construit la fenêtre affichée (fonctions pures, testées) et monte
 le composant `st.components.v2` qui la dessine (`assets/context.js|css`).
-Un clic sur une entrée la sélectionne (déclencheur `pick`), pour apparier
-deux entrées à la main.
+Un clic sur une entrée en fait la ligne courante (`focus`) ; en mode
+« choisir le partenaire », il apparie (`pair`) ; « ⋯ » agrandit la fenêtre
+(`more`).
 """
 
 import html
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import streamlit as st
@@ -91,9 +92,18 @@ def line_payload(line: DocLine, state: EntryState | None, direction: int) -> dic
     return payload
 
 
-def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[str, str], picks: dict[str, str], height: int) -> dict:
+@dataclass(frozen=True)
+class Marks:
+    """Ce que la vue signale sur les entrées, par côté."""
+
+    tasks: dict[str, dict[str, int]] = field(default_factory=lambda: {"left": {}, "right": {}})  # uuid → niveau de tâche (1, 2)
+    hits: dict[str, set[str]] = field(default_factory=lambda: {"left": set(), "right": set()})  # résultats de recherche
+    eligible: dict[str, set[str]] | None = None  # mode « choisir le partenaire » : entrées cliquables
+
+
+def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[str, str], marks: Marks, height: str) -> dict:
     """Données du composant : lignes des deux fenêtres, ligne courante,
-    sélection."""
+    marqueurs (tâches, recherche) et mode d'appariement."""
     sides = {}
     for side in SIDES:
         start, end = bounds[side]
@@ -106,13 +116,20 @@ def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[st
                 position = docs.positions[other(side)].get(state.partner)
                 if position is not None and not other_start <= position < other_end:
                     direction = -1 if position < other_start else 1
-            rows.append(line_payload(line, state, direction))
+            item = line_payload(line, state, direction)
+            if line.uuid in marks.tasks[side]:
+                item["k"] = marks.tasks[side][line.uuid]
+            if line.uuid in marks.hits[side]:
+                item["f"] = True
+            if marks.eligible is not None and line.entity == "ENTRY":
+                item["e"] = line.uuid in marks.eligible[side]
+            rows.append(item)
         sides[side] = rows
     return {
         "left": sides["left"],
         "right": sides["right"],
         "focus": list(focus),
-        "picks": picks,
+        "pairing": marks.eligible is not None,
         "height": height,
         "more": {side: [bounds[side][0] > 0, bounds[side][1] < len(docs.lines[side])] for side in SIDES},
     }
@@ -129,8 +146,18 @@ def _diff_component():
     return _component
 
 
-def documents_diff(data: dict, key: str, titles: tuple[str, str]) -> dict | None:
-    """Monte le composant ; renvoie l'entrée cliquée ({side, uuid}) au tour
-    qui suit le clic, sinon None."""
-    result = _diff_component()(key=key, data=data | {"titles": list(titles)}, on_pick_change=lambda: None)
-    return result.get("pick")
+EVENTS = ("focus", "pair", "more")  # déclencheurs du composant
+
+
+def documents_diff(data: dict, key: str, titles: tuple[str, str]) -> tuple[str, dict] | None:
+    """Monte le composant ; renvoie (événement, valeur) au tour qui suit un
+    clic, sinon None. Événements : `focus` ({side, uuid} : entrée cliquée),
+    `pair` ({side, uuid} : partenaire choisi en mode d'appariement), `more`
+    ({dir} : -1 lignes précédentes, 1 lignes suivantes)."""
+    callbacks = {f"on_{event}_change": (lambda: None) for event in EVENTS}
+    result = _diff_component()(key=key, data=data | {"titles": list(titles)}, **callbacks)
+    for event in EVENTS:
+        value = result.get(event)
+        if value:
+            return event, value
+    return None

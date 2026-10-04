@@ -12,50 +12,50 @@ On choisit une paire d'annuaires par une sortie brute : celle de Dedupe
 journal, est appliqué en mémoire (`numrev/alignment/patch.py`) : ce qui est
 affiché est le résultat final.
 
-**Un curseur, trois vues.** La ligne courante (une paire, une candidate ou
-une entrée seule) est partagée par les trois vues ; changer de vue la garde.
+**Deux niveaux de lecture, un curseur et une file de tâches communs.**
 
-- **Relecture** (`numrev/viewers/focus.py`) : une ligne à la fois, les
-  différences de texte surlignées, les rapprochements possibles, et des
-  boutons de décision au clavier (V même entrée, I incertaine, X pas la
-  même entrée, → passer, ← précédente, Ctrl+Z annuler la dernière). La
-  file = les lignes filtrées dans la barre latérale, par défaut celles à
-  vérifier et pas encore décidées. Le contexte des deux documents est
-  affiché sous la carte ;
-- **Table** : toutes les lignes filtrées, dans l'**ordre naturel** des
-  listes (correspondances et entrées de gauche seules dans l'ordre de
-  gauche, chaque entrée de droite seule après la paire qui contient
-  l'entrée de droite appariée qui la précède), statut et incertitude en
-  clair, bouton **Relire →** par ligne ;
-- **Documents** (`numrev/viewers/context.py`) : les deux annuaires côte à
-  côte, chacun dans son ordre, avec titres et lignes hors sujet, les paires
-  reliées dans une gouttière (inversions en orange). Un clic sur une entrée
-  de chaque côté permet de les apparier.
+- **Documents** (vue d'accueil, `numrev/viewers/context.py`) : les deux
+  annuaires côte à côte, chacun dans son ordre, avec titres et lignes hors
+  sujet ; les paires reliées dans une gouttière (inversions en orange), les
+  tâches de relecture marquées « ! ». Un clic sur une entrée en fait la
+  ligne courante ; l'inspecteur, au-dessus, permet de décider sur place, et
+  « Apparier autrement… » fait choisir le partenaire dans les documents ;
+- **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne courante —
+  différences de texte surlignées, rapprochements possibles, note — et
+  l'avance automatique à la tâche suivante après chaque décision.
+
+Le bandeau de tâches, commun, mène d'une tâche à l'autre (P / N), annule la
+dernière décision (Ctrl+Z) et bascule d'une vue à l'autre (Entrée : zoom,
+Échap : vue d'ensemble). Les décisions : V même entrée (ou confirmer sans
+correspondance), I incertaine, X pas la même entrée, A apparier autrement.
+La **file de tâches** se règle dans la barre latérale (candidates,
+incertitude moyenne ou forte, entrées seules, paires de score faible,
+rubrique, lignes déjà décidées, ordre).
 
 **Décisions** (`numrev/alignment/decisions.py`) : elles vont dans un journal
 gardé dans le navigateur (`numrev/viewers/storage.py`), rejoué sur le patch
 versionné. En local (`numrev view alignment` pose `NUMREV_PATCH_WRITABLE=1`),
-**Enregistrer** écrit le patch et vide le journal ; sinon (copie hébergée),
-**Télécharger le patch** donne le patch complet à déposer dans
-`data/alignment/`. Le format du patch ne change pas.
+**Enregistrer** écrit le patch et vide le journal ; sinon (copie hébergée,
+`numrev publish-viewer`), **Télécharger le patch** donne le patch complet à
+déposer dans `data/alignment/`. Le format du patch ne change pas.
 
 On n'apparie qu'entre rubriques appariées (`numrev/alignment/sections.py`, avec
 son patch `data/alignment/<gauche>__<droite>.sections.csv`, édité à la main,
 non réécrit ici) : un lien entre rubriques qui ne se correspondent pas —
-Dedupe en produit — est écarté, et compté. Un encart **Rubriques** donne,
-par groupe de rubriques appariées puis par rubrique seule, la
-correspondance et la part d'entrées appariées ; chaque bandeau de rubrique
-a un bouton **uuid** pour alimenter le patch des rubriques.
+Dedupe en produit — est écarté, et compté. La **Synthèse** (en-tête) donne
+les indicateurs et, par groupe de rubriques appariées puis par rubrique
+seule, la correspondance et la part d'entrées appariées ; au survol d'un
+titre, le bouton **uuid** copie l'uuid de la rubrique pour son patch.
 
-**Relecture** (`numrev/alignment/review.py`) : chaque correspondance porte une
+**Motifs** (`numrev/alignment/review.py`) : chaque correspondance porte une
 incertitude (faible, moyenne ou forte) et ses motifs (`déduite des voisines
 (p < 0,9)`, `homonyme proche`) ; des **candidates non appariées** (deux
 entrées sans correspondance, chacune la plus proche de l'autre, dans la zone
 grise de similarité) sont soumises au relecteur, jamais appariées d'office.
 
-Le bouton **Exporter en CSV** télécharge les lignes de la table (filtres et
-tri appliqués) sous la forme de la jointure lisible de
-`numrev/alignment/export.py`, comme `numrev join`.
+**Exporter en CSV** télécharge la jointure lisible
+(`numrev/alignment/export.py`, comme `numrev join`), complète ou réduite aux
+tâches de la file.
 """
 
 import csv
@@ -71,7 +71,6 @@ import streamlit as st
 
 from numrev import paths as paths_module
 from numrev.alignment.decisions import (
-    PROBABLE,
     SAME,
     UNDO,
     Decision,
@@ -97,7 +96,7 @@ from numrev.alignment.patch import (
     write_patch,
 )
 from numrev.alignment.records import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, DocLine, Link, Record, load_lines, load_volume, read_links
-from numrev.alignment.review import DEFAULT_MARGIN, LEVEL_LABELS, REASON_CANDIDATE, SEPARATOR, Review, review
+from numrev.alignment.review import DEFAULT_MARGIN, SEPARATOR, Review, review
 from numrev.alignment.sections import (
     SECTION_PATCH_FIELDS,
     SOURCE_AUTO,
@@ -107,79 +106,37 @@ from numrev.alignment.sections import (
     restrict_to_corresponding,
     segment_entries,
 )
-from numrev.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
+from numrev.ner.html import LABEL_COLORS, SPAN_CSS, badge
 from numrev.paths import JOIN_SUFFIX, Pair
 from numrev.viewers import context, focus
-from numrev.viewers.common import PAGE_SIZE_OPTIONS, text_mask
+from numrev.viewers.common import text_mask
 from numrev.viewers.storage import browser_journal, storage_key
 
 WRITABLE_ENV = "NUMREV_PATCH_WRITABLE"  # posée par `numrev view alignment` : enregistrement direct du patch
-REVIEW, TABLE, DOCUMENTS = "Relecture", "Table", "Documents"
-VIEWS = {REVIEW: ":material/rate_review: Relecture", TABLE: ":material/table_rows: Table", DOCUMENTS: ":material/difference: Documents"}
-NATURAL_ORDER = "ordre naturel"
-LEVEL_ORDER = "incertitude décroissante"
-ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant", LEVEL_ORDER]
-LEVEL_OPTIONS = {0: "toutes les lignes", 1: "moyenne ou forte", 2: "forte seulement"}  # filtre : incertitude minimale
+DOCUMENTS, REVIEW = "Documents", "Relecture"
+VIEWS = {DOCUMENTS: ":material/difference: Documents", REVIEW: ":material/zoom_in: Relecture"}
 ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
-KIND_LABELS = {
-    PAIR: "✓ Appariées",
-    CANDIDATE: "? Candidates non appariées (à décider)",
-    LEFT_ONLY: "✗ Sans correspondance à gauche",
-    RIGHT_ONLY: "✗ Sans correspondance à droite",
-}
-LEVEL_CLASSES = {1: "level-medium", 2: "level-high"}  # badge d'incertitude moyenne / forte
 MANUAL_SOURCES = {SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN}
-MANUAL_COLORS = ("#ede9fe", "#6d28d9")
-CONFIRMED = "confirmée sans correspondance"
 ENTRY_COLUMNS = [field.name for field in fields(Record)]
-DOCUMENTS_STEP = 40  # lignes de la table parcourues par ▲ / ▼ dans la vue Documents
+WINDOW = {DOCUMENTS: (30, 70), REVIEW: (8, 8)}  # lignes affichées avant / après la ligne courante
+HEIGHT = {DOCUMENTS: "68vh", REVIEW: "430px"}
+MORE_STEP = 40  # lignes ajoutées par « ⋯ » (assets/context.js)
+DOCUMENTS_ORDER, LEVEL_ORDER = "ordre des documents", "incertitude décroissante"
 
 # Clés de st.session_state
 CURSOR = "cursor"  # (uuid gauche, uuid droit) de la ligne courante
-PICKS = "picks"  # côté → uuid sélectionné dans la vue Documents
 VIEW = "view"
 PENDING_VIEW = "pending_view"  # vue à afficher au prochain tour (posée hors rappel)
+PAIRING = "pairing"  # mode « choisir le partenaire »
+WINDOW_EXTRA = "window_extra"  # lignes ajoutées par « ⋯ » autour de la ligne courante
+SEARCH = "search"
 
 CSS = f"""<style>
   .legend span {{ margin-right: 10px; }}
-  .html-events {{ color: var(--st-text-color, inherit); font-family: var(--st-font, inherit); }}
-  .table-scroll {{ max-height: 75vh; overflow-y: auto; border: 1px solid rgba(100,116,139,.3); border-radius: 6px; }}
-  .ner-table {{ width: 100%; border-collapse: collapse; font-size: 0.9em; table-layout: fixed; }}
-  .ner-table th {{ background: var(--st-secondary-background-color, #f8fafc); border-bottom: 2px solid rgba(100,116,139,.3);
-                  padding: 8px; text-align: left;
-                  position: sticky; top: 0; z-index: 1; }}
-  .ner-table td {{ border-bottom: 1px solid rgba(100,116,139,.15); padding: 6px 8px; vertical-align: top; overflow-wrap: anywhere; }}
-  .ner-table tr:hover td {{ background: rgba(100,116,139,.08); }}
-  .ner-table tr.section td {{ background: var(--st-secondary-background-color, #f1f5f9); font-weight: 600; font-size: 0.85em; }}
-  .ner-table tr.left td.empty, .ner-table tr.right td.empty {{ background: rgba(239,68,68,.07); }}
-  .ner-table tr.candidate td {{ background: rgba(245,158,11,.10); }}
-  .ner-table tr.candidate td:first-child {{ box-shadow: inset 4px 0 0 #d97706; }}
-  .ner-table tr.pair td:first-child {{ box-shadow: inset 4px 0 0 #16a34a; }}
-  .ner-table tr.left td:first-child, .ner-table tr.right td:first-child {{ box-shadow: inset 4px 0 0 #cbd5e1; }}
-  .ner-table tr.current td {{ background: rgba(37,99,235,.10); }}
-  .ner-table col.number {{ width: 3.5em; }}
-  .ner-table col.score {{ width: 14em; }}
-  .meta {{ font-family: monospace; font-size: 0.78em; color: #64748b; }}
-  .status {{ display: inline-block; font-weight: 600; font-size: 0.85em; padding: 1px 8px; border-radius: 10px; margin-bottom: 3px; }}
-  .status.pair {{ background: #dcfce7; color: #166534; }}
-  .status.manual {{ background: #ede9fe; color: #5b21b6; }}
-  .status.uncertain {{ background: #fef3c7; color: #92400e; }}
-  .status.candidate {{ background: #fde68a; color: #78350f; border: 1px dashed #b45309; }}
-  .status.alone {{ background: #f1f5f9; color: #475569; }}
-  .local {{ display: inline-block; font-size: 0.75em; font-weight: 600; color: #6d28d9; }}
-  .level {{ display: inline-block; font-size: 0.78em; padding: 0 6px; border-radius: 8px; margin-top: 3px; }}
-  .level.level-medium {{ background: #ffedd5; color: #9a3412; }}
-  .level.level-high {{ background: #fee2e2; color: #991b1b; }}
-  .reasons {{ font-size: 0.78em; color: #475569; }}
-  .legend-table {{ font-size: 0.85em; color: #475569; margin: 4px 0 8px; line-height: 2.1; }}
-  .legend-table .status, .legend-table .level {{ margin-right: 4px; }}
-  .low {{ color: #b91c1c; font-weight: 600; }}
-  .empty {{ color: #b91c1c; font-size: 0.85em; font-style: italic; }}
-  button.copy, button.open {{ font-size: 0.72em; padding: 0 6px; margin-left: 4px; border: 1px solid rgba(100,116,139,.45);
+  button.copy {{ font-size: 0.72em; padding: 0 6px; margin-left: 4px; border: 1px solid rgba(100,116,139,.45);
                 border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }}
-  button.open {{ font-size: 0.8em; padding: 1px 8px; margin: 4px 0 0; border-color: rgba(37,99,235,.6); color: #3b82f6; }}
-  button.copy:hover, button.open:hover {{ background: rgba(100,116,139,.12); }}
+  button.copy:hover {{ background: rgba(100,116,139,.12); }}
   {SPAN_CSS}
 </style>"""
 
@@ -205,34 +162,6 @@ if (!window.__alignmentCopy) {
   });
 }
 </script>"""
-
-# Table cliquable : HTML fourni par Python ; un bouton `[data-action]` renvoie
-# {action, value} (déclencheur `action`) ; les boutons `copy` copient.
-TABLE_JS = """
-export default function ({ data, parentElement, setTriggerValue }) {
-  if (!data) return;
-  let root = parentElement.querySelector(".html-events");
-  if (!root) {
-    root = document.createElement("div");
-    root.className = "html-events";
-    parentElement.appendChild(root);
-    root.addEventListener("click", async (event) => {
-      const copy = event.target.closest("button.copy");
-      if (copy) {
-        try { await navigator.clipboard.writeText(copy.dataset.copy); } catch (error) { /* presse-papiers indisponible */ }
-        const label = copy.textContent;
-        copy.textContent = "✓ copié";
-        setTimeout(() => { copy.textContent = label; }, 1200);
-        return;
-      }
-      const target = event.target.closest("[data-action]");
-      if (target) setTriggerValue("action", { action: target.dataset.action, value: target.dataset.value });
-    });
-  }
-  root.innerHTML = data.html;
-}
-"""
-_table = st.components.v2.component("numrev_alignment_table", js=TABLE_JS)
 
 
 # ----------------------------------------------------------------------
@@ -409,6 +338,19 @@ def cursor_index(alignment: Alignment, cursor: tuple[str, str] | None) -> int | 
     return None
 
 
+def neighbours(queue: list[int], current: int) -> tuple[int | None, int | None, int | None]:
+    """(rang dans la file, précédente, suivante) de la ligne `current` ; hors
+    de la file, les voisines sont prises dans l'ordre naturel."""
+    if current in queue:
+        position = queue.index(current)
+        previous = queue[position - 1] if position > 0 else None
+        following = queue[position + 1] if position + 1 < len(queue) else None
+        return position, previous, following
+    before = [index for index in queue if index < current]
+    after = [index for index in queue if index > current]
+    return None, (max(before) if before else None), (min(after) if after else None)
+
+
 # ----------------------------------------------------------------------
 # Journal des décisions
 # ----------------------------------------------------------------------
@@ -448,7 +390,7 @@ def on_decide(pair_name: str, digest: str, following: tuple[str, str] | None, ac
     if not journal:
         st.session_state[f"journal_base::{pair_name}"] = digest
     journal.append(decide(action, left, right, note))
-    st.session_state[PICKS] = {}
+    st.session_state[PAIRING] = False
     if action == UNDO or following is None:
         st.session_state[CURSOR] = (left.uuid if left else "", right.uuid if right else "")
     else:
@@ -461,13 +403,6 @@ def on_undo_last(pair_name: str) -> None:
         last = journal.pop()
         uuids = dict(last.touched)
         st.session_state[CURSOR] = (uuids.get("left", ""), uuids.get("right", ""))
-
-
-def on_move(key: tuple[str, str] | None, view: str | None = None) -> None:
-    if key is not None:
-        st.session_state[CURSOR] = key
-    if view is not None:
-        st.session_state[VIEW] = view
 
 
 def on_save(pair_name: str, patch_path: Path) -> None:
@@ -564,141 +499,46 @@ def journal_box(pair_name: str, patch_path: Path, digest: str, writable: bool) -
 
 
 # ----------------------------------------------------------------------
-# Table
+# Ligne courante, synthèse
 # ----------------------------------------------------------------------
+def focus_of(
+    alignment: Alignment, records: dict[str, dict[str, Record]], index: int, subj_weight: float, with_alternatives: bool = True
+) -> focus.Focus:
+    """La ligne `index` pour la vue Relecture, avec ses rapprochements possibles."""
+    row = alignment.rows.loc[index]
+    left = records["left"].get(row["left_uuid"]) if row["left_uuid"] else None
+    right = records["right"].get(row["right_uuid"]) if row["right_uuid"] else None
+    found = alignment.reviews.get((row["left_uuid"], row["right_uuid"]))
+    rivals = {uuid for _, uuid, _ in found.rivals} if found else set()
+    alternatives = {}
+    for side, record, partner in (("left", left, right), ("right", right, left)):
+        number = alignment.segment_of.get((side, record.uuid)) if record else None
+        if number is None or not with_alternatives:
+            continue
+        others = alignment.segments[number][1 if side == "left" else 0]
+        other_side = context.other(side)
+        partners = {
+            uuid: records[side][state.partner]
+            for uuid, state in alignment.states[other_side].items()
+            if state.kind == "pair" and state.partner in records[side]
+        }
+        alternatives[side] = focus.alternatives(record, side, others, partner.uuid if partner else "", partners, subj_weight, rivals)
+    manual = row["source"] in MANUAL_SOURCES or row["left_uuid"] in alignment.confirmed or row["right_uuid"] in alignment.confirmed
+    return focus.Focus(
+        kind=row["kind"],
+        left=left,
+        right=right,
+        score=None if pd.isna(row["score"]) else float(row["score"]),
+        source=row["source"],
+        review=found,
+        manual=bool(manual),
+        local=bool({row["left_uuid"], row["right_uuid"]} & alignment.local),
+        alternatives=alternatives,
+    )
+
+
 def copy_button(label: str, text: str, title: str) -> str:
     return f'<button class="copy" data-copy="{html.escape(text, quote=True)}" title="{html.escape(title)}">{label}</button>'
-
-
-def entry_html(row, side: str, confirmed: set[str], local: set[str]) -> str:
-    uuid = getattr(row, f"{side}_uuid")
-    if not uuid:
-        return "<span class='empty'>aucune entrée appariée</span>"
-    tagged, markdown = getattr(row, f"{side}_tagged_text"), getattr(row, f"{side}_markdown")
-    content = render_tagged_html(tagged) or html.escape(markdown)
-    page = getattr(row, f"{side}_page")
-    title = getattr(row, f"{side}_section_title") or NO_SECTION
-    flag = f" {badge(CONFIRMED, MANUAL_COLORS)}" if uuid in confirmed else ""
-    return (
-        f"{content}{flag}<br><span class='meta'>p. {html.escape(page)}</span> · "
-        f"<span class='meta'>{html.escape(title)}</span>"
-        f"{copy_button('uuid', uuid, f'Copier l’uuid {uuid}')}"
-    )
-
-
-def status_badge(kind: str, source: str = "") -> str:
-    """Statut d'une ligne, en clair : appariée (automatiquement, relue, ou
-    relue mais incertaine), candidate non appariée, sans correspondance."""
-    if kind == CANDIDATE:
-        label, css = "? non appariée · candidate à décider", "candidate"
-    elif kind != PAIR:
-        label, css = "✗ sans correspondance", "alone"
-    elif source == SOURCE_MANUAL_UNCERTAIN:
-        label, css = "✓ appariée · relue, incertaine", "uncertain"
-    elif source == SOURCE_MANUAL:
-        label, css = "✓ appariée · relue", "manual"
-    else:
-        label, css = "✓ appariée", "pair"
-    return f"<span class='status {css}'>{label}</span>"
-
-
-def level_badge(level: int) -> str:
-    return f"<span class='level {LEVEL_CLASSES[level]}'>incertitude {LEVEL_LABELS[level]}</span>" if level else ""
-
-
-def status_html(row, threshold: float, local: set[str]) -> str:
-    """Statut, score (similarité ou probabilité selon la méthode), incertitude et motifs."""
-    parts = [status_badge(row.kind, row.source)]
-    if row.left_uuid in local or row.right_uuid in local:
-        parts.append("<span class='local'>● décision non enregistrée</span>")
-    if row.kind in (PAIR, CANDIDATE) and not pd.isna(row.score):
-        css = " class='low'" if row.score < threshold else ""
-        parts.append(f"<span class='meta'>score</span> <span{css}>{row.score:.3f}</span>")
-    if row.level:
-        # Le motif « candidate non appariée » répète le statut : on ne l'affiche pas.
-        reasons = SEPARATOR.join(reason for reason in row.reasons.split(SEPARATOR) if reason != REASON_CANDIDATE)
-        parts.append(level_badge(row.level) + (f"<br><span class='reasons'>{html.escape(reasons)}</span>" if reasons else ""))
-    return "<br>".join(parts)
-
-
-def legend_html() -> str:
-    """Légende des statuts et de l'incertitude (bouton « Légende » au-dessus de la table)."""
-    items = [
-        (status_badge(PAIR), "lien retenu automatiquement (bordure verte)"),
-        (status_badge(PAIR, SOURCE_MANUAL), "lien du patch"),
-        (status_badge(PAIR, SOURCE_MANUAL_UNCERTAIN), "lien du patch marqué incertain"),
-        (status_badge(CANDIDATE), "deux entrées <b>non appariées</b>, soumises au relecteur (fond ambre)"),
-        (status_badge(LEFT_ONLY), "entrée seule (bordure grise)"),
-        ("<span class='local'>● décision non enregistrée</span>", "décision du journal, pas encore dans le patch"),
-        (level_badge(1) + " " + level_badge(2), "à vérifier, motif en dessous ; incertitude faible : rien n'est affiché"),
-    ]
-    return "<div class='legend-table'>" + "<br>".join(f"{badges} {text}" for badges, text in items) + "</div>"
-
-
-def table_rows(view: pd.DataFrame, first: int, low_score: float, banners: bool, alignment: Alignment, current: int | None) -> list[str]:
-    # Les bandeaux suivent la rubrique de gauche, qui fixe l'ordre de la table :
-    # une entrée de droite seule, insérée dans ce fil, n'en ouvre pas de
-    # nouveau (sa rubrique figure dans sa cellule), sauf en tête de table ou
-    # quand seules des entrées de droite sont affichées.
-    rows, section_now = [], None
-    right_only = bool((view["kind"] == RIGHT_ONLY).all())
-    for number, (index, row) in enumerate(zip(view.index, view.itertuples()), start=first):
-        if row.kind != RIGHT_ONLY:
-            section, title, uuid = row.left_section, row.left_section_title, row.left_section_uuid
-        elif section_now is None or right_only:
-            section, title, uuid = row.right_section, row.right_section_title, row.right_section_uuid
-        else:
-            section, title, uuid = section_now, None, ""
-        if banners and section != section_now:
-            section_now = section
-            button = copy_button("uuid", uuid, f"Copier l’uuid de la rubrique {uuid}") if uuid else ""
-            rows.append(f"<tr class='section'><td colspan='4'>{html.escape(title or NO_SECTION)}{button}</td></tr>")
-        empty_left = " class='empty'" if row.kind == RIGHT_ONLY else ""
-        empty_right = " class='empty'" if row.kind == LEFT_ONLY else ""
-        value = html.escape(f"{row.left_uuid}|{row.right_uuid}", quote=True)
-        current_class = " current" if index == current else ""
-        rows.append(
-            f"<tr class='{row.kind}{current_class}'>"
-            f"<td class='meta'>{number}</td>"
-            f"<td{empty_left}>{entry_html(row, 'left', alignment.confirmed, alignment.local)}</td>"
-            f"<td{empty_right}>{entry_html(row, 'right', alignment.confirmed, alignment.local)}</td>"
-            f"<td>{status_html(row, low_score, alignment.local)}<br>"
-            f"<button class='open' data-action='focus' data-value='{value}' title='Ouvrir cette ligne dans la vue Relecture'>"
-            "Relire →</button></td>"
-            "</tr>"
-        )
-    return rows
-
-
-def paginated_table(view: pd.DataFrame, headers: list[str], render, page_size: int) -> dict | None:
-    """Table paginée ; renvoie l'action cliquée ({action, value}) ou None."""
-    if view.empty:
-        st.info("Aucune ligne ne correspond aux filtres.")
-        return None
-    n_pages = max(1, -(-len(view) // page_size))
-    page = min(st.session_state.get("page", 0), n_pages - 1)
-    previous, label, legend, following = st.columns([1, 3, 0.8, 1])
-    with legend.popover("ℹ️ Légende", width="stretch"):
-        st.html(f"{CSS}{legend_html()}")
-    if previous.button("◀ Précédente", disabled=page == 0, width="stretch"):
-        page -= 1
-    if following.button("Suivante ▶", disabled=page >= n_pages - 1, width="stretch"):
-        page += 1
-    st.session_state.page = page
-    label.markdown(
-        f"<div style='text-align:center;padding-top:6px'>Page <b>{page + 1}</b> / {n_pages} · "
-        f"{len(view):,} ligne(s)</div>".replace(",", " "),
-        unsafe_allow_html=True,
-    )
-    start = page * page_size
-    head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
-    table = (
-        f"{CSS}<div class='table-scroll'><table class='ner-table'>"
-        "<colgroup><col class='number'><col><col><col class='score'></colgroup>"
-        f"<thead><tr>{head}</tr></thead><tbody>{''.join(render(view.iloc[start : start + page_size], start + 1))}</tbody>"
-        "</table></div>"
-    )
-    return _table(key="alignment_table", data={"html": table}, on_action_change=lambda: None).get("action")
 
 
 def section_table(alignment: SectionAlignment, rows: pd.DataFrame) -> pd.DataFrame:
@@ -757,113 +597,6 @@ def section_table(alignment: SectionAlignment, rows: pd.DataFrame) -> pd.DataFra
     return table
 
 
-# ----------------------------------------------------------------------
-# Relecture et Documents
-# ----------------------------------------------------------------------
-def focus_of(alignment: Alignment, records: dict[str, dict[str, Record]], index: int, subj_weight: float) -> focus.Focus:
-    """La ligne `index` pour la vue Relecture, avec ses rapprochements possibles."""
-    row = alignment.rows.loc[index]
-    left = records["left"].get(row["left_uuid"]) if row["left_uuid"] else None
-    right = records["right"].get(row["right_uuid"]) if row["right_uuid"] else None
-    found = alignment.reviews.get((row["left_uuid"], row["right_uuid"]))
-    rivals = {uuid for _, uuid, _ in found.rivals} if found else set()
-    alternatives = {}
-    for side, record, partner in (("left", left, right), ("right", right, left)):
-        number = alignment.segment_of.get((side, record.uuid)) if record else None
-        if number is None:
-            continue
-        others = alignment.segments[number][1 if side == "left" else 0]
-        other_side = context.other(side)
-        partners = {
-            uuid: records[side][state.partner]
-            for uuid, state in alignment.states[other_side].items()
-            if state.kind == "pair" and state.partner in records[side]
-        }
-        alternatives[side] = focus.alternatives(record, side, others, partner.uuid if partner else "", partners, subj_weight, rivals)
-    manual = row["source"] in MANUAL_SOURCES or row["left_uuid"] in alignment.confirmed or row["right_uuid"] in alignment.confirmed
-    return focus.Focus(
-        kind=row["kind"],
-        left=left,
-        right=right,
-        score=None if pd.isna(row["score"]) else float(row["score"]),
-        source=row["source"],
-        review=found,
-        manual=bool(manual),
-        local=bool({row["left_uuid"], row["right_uuid"]} & alignment.local),
-        alternatives=alternatives,
-    )
-
-
-def neighbours(queue: list[int], current: int) -> tuple[int | None, int | None, int | None]:
-    """(rang dans la file, précédente, suivante) de la ligne `current` ; hors
-    de la file, les voisines sont prises dans l'ordre naturel."""
-    if current in queue:
-        position = queue.index(current)
-        previous = queue[position - 1] if position > 0 else None
-        following = queue[position + 1] if position + 1 < len(queue) else None
-        return position, previous, following
-    before = [index for index in queue if index < current]
-    after = [index for index in queue if index > current]
-    return None, (max(before) if before else None), (min(after) if after else None)
-
-
-def picks_bar(pair_name: str, digest: str, records: dict[str, dict[str, Record]], alignment: Alignment) -> None:
-    """Entrées sélectionnées dans les documents, et ce qu'on peut en faire."""
-    picks = st.session_state.get(PICKS) or {}
-    chosen = {side: records[side].get(picks.get(side, "")) for side in context.SIDES}
-    if not any(chosen.values()):
-        st.caption("Cliquer une entrée de chaque côté pour les apparier à la main.")
-        return
-    text, actions = st.columns([3, 2], vertical_alignment="center")
-    described = " ⟷ ".join(f"« {record.text[:70]} »" if record else "…" for record in chosen.values())
-    text.markdown(f"**Sélection** : {described}")
-    buttons = actions.columns(3)
-    decide_now = partial(on_decide, pair_name, digest, None)
-    if all(chosen.values()):
-        buttons[0].button(
-            "Apparier",
-            type="primary",
-            width="stretch",
-            on_click=decide_now,
-            args=(SAME, chosen["left"], chosen["right"], None),
-            help="Paire du patch ; les lignes qui touchaient ces deux entrées sont retirées.",
-        )
-        buttons[1].button("≈ incertaine", width="stretch", on_click=decide_now, args=(PROBABLE, chosen["left"], chosen["right"], None))
-    else:
-        side = next(side for side, record in chosen.items() if record)
-        index = alignment.by_uuid[side].get(chosen[side].uuid)
-        if index is not None:
-            buttons[0].button(
-                "Relire",
-                width="stretch",
-                on_click=on_move,
-                args=(row_key(alignment.rows, index), REVIEW),
-                help="Ouvrir la ligne de cette entrée dans la vue Relecture.",
-            )
-    buttons[2].button("Effacer", width="stretch", on_click=lambda: st.session_state.update({PICKS: {}}))
-
-
-def documents_panel(
-    docs: context.Documents, cursor: tuple[str, str], before: int, after: int, height: int, key: str, titles: tuple[str, str]
-) -> None:
-    centre = context.centers(docs, *cursor)
-    bounds = context.window(docs, centre, before, after)
-    picks = st.session_state.get(PICKS) or {}
-    data = context.payload(docs, bounds, cursor, picks, height)
-    pick = context.documents_diff(data, key, titles)
-    if pick and pick.get("side") in context.SIDES:
-        picks = dict(picks)
-        if picks.get(pick["side"]) == pick["uuid"]:
-            picks.pop(pick["side"])
-        else:
-            picks[pick["side"]] = pick["uuid"]
-        st.session_state[PICKS] = picks
-        st.rerun()
-
-
-# ----------------------------------------------------------------------
-# Interface
-# ----------------------------------------------------------------------
 def choose_alignment() -> Path | None:
     paths = sorted(path for suffix in paths_module.ALIGNMENT_SUFFIXES for path in paths_module.ALIGNMENTS_DIR.glob(f"*{suffix}"))
     if not paths:
@@ -953,30 +686,198 @@ def warnings_and_details(alignment: Alignment, records: dict[str, dict[str, Reco
             )
 
 
-def sections_expander(alignment: Alignment, rows: pd.DataFrame, section_patch_path: Path) -> None:
-    with st.expander("Rubriques : correspondance et appariement"):
-        groups = alignment.sections.groups
-        manual = sum(group.source != SOURCE_AUTO for group in groups)
-        alone = len(alignment.sections.unmatched_left) + len(alignment.sections.unmatched_right)
-        st.caption(
-            f"{len(groups)} groupe(s) de rubriques appariées, dont {manual} du patch des rubriques ; {alone} rubrique(s) seule(s), "
-            "dont les entrées ne sont jamais appariées. Pour corriger : une ligne `left_uuid,right_uuid` par paire dans le patch "
-            f"des rubriques `{section_patch_path}` ({alignment.n_section_patch} ligne(s), édité à la main ; un même uuid sur "
-            "plusieurs lignes forme un groupe 1-N), ou un seul uuid pour une rubrique sans correspondance."
-        )
-        st.html(
-            f"{CSS}{COPY_SCRIPT}"
-            f"{copy_button('copier l’en-tête du patch des rubriques', ','.join(SECTION_PATCH_FIELDS), 'Copier la ligne d’en-tête')}",
-            unsafe_allow_javascript=True,
-        )
-        st.dataframe(section_table(alignment.sections, rows), width="stretch", hide_index=True)
+# ----------------------------------------------------------------------
+# File de tâches
+# ----------------------------------------------------------------------
+@dataclass(frozen=True)
+class TaskOptions:
+    """Ce qui fait d'une ligne une tâche de relecture (barre latérale)."""
+
+    candidates: bool = True  # candidates non appariées
+    medium: bool = True  # paires automatiques d'incertitude moyenne
+    high: bool = True  # … forte
+    left_only: bool = False  # entrées seules à gauche
+    right_only: bool = False  # … à droite
+    below: float | None = None  # paires automatiques de score inférieur
+    section: str | None = None  # clé de rubrique (gauche ou droite)
+    include_decided: bool = False  # revoir aussi les lignes décidées
+    by_level: bool = False  # ordre : incertitude décroissante (sinon ordre des documents)
 
 
+def task_levels(rows: pd.DataFrame, confirmed: set[str], options: TaskOptions) -> pd.Series:
+    """Niveau de tâche de chaque ligne : 0 (pas une tâche), 1 ou 2 (marqueur
+    « ! » orange ou rouge dans les documents)."""
+    kind, level = rows["kind"], rows["level"]
+    decided = decided_mask(rows, confirmed)
+    automatic = (kind == PAIR) & ~decided
+    tasks = pd.Series(0, index=rows.index)
+    if options.candidates:
+        tasks[kind == CANDIDATE] = 2
+    if options.medium:
+        tasks[automatic & (level == 1)] = 1
+    if options.high:
+        tasks[automatic & (level == 2)] = 2
+    for wanted, alone in ((options.left_only, LEFT_ONLY), (options.right_only, RIGHT_ONLY)):
+        if wanted:
+            tasks[(kind == alone) & ~decided & (tasks == 0)] = 1
+    if options.below is not None:
+        tasks[automatic & (rows["score"] < options.below) & (tasks == 0)] = 1
+    tasks[decided] = 1 if options.include_decided else 0
+    if options.section is not None:
+        tasks[(rows["left_section"] != options.section) & (rows["right_section"] != options.section)] = 0
+    return tasks
+
+
+def task_queue(levels: pd.Series, by_level: bool) -> list[int]:
+    """Index des lignes à relire, dans l'ordre des documents ou par
+    incertitude décroissante."""
+    tasks = levels[levels > 0]
+    if by_level:
+        tasks = tasks.sort_values(ascending=False, kind="stable")
+    return list(tasks.index)
+
+
+def task_marks(rows: pd.DataFrame, levels: pd.Series) -> dict[str, dict[str, int]]:
+    """Côté → uuid → niveau de tâche, pour les marqueurs des documents."""
+    marks: dict[str, dict[str, int]] = {"left": {}, "right": {}}
+    tasks = rows[levels > 0]
+    for side in context.SIDES:
+        for uuid, level in zip(tasks[f"{side}_uuid"], levels[levels > 0]):
+            if uuid:
+                marks[side][uuid] = int(level)
+    return marks
+
+
+def task_options() -> TaskOptions:
+    """Section « Tâches de relecture » de la barre latérale."""
+    st.header("Tâches de relecture")
+    candidates = st.checkbox("Candidates non appariées", value=True)
+    medium = st.checkbox("Paires d'incertitude moyenne", value=True)
+    high = st.checkbox("Paires d'incertitude forte", value=True)
+    left_only = st.checkbox("Entrées seules à gauche")
+    right_only = st.checkbox("Entrées seules à droite")
+    low = st.checkbox("Paires automatiques de score faible")
+    below = st.slider("… score inférieur à", 0.0, 1.0, 0.7, step=0.01) if low else None
+    return TaskOptions(
+        candidates=candidates,
+        medium=medium,
+        high=high,
+        left_only=left_only,
+        right_only=right_only,
+        below=below,
+        include_decided=st.toggle("Revoir aussi les lignes décidées", help="Les paires relues et les entrées confirmées seules."),
+        by_level=st.radio("Ordre", [DOCUMENTS_ORDER, LEVEL_ORDER], horizontal=True) == LEVEL_ORDER,
+    )
+
+
+# ----------------------------------------------------------------------
+# Curseur, mode d'appariement, événements des documents
+# ----------------------------------------------------------------------
+def set_cursor(key: tuple[str, str]) -> None:
+    st.session_state[CURSOR] = key
+    st.session_state[PAIRING] = False
+
+
+def on_move(key: tuple[str, str] | None = None, view: str | None = None) -> None:
+    if key is not None:
+        set_cursor(key)
+    if view is not None:
+        st.session_state[VIEW] = view
+        st.session_state[PAIRING] = False
+
+
+def on_pairing(active: bool) -> None:
+    st.session_state[PAIRING] = active
+
+
+def window_extra(cursor: tuple[str, str]) -> tuple[int, int]:
+    """Lignes ajoutées par « ⋯ » (avant, après), tant que le curseur ne bouge pas."""
+    extra = st.session_state.get(WINDOW_EXTRA)
+    if not extra or tuple(extra["cursor"]) != tuple(cursor):
+        return 0, 0
+    return extra["before"], extra["after"]
+
+
+def eligible(alignment: Alignment, cursor: tuple[str, str]) -> dict[str, set[str]]:
+    """Mode « choisir le partenaire » : entrées cliquables de chaque côté,
+    celles du segment (rubriques appariées) de l'entrée d'en face."""
+    found: dict[str, set[str]] = {"left": set(), "right": set()}
+    for side, uuid in zip(context.SIDES, cursor):
+        number = alignment.segment_of.get((side, uuid)) if uuid else None
+        if number is not None:
+            other = context.other(side)
+            found[other] = {record.uuid for record in alignment.segments[number][1 if side == "left" else 0]} - set(cursor)
+    return found
+
+
+def handle_event(event: tuple[str, dict], alignment: Alignment, records: dict, pair_name: str, digest: str) -> None:
+    """Clic dans les documents : ligne courante, appariement ou fenêtre agrandie."""
+    name, value = event
+    cursor = tuple(st.session_state.get(CURSOR) or ("", ""))
+    side, uuid = value.get("side"), value.get("uuid")
+    if name == "focus" and side in context.SIDES:
+        index = alignment.by_uuid[side].get(uuid)
+        if index is not None:
+            set_cursor(row_key(alignment.rows, index))
+    elif name == "pair" and side in context.SIDES:
+        left = records["left"].get(uuid if side == "left" else cursor[0])
+        right = records["right"].get(uuid if side == "right" else cursor[1])
+        if left is not None and right is not None:
+            on_decide(pair_name, digest, None, SAME, left, right, None)
+        st.session_state[PAIRING] = False
+    elif name == "more":
+        before, after = window_extra(cursor)
+        if value.get("dir", 1) < 0:
+            before += MORE_STEP
+        else:
+            after += MORE_STEP
+        st.session_state[WINDOW_EXTRA] = {"cursor": list(cursor), "before": before, "after": after}
+    st.rerun()
+
+
+def documents_panel(
+    docs: context.Documents, cursor: tuple[str, str], view_name: str, marks: context.Marks, titles: tuple[str, str]
+) -> tuple[str, dict] | None:
+    before, after = WINDOW[view_name]
+    more_before, more_after = window_extra(cursor)
+    bounds = context.window(docs, context.centers(docs, *cursor), before + more_before, after + more_after)
+    data = context.payload(docs, bounds, cursor, marks, HEIGHT[view_name])
+    return context.documents_diff(data, "documents_diff", titles)
+
+
+# ----------------------------------------------------------------------
+# Synthèse
+# ----------------------------------------------------------------------
+@st.dialog("Synthèse de l'alignement", width="large")
+def synthesis(left_name: str, right_name: str, alignment: Alignment, section_patch_path: Path) -> None:
+    kpis(left_name, right_name, alignment.rows, alignment)
+    st.subheader("Rubriques : correspondance et appariement")
+    groups = alignment.sections.groups
+    manual = sum(group.source != SOURCE_AUTO for group in groups)
+    alone = len(alignment.sections.unmatched_left) + len(alignment.sections.unmatched_right)
+    st.caption(
+        f"{len(groups)} groupe(s) de rubriques appariées, dont {manual} du patch des rubriques ; {alone} rubrique(s) seule(s), "
+        "dont les entrées ne sont jamais appariées. Pour corriger : une ligne `left_uuid,right_uuid` par paire dans le patch "
+        f"des rubriques `{section_patch_path}` ({alignment.n_section_patch} ligne(s), édité à la main ; un même uuid sur "
+        "plusieurs lignes forme un groupe 1-N), ou un seul uuid pour une rubrique sans correspondance. L'uuid d'une rubrique "
+        "se copie au survol de son titre dans les documents."
+    )
+    st.html(
+        f"{CSS}{COPY_SCRIPT}"
+        f"{copy_button('copier l’en-tête du patch des rubriques', ','.join(SECTION_PATCH_FIELDS), 'Copier la ligne d’en-tête')}",
+        unsafe_allow_javascript=True,
+    )
+    st.dataframe(section_table(alignment.sections, alignment.rows), width="stretch", hide_index=True)
+
+
+# ----------------------------------------------------------------------
+# Interface
+# ----------------------------------------------------------------------
 def main() -> None:
     st.set_page_config(page_title="Annuaires — alignement", layout="wide")
     if PENDING_VIEW in st.session_state:
         st.session_state[VIEW] = st.session_state.pop(PENDING_VIEW)
-    st.session_state.setdefault(VIEW, REVIEW)
+    st.session_state.setdefault(VIEW, DOCUMENTS)
 
     alignment_path = choose_alignment()
     if alignment_path is None:
@@ -993,8 +894,7 @@ def main() -> None:
 
     # Barre latérale, du plus courant au plus fin. Les réglages fins sont lus
     # d'abord (ils entrent dans le calcul mis en cache) mais affichés en bas.
-    journal_container = st.sidebar.container()
-    filters_box, display_box, export_box = st.sidebar.container(), st.sidebar.container(), st.sidebar.container()
+    journal_container, tasks_box, export_box = st.sidebar.container(), st.sidebar.container(), st.sidebar.container()
     params = Params()
     with st.sidebar.expander("Réglages fins de la relecture"):
         candidate_low = st.slider(
@@ -1037,173 +937,119 @@ def main() -> None:
     with journal_container:
         journal_box(pair_name, patch_path, digest, writable)
 
-    title, switch = st.columns([3, 2], vertical_alignment="center")
-    title.subheader(f"{left_name} ⟷ {right_name}")
-    view_name = switch.segmented_control("Vue", list(VIEWS), format_func=VIEWS.get, key=VIEW, label_visibility="collapsed", width="stretch")
-    view_name = view_name or REVIEW
-    st.caption(
-        f"Alignement `{alignment_path}` · patch `{patch_path}` ({alignment.n_base} ligne(s) enregistrée(s)"
-        + (f", {len(journal_of(pair_name))} décision(s) en attente)" if journal_of(pair_name) else ")")
-    )
-    warnings_and_details(alignment, records)
-
-    # Filtres (communs aux vues Relecture et Table)
-    with filters_box:
-        st.header("Filtres")
-        st.caption("Statut des lignes")
-        kinds = [kind for kind, label in KIND_LABELS.items() if st.checkbox(label, value=True, key=f"kind_{kind}")]
-        min_level = st.selectbox("Incertitude", list(LEVEL_OPTIONS), format_func=LEVEL_OPTIONS.get)
+    # File de tâches
+    with tasks_box:
+        options = task_options()
         sections = sorted({record.section for side in records.values() for record in side.values()})
         section = st.selectbox("Rubrique", [ALL_SECTIONS, *sections], format_func=lambda s: s or NO_SECTION)
-        query = st.text_input("Recherche (texte des entrées)")
-        low, high = st.slider("Score des correspondances", 0.0, 1.0, (0.0, 1.0), step=0.01)
-        only_manual = st.checkbox("Seulement les corrections manuelles")
-    with display_box:
-        st.header("Affichage")
-        if view_name == REVIEW:
-            only_doubtful = st.toggle(
-                "File : seulement les lignes à vérifier",
-                value=True,
-                help="Candidates non appariées et correspondances d'incertitude moyenne ou forte.",
-            )
-            hide_decided = st.toggle("File : masquer les lignes décidées", value=True)
-            radius = st.slider("Contexte : lignes de part et d'autre", 3, 30, 8)
-        order = st.selectbox("Tri", ORDER_OPTIONS)
-        if view_name == TABLE:
-            page_size = st.selectbox("Lignes par page", PAGE_SIZE_OPTIONS, index=1)
-            low_score = st.slider("Score signalé en rouge sous", 0.0, 1.0, 0.8, step=0.01)
+    if section != ALL_SECTIONS:
+        options = TaskOptions(**{**asdict(options), "section": section})
+    levels = task_levels(rows, alignment.confirmed, options)
+    queue = task_queue(levels, options.by_level)
     with export_box:
         st.header("Export")
+        only_tasks = st.checkbox("Seulement les tâches de la file")
         excel = st.checkbox("Pour un tableur en français", value=True, help="Séparateur `;` et UTF-8 avec BOM, qu'Excel ouvre directement.")
+        exported = queue if only_tasks else list(rows.index)
+        st.download_button(
+            f"Exporter en CSV ({len(exported):,} lignes)".replace(",", " "),
+            # Généré au clic seulement.
+            lambda: export_csv([alignment.joined[index] for index in exported], excel=excel, reviews=alignment.reviews).encode(
+                export_encoding(excel)
+            ),
+            file_name=f"{pair_name}{JOIN_SUFFIX}",
+            mime="text/csv",
+            icon=":material/download:",
+            help="Jointure lisible des deux annuaires (texte sans Markdown, empans NER en colonnes), au format de `numrev join`.",
+            width="stretch",
+        )
 
-    view = rows[rows["kind"].isin(kinds)]
-    view = view[(view["kind"] != PAIR) | view["score"].between(low, high) | view["score"].isna()]
-    if section != ALL_SECTIONS:
-        view = view[(view["left_section"] == section) | (view["right_section"] == section)]
-    if query:
-        view = view[text_mask(view, query, ["left_markdown", "right_markdown"])]
-    if only_manual:
-        view = view[decided_mask(view, alignment.confirmed)]
-    if min_level:
-        view = view[view["level"] >= min_level]
-    if order == LEVEL_ORDER:
-        view = view.sort_values("level", ascending=False, kind="stable")
-    elif order != NATURAL_ORDER:
-        view = view.sort_values("score", ascending=order == "score croissant", kind="stable", na_position="last")
-
-    export_box.download_button(
-        f"Exporter en CSV ({len(view):,} lignes)".replace(",", " "),
-        # Généré au clic seulement : lignes affichées, dans l'ordre affiché.
-        lambda: export_csv([alignment.joined[index] for index in view.index], excel=excel, reviews=alignment.reviews).encode(
-            export_encoding(excel)
-        ),
-        file_name=f"{pair_name}{JOIN_SUFFIX}",
-        mime="text/csv",
-        icon=":material/download:",
-        help="Jointure lisible des deux annuaires (texte sans Markdown, empans NER en colonnes), filtres et tri appliqués.",
-        width="stretch",
-    )
-    legend = "".join(badge(label, colors) for label, colors in LABEL_COLORS.items())
-    st.html(f"{CSS}<div class='legend'>{legend}</div>")
-
+    # Ligne courante : par défaut la première tâche.
     current = cursor_index(alignment, st.session_state.get(CURSOR))
-    if view_name == REVIEW:
-        to_review = view
-        if only_doubtful:
-            to_review = to_review[(to_review["level"] >= 1) | (to_review["kind"] == CANDIDATE)]
-        decided = decided_mask(to_review, alignment.confirmed)
-        queue = list(to_review.index[~decided]) if hide_decided else list(to_review.index)
-        if current is None and queue:
-            current = queue[0]
-            st.session_state[CURSOR] = row_key(rows, current)
-        if current is None:
-            st.success("Rien à relire avec ces filtres.")
-            return
-        position, previous, following = neighbours(queue, current)
-        key_of = partial(row_key, rows)
-        following_key = key_of(following) if following is not None else None
-        controls = focus.Controls(
-            decide=partial(on_decide, pair_name, digest, following_key),
-            move=on_move,
-            undo_last=partial(on_undo_last, pair_name),
-            position=position,
-            remaining=len(queue),
-            total=len(to_review),
-            decided=int(decided.sum()),
-            previous=key_of(previous) if previous is not None else None,
-            following=following_key,
-            can_undo=bool(journal_of(pair_name)),
-        )
-        focus.queue_header(controls)
-        if not queue:
-            st.success("File vide : tout est décidé avec ces filtres. La ligne courante reste affichée.")
-        focused = focus_of(alignment, records, current, params.subj_weight)
-        focus.render(focused, controls, key=f"{pair_name}:{rows.at[current, 'left_uuid']}:{rows.at[current, 'right_uuid']}")
-        st.subheader("Contexte", divider="gray")
-        picks_bar(pair_name, digest, records, alignment)
-        docs = context.documents({"left": load_document_lines(left_dir), "right": load_document_lines(right_dir)}, alignment.states)
-        documents_panel(docs, row_key(rows, current), radius, radius, 360 + 18 * radius, "context_review", (left_name, right_name))
-    elif view_name == TABLE:
-        kpis(left_name, right_name, rows, alignment)
-        sections_expander(alignment, rows, section_patch_path)
-        # Retour à la première page quand la sélection change.
-        selection = (alignment_path.name, tuple(kinds), section, query, low, high, only_manual, order, page_size, min_level)
-        if st.session_state.get("_selection") != selection:
-            st.session_state["_selection"] = selection
-            st.session_state.page = 0
-        action = paginated_table(
-            view,
-            ["#", f"gauche — {left_name}", f"droite — {right_name}", "statut"],
-            lambda page, first: table_rows(page, first, low_score, order == NATURAL_ORDER, alignment, current),
-            page_size,
-        )
-        if action and action.get("action") == "focus":
-            left_uuid, _, right_uuid = action.get("value", "").partition("|")
-            st.session_state[CURSOR] = (left_uuid, right_uuid)
-            st.session_state[PENDING_VIEW] = REVIEW
-            st.rerun()
+    if current is None:
+        current = queue[0] if queue else 0
+    cursor = row_key(rows, current)
+    if tuple(st.session_state.get(CURSOR) or ()) != cursor:
+        st.session_state[CURSOR] = cursor
+
+    # En-tête
+    title, switch, summary = st.columns([3.2, 2, 0.9], vertical_alignment="center")
+    title.markdown(f"#### {left_name} ⟷ {right_name}")
+    view_name = switch.segmented_control("Vue", list(VIEWS), format_func=VIEWS.get, key=VIEW, label_visibility="collapsed", width="stretch")
+    view_name = view_name or DOCUMENTS
+    if summary.button("Synthèse", icon=":material/monitoring:", width="stretch"):
+        synthesis(left_name, right_name, alignment, section_patch_path)
+    warnings_and_details(alignment, records)
+
+    position, previous, following = neighbours(queue, current)
+    key_of = partial(row_key, rows)
+    following_key = key_of(following) if following is not None else None
+    pairing_active = bool(st.session_state.get(PAIRING))
+    controls = focus.Controls(
+        decide=partial(on_decide, pair_name, digest, following_key if view_name == REVIEW else None),
+        move=on_move,
+        undo_last=partial(on_undo_last, pair_name),
+        pairing=on_pairing,
+        position=position,
+        remaining=len(queue),
+        decided=int(decided_mask(rows, alignment.confirmed).sum()),
+        pending=len(journal_of(pair_name)),
+        previous=key_of(previous) if previous is not None else None,
+        following=following_key,
+        can_undo=bool(journal_of(pair_name)),
+        pairing_active=pairing_active,
+    )
+    if view_name == DOCUMENTS:
+        focus.task_bar(controls, "Relire en détail", REVIEW, "Enter")
     else:
-        docs = context.documents({"left": load_document_lines(left_dir), "right": load_document_lines(right_dir)}, alignment.states)
-        if current is None:
-            current = 0
-        navigation = st.columns([0.8, 0.8, 3, 1.4], vertical_alignment="bottom")
-        navigation[0].button(
-            "▲",
-            shortcut="PageUp",
-            width="stretch",
-            disabled=current == 0,
-            help=f"Remonter de {DOCUMENTS_STEP} lignes.",
-            on_click=on_move,
-            args=(row_key(rows, max(0, current - DOCUMENTS_STEP)),),
-        )
-        navigation[1].button(
-            "▼",
-            shortcut="PageDown",
-            width="stretch",
-            disabled=current >= len(rows) - 1,
-            help=f"Descendre de {DOCUMENTS_STEP} lignes.",
-            on_click=on_move,
-            args=(row_key(rows, min(len(rows) - 1, current + DOCUMENTS_STEP)),),
-        )
+        focus.task_bar(controls, "Vue d'ensemble", DOCUMENTS, "Esc")
+
+    focused = focus_of(alignment, records, current, params.subj_weight, with_alternatives=view_name == REVIEW)
+    if view_name == DOCUMENTS:
+        focus.inspector(focused, controls)
+        jump, search, matches_box = st.columns([2.2, 2.2, 1.6], vertical_alignment="bottom")
         firsts = rows.drop_duplicates("left_section").query("left_uuid != ''")
         jumps = {f"{row.left_section_title or NO_SECTION}": (row.left_uuid, row.right_uuid) for row in firsts.itertuples()}
-        navigation[2].selectbox(
+        jump.selectbox(
             "Aller à la rubrique",
             list(jumps),
             index=None,
             placeholder="Aller à la rubrique…",
             key="documents_jump",
+            label_visibility="collapsed",
             on_change=lambda: on_move(jumps.get(st.session_state.get("documents_jump"))),
         )
-        navigation[3].button(
-            "Relire cette ligne",
-            icon=":material/rate_review:",
-            width="stretch",
-            on_click=on_move,
-            args=(row_key(rows, current), REVIEW),
+        query = search.text_input("Rechercher", key=SEARCH, placeholder="Rechercher dans les deux annuaires…", label_visibility="collapsed")
+        hits: dict[str, set[str]] = {"left": set(), "right": set()}
+        if query:
+            for side in context.SIDES:
+                found = rows[text_mask(rows, query, [f"{side}_markdown"])]
+                hits[side] = set(found[f"{side}_uuid"]) - {""}
+            matches = list(rows.index[text_mask(rows, query, ["left_markdown", "right_markdown"])])
+            rank, before, after = neighbours(matches, current)
+            back, label, forth = matches_box.columns([1, 1.4, 1], vertical_alignment="center")
+            back.button(
+                "◀", key="hit_previous", disabled=before is None, on_click=on_move, args=(key_of(before) if before is not None else None,)
+            )
+            label.caption(f"{rank + 1} / {len(matches)}" if rank is not None else f"{len(matches)} résultat(s)")
+            forth.button(
+                "▶", key="hit_next", disabled=after is None, on_click=on_move, args=(key_of(after) if after is not None else None,)
+            )
+        marks = context.Marks(task_marks(rows, levels), hits, eligible(alignment, cursor) if pairing_active else None)
+    else:
+        if not queue:
+            st.success("Aucune tâche avec ces réglages : la ligne courante reste affichée.")
+        focus.render(focused, controls, key=f"{pair_name}:{cursor[0]}:{cursor[1]}")
+        st.caption("Contexte dans les documents")
+        marks = context.Marks(
+            task_marks(rows, levels), {"left": set(), "right": set()}, eligible(alignment, cursor) if pairing_active else None
         )
-        picks_bar(pair_name, digest, records, alignment)
-        documents_panel(docs, row_key(rows, current), 25, 60, 720, "documents", (left_name, right_name))
+    docs = context.documents({"left": load_document_lines(left_dir), "right": load_document_lines(right_dir)}, alignment.states)
+    event = documents_panel(docs, cursor, view_name, marks, (left_name, right_name))
+    if event:
+        handle_event(event, alignment, records, pair_name, digest)
+    legend = "".join(badge(label, colors) for label, colors in LABEL_COLORS.items())
+    st.html(f"{CSS}<div class='legend'>{legend}</div>")
 
 
 if __name__ == "__main__":
