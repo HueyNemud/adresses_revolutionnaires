@@ -793,6 +793,44 @@ Pour tester le viewer, utiliser un wrapper qui redéfinit
 jamais les dossiers réels (ou `streamlit.testing.v1.AppTest` sans
 navigateur ; les composants JS ne s'y exécutent pas).
 
+### Publier le viewer : `numrev publish-viewer`
+
+```bash
+uv run numrev publish-viewer ../alignment-viewer            # simulation
+uv run numrev publish-viewer ../alignment-viewer --apply
+```
+
+Le viewer hébergé sur Streamlit Community Cloud vit dans un dépôt à part
+(`alignment-viewer`, GitHub `HueyNemud/directories-alignment-viewer`) :
+c'est un **instantané publié**, sans les dépendances lourdes de `numrev`
+(torch, GLiNER, Dedupe) ni les dossiers de travail ignorés par git. Le code
+ne s'y modifie jamais : on le corrige ici, on committe, puis on republie.
+
+La commande (`numrev/devtools/publish_viewer.py`) y copie tels quels :
+
+- les modules `numrev.…` importés, de proche en proche, par
+  `numrev.viewers.alignment` (analyse statique), et `viewers/assets/` ;
+  une bibliothèque tierce hors de numpy, pandas, rapidfuzz, rich, scipy et
+  streamlit est refusée. Le test `tests/test_publish_viewer.py` garde cette
+  frontière : ne pas importer torch, GLiNER ni Dedupe dans `alignment/`,
+  `ner/html.py`, `ner/spans.py`, `titles.py`, `paths.py` ou `curation.py` ;
+- pour chaque paire publiée (`--alignment`, répétable ; par défaut toutes
+  les sorties `*.nw.csv` / `*.dedupe.csv`) : les `*.ner.csv` des deux
+  volumes, les sorties d'alignement, la correspondance des rubriques et le
+  patch des entrées s'il existe (les relecteurs y rejouent leurs
+  décisions).
+
+Elle génère `streamlit_app.py` (point d'entrée), `requirements.txt`
+(versions installées, seul fichier de dépendances du dépôt publié),
+`README.md` (commit source, paires) et le manifeste `.numrev-publish.json`.
+Seuls les fichiers du manifeste précédent sont supprimés quand ils ne sont
+plus publiés ; les autres (`.git/`, `.streamlit/`, fichiers ajoutés à la
+main) sont seulement signalés. Elle refuse de publier un code de
+`src/numrev` modifié et non commité (`--force` passe outre) et ne commite
+pas : relire, committer et pousser dans le dépôt de déploiement. Le viewer
+publié n'a pas le bouton *Enregistrer* : les relecteurs téléchargent le
+patch et le transmettent.
+
 ### Étape 7 — Jointure lisible : `numrev join`
 
 ```bash
