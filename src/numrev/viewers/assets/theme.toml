@@ -1,5 +1,5 @@
-# Thème du viewer d'alignement : neutres « zinc » et un seul accent indigo
-# (palette Tailwind), en clair et en sombre. Streamlit suit le réglage du
+# Thème du viewer d'alignement : gris et accent bleu classiques (palette
+# Primer de GitHub), en clair et en sombre. Streamlit suit le réglage du
 # système, l'utilisateur peut basculer dans ⋮ → Settings.
 #
 # Source unique : `numrev view alignment` passe ces valeurs en options de
@@ -13,27 +13,27 @@ buttonRadius = "0.5rem"
 showWidgetBorder = true
 
 [theme.light]
-primaryColor = "#4f46e5"
+primaryColor = "#0969da"
 backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f4f4f5"
-textColor = "#18181b"
-linkColor = "#4f46e5"
-borderColor = "#e4e4e7"
-codeBackgroundColor = "#f4f4f5"
+secondaryBackgroundColor = "#f6f8fa"
+textColor = "#1f2328"
+linkColor = "#0969da"
+borderColor = "#d0d7de"
+codeBackgroundColor = "#f6f8fa"
 
 [theme.light.sidebar]
-backgroundColor = "#fafafa"
-secondaryBackgroundColor = "#f4f4f5"
+backgroundColor = "#f6f8fa"
+secondaryBackgroundColor = "#eaeef2"
 
 [theme.dark]
-primaryColor = "#818cf8"
-backgroundColor = "#111113"
-secondaryBackgroundColor = "#1c1c1f"
-textColor = "#e4e4e7"
-linkColor = "#a5b4fc"
-borderColor = "#2e2e33"
-codeBackgroundColor = "#1c1c1f"
+primaryColor = "#4493f8"
+backgroundColor = "#0d1117"
+secondaryBackgroundColor = "#161b22"
+textColor = "#e6edf3"
+linkColor = "#4493f8"
+borderColor = "#30363d"
+codeBackgroundColor = "#161b22"
 
 [theme.dark.sidebar]
-backgroundColor = "#0b0b0d"
-secondaryBackgroundColor = "#18181b"
+backgroundColor = "#010409"
+secondaryBackgroundColor = "#161b22"

@@ -27,13 +27,13 @@ SIDE_NAMES = {"left": "gauche", "right": "droite"}
 ALTERNATIVES = 3  # rapprochements proposés par côté
 
 # Mêmes couleurs que le thème (assets/theme.toml) et la vue Documents
-# (assets/context.css) : neutres « zinc », accent indigo, états désaturés.
+# (assets/context.css) : gris et accent bleu de GitHub, empans NER tab10.
 CARD_CSS = f"""<style>
-  .nr {{ --accent: #4f46e5; --ok: #059669; --warn: #d97706; --danger: #e11d48; --subj: #0284c7; --desc: #7c3aed; --addr: #0d9488;
+  .nr {{ --accent: #0969da; --ok: #1a7f37; --warn: #bc4c00; --danger: #cf222e; --subj: #1f77b4; --desc: #e8710a; --addr: #2ca02c;
          --muted: color-mix(in srgb, currentColor 55%, transparent); --faint: color-mix(in srgb, currentColor 40%, transparent);
          --line: color-mix(in srgb, currentColor 12%, transparent); }}
   @media (prefers-color-scheme: dark) {{
-    .nr {{ --accent: #818cf8; --ok: #34d399; --warn: #fbbf24; --danger: #fb7185; --subj: #38bdf8; --desc: #a78bfa; --addr: #2dd4bf; }}
+    .nr {{ --accent: #4493f8; --ok: #3fb950; --warn: #db6d28; --danger: #f85149; --subj: #58a6ff; --desc: #ffa657; --addr: #56d364; }}
   }}
   .card {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
   .card .side {{ border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }}
@@ -49,8 +49,8 @@ CARD_CSS = f"""<style>
   .verdict .status {{ font-weight: 600; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--line); }}
   .verdict .pair {{ color: var(--muted); }}
   .verdict .manual {{ background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); border-color: transparent; }}
-  .verdict .candidate {{ background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn);
-                         border: 1px dashed var(--warn); }}
+  .verdict .candidate {{ background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger);
+                         border: 1px dashed var(--danger); }}
   .verdict .alone {{ color: var(--muted); border-style: dashed; }}
   .verdict .level {{ padding: 1px 8px; border-radius: 10px; font-size: .85em; }}
   .verdict .level-1 {{ background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); }}

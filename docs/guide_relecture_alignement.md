@@ -63,7 +63,10 @@ correspondance** (`V`).
 
 - **Documents** (vue d'accueil) : les deux annuaires côte à côte, chacun
   dans son ordre, titres et lignes hors sujet compris. Les tâches portent
-  un « ! » ; les liens qui se croisent (orange) signalent une inversion.
+  un « ! ». Trait plein : paire sûre ; tirets : paire incertaine ; tirets
+  rouges : candidate non appariée ; gris : automatique, foncé : décision
+  humaine ; halo jaune : inversion (le lien en croise d'autres). Au-dessus
+  de chaque colonne, la rubrique courante.
   Un clic sur une entrée ou sur un lien en fait la ligne courante ; on
   décide sur place avec les boutons du haut. **⇄ Autre partenaire…** (`A`) fait
   choisir le partenaire dans les documents : seules les entrées des

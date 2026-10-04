@@ -734,16 +734,27 @@ gardant.
 
 - **Documents** (vue d'accueil ; `numrev/viewers/context.py`,
   `assets/context.js`) : les deux annuaires côte à côte, chacun dans
-  **son** ordre, avec titres et lignes hors sujet. Une gouttière relie les
-  entrées appariées (vert ; violet pour le patch ; pointillés ambre pour une
-  candidate) ; les liens qui se croisent (inversions) sont en orange, une
-  flèche ↑ ↓ signale un partenaire hors de la fenêtre ; les tâches de
-  relecture portent un « ! » (orange : incertitude moyenne ; rouge : forte
-  ou candidate). Les deux lignes courantes sont alignées ; une tâche
-  atteinte par `N` / `P`, la recherche ou une rubrique est centrée.
+  **son** ordre, avec titres et lignes hors sujet (200 lignes autour de la
+  ligne courante). Au-dessus de chaque colonne, après le nom de la liste,
+  la **rubrique courante** : celle de l'entrée sélectionnée si elle est
+  visible, sinon celle du haut de la zone visible (elle suit le
+  défilement). Une gouttière relie les entrées :
+  - le **trait** dit la certitude : plein = paire sûre, tirets = paire
+    incertaine (relue « incertaine », ou automatique d'incertitude moyenne
+    ou forte), tirets rouges = candidate non appariée ;
+  - la **couleur** dit l'origine : gris = automatique, foncé = décision
+    humaine (patch ou journal) ;
+  - une **inversion** (lien qui en croise d'autres) est surlignée d'un halo
+    jaune, sans changer son trait ;
+  - une flèche ↑ ↓ signale un partenaire hors de la fenêtre ; les tâches de
+    relecture portent un « ! » (orange : incertitude moyenne ; rouge :
+    forte ou candidate).
+
+  Les deux lignes courantes sont alignées ; une tâche atteinte par `N` /
+  `P`, la recherche ou une rubrique est centrée.
   - **Clic sur une entrée ou sur un lien** : la paire devient la ligne
     courante, sans bouger à l'écran ; son partenaire vient en face. Le lien
-    courant (cyan) porte une **loupe 🔍** qui ouvre la relecture détaillée ;
+    courant (bleu, épais) porte une **loupe 🔍** qui ouvre la relecture détaillée ;
     son infobulle résume statut, score et motifs.
   - **Boutons de décision**, au-dessus (ci-dessous). On décide sur place ;
     la ligne courante ne change pas.
@@ -754,7 +765,7 @@ gardant.
     annule.
   - **Navigation** : *Aller à la rubrique* ; **Rechercher** dans le texte
     des deux annuaires (résultats surlignés, ◀ ▶ d'un résultat à l'autre) ;
-    « ⋯ 40 lignes précédentes / suivantes » agrandit la fenêtre.
+    « ⋯ 100 lignes précédentes / suivantes » agrandit la fenêtre.
   - Au survol d'un titre, **uuid** copie l'uuid de la rubrique (patch des
     rubriques).
 - **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne
@@ -773,14 +784,15 @@ entrée seule, confirmer sans correspondance), `I` ≈ incertaine (paire
 retenue, `certitude = incertaine`), `X` ✗ différentes, `A` ⇄ autre
 partenaire, `↺ Défaire` (l'alignement automatique reprend la main).
 
-**Thème** : neutres « zinc » et un seul accent indigo (palette Tailwind),
-en clair et en sombre, dans `viewers/assets/theme.toml`, passé en options de
+**Thème** : classique, gris et accent bleu de GitHub (palette Primer), en
+clair et en sombre, dans `viewers/assets/theme.toml`, passé en options de
 `streamlit run` par `numrev view alignment` et publié en
 `.streamlit/config.toml` par `numrev publish-viewer` ; les mêmes couleurs
-dans `assets/context.css` et `viewers/focus.py`. Les couleurs d'état sont
-rares et désaturées : liens automatiques gris, ligne et lien courants
-indigo, décisions du patch vertes, candidates et tâches ambre, inversions
-et tâches fortes rouges. La légende est au-dessus des documents.
+dans `assets/context.css` et `viewers/focus.py`. Les liens restent en
+gris et foncé (voir plus haut) ; seuls ressortent la ligne courante (bleu),
+les candidates et tâches fortes (rouge), les tâches (orange) et les
+inversions (halo jaune). Les empans NER sont bleu / orange / vert (palette
+classique tab10, bien distincts). La légende est au-dessus des documents.
 
 **File de tâches** (barre latérale, *Tâches de relecture*) : candidates non
 appariées, paires d'incertitude moyenne, paires d'incertitude forte (cochées

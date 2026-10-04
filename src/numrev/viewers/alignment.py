@@ -142,9 +142,9 @@ ALL_SECTIONS = "(toutes)"
 NO_SECTION = "(sans rubrique)"
 MANUAL_SOURCES = {SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN}
 ROW_COLUMNS = ("uuid", "section", "section_title", "section_uuid", "markdown")  # champs de Record gardés par ligne, de chaque côté
-WINDOW = {DOCUMENTS: (30, 70), REVIEW: (8, 8)}  # lignes affichées avant / après la ligne courante
+WINDOW = {DOCUMENTS: (80, 120), REVIEW: (8, 8)}  # lignes affichées avant / après la ligne courante
 HEIGHT = {DOCUMENTS: "68vh", REVIEW: "430px"}
-MORE_STEP = 40  # lignes ajoutées par « ⋯ » (assets/context.js)
+MORE_STEP = 100  # lignes ajoutées par « ⋯ » (assets/context.js)
 DOCUMENTS_ORDER, LEVEL_ORDER = "ordre des documents", "incertitude décroissante"
 
 # Clés de st.session_state
@@ -286,8 +286,12 @@ class EntryStates(Mapping):
 
     def __getitem__(self, uuid: str) -> context.EntryState:
         row = self.index[uuid]
-        manual = self.columns["source"][row] in MANUAL_SOURCES or uuid in self.confirmed
-        return context.EntryState(self.KINDS[self.columns["kind"][row]], self.partners[row], manual, uuid in self.local)
+        source, kind = self.columns["source"][row], self.columns["kind"][row]
+        manual = source in MANUAL_SOURCES or uuid in self.confirmed
+        uncertain = kind == PAIR and (
+            source == SOURCE_MANUAL_UNCERTAIN or (source not in MANUAL_SOURCES and self.columns["level"][row] > 0)
+        )
+        return context.EntryState(self.KINDS[kind], self.partners[row], manual, uuid in self.local, uncertain)
 
     def __iter__(self):
         return iter(self.index)
@@ -365,7 +369,7 @@ def load_alignment(
     order = natural_order(links + found.candidates, base.rank["left"], base.rank["right"])
     rows = build_rows(order, found.reviews, base.columns)
     local = touched_uuids(decisions)
-    columns = {column: rows[column].tolist() for column in ("left_uuid", "right_uuid", "kind", "source")}
+    columns = {column: rows[column].tolist() for column in ("left_uuid", "right_uuid", "kind", "source", "level")}
     by_uuid = {side: {uuid: index for index, uuid in enumerate(columns[f"{side}_uuid"]) if uuid} for side in context.SIDES}
     firsts = rows.drop_duplicates("left_section").query("left_uuid != ''")
     return Alignment(

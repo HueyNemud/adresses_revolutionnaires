@@ -8,7 +8,7 @@
 // tout, puis place la ligne courante (voir `place`).
 
 const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const STEP = 40;
+const STEP = 100;
 const CENTER = 0.4;
 const LOUPE_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ` +
   `stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`; // hauteur, dans la fenêtre, où l'on place une nouvelle ligne courante
@@ -31,7 +31,8 @@ function lineHtml(line, side, data) {
   const tag = line.d ? `<span class="tag">non enregistrée</span>` : "";
   const page = line.t === "entry" ? `<span class="pg">p. ${esc(line.p)}</span>` : "";
   const copy = line.t === "title" ? `<button class="copy-uuid" data-copy="${esc(line.u)}" title="Copier l’uuid de la rubrique">uuid</button>` : "";
-  return `<div class="${classes.join(" ")}" data-uuid="${esc(line.u)}" data-side="${side}">${dot}${task}${page}${line.h}${tag}${copy}</div>`;
+  const title = line.t === "title" ? ` data-title="${line.h}"` : ""; // déjà échappé
+  return `<div class="${classes.join(" ")}" data-uuid="${esc(line.u)}" data-side="${side}"${title}>${dot}${task}${page}${line.h}${tag}${copy}</div>`;
 }
 
 function column(lines, side, data) {
@@ -92,7 +93,7 @@ function draw(root, data) {
     if (!partner) return;
     const partnerLine = rightLines.get(line.x) || {};
     links.push({ l: line.u, r: line.x, y1: dotY(element), y2: dotY(partner), kind: line.s,
-                 manual: line.m || line.d || partnerLine.m || partnerLine.d });
+                 manual: line.m || line.d || partnerLine.m || partnerLine.d, uncertain: line.q || partnerLine.q });
   });
   // Inversions : deux liens dont l'ordre diffère d'un côté à l'autre.
   links.sort((a, b) => a.y1 - b.y1);
@@ -114,18 +115,22 @@ function draw(root, data) {
   svg.setAttribute("height", height);
   const bend = (x2 - x1) * 0.5;
   let loupe = null; // position de la loupe : milieu du lien courant
+  // Trait plein : paire sûre ; tirets : paire incertaine ; tirets rouges :
+  // candidate non appariée. Gris : automatique ; foncé : décision humaine.
+  // Une inversion est surlignée (halo jaune) sans changer son trait.
   const parts = links.map((link, index) => {
     const classes = ["link"];
     if (link.kind === "candidate") classes.push("candidate");
+    else if (link.uncertain) classes.push("uncertain");
     if (link.manual) classes.push("manual");
-    if (crossing.has(index)) classes.push("cross");
     const current = link.l === data.focus[0] && link.r === data.focus[1];
     if (current) {
       classes.push("focus");
       loupe = { x: (x1 + x2) / 2, y: (link.y1 + link.y2) / 2 };
     }
     const path = `M${x1},${link.y1} C${x1 + bend},${link.y1} ${x2 - bend},${link.y2} ${x2},${link.y2}`;
-    return `<g class="lk"><path class="${classes.join(" ")}" d="${path}"/>` +
+    const halo = crossing.has(index) ? `<path class="halo" d="${path}"/>` : "";
+    return `<g class="lk">${halo}<path class="${classes.join(" ")}" d="${path}"/>` +
       `<path class="hit" d="${path}" data-l="${esc(link.l)}" data-r="${esc(link.r)}"><title>Sélectionner cette paire</title></path></g>`;
   });
   // Partenaire hors de la fenêtre : flèche au bord de la gouttière.
@@ -211,6 +216,31 @@ function place(root, data, previous, previousFocus) {
   if (focus) scrollBy(scroll, focus.getBoundingClientRect().top - top() - scroll.clientHeight * CENTER, false);
 }
 
+// Rubrique courante de chaque colonne, à côté du nom de la liste : celle de
+// l'entrée sélectionnée si elle est visible, sinon celle de la ligne en haut
+// de la zone visible (mise à jour au défilement). Rubrique = dernier titre de niveau 1
+// ou 2 au-dessus (comme `records.section_of`) ; au-dessus de la fenêtre,
+// `data.sections` la donne.
+function showSections(root, data) {
+  const scroll = root.querySelector(".ctx-scroll");
+  if (!scroll) return;
+  const { top, bottom } = scroll.getBoundingClientRect();
+  ["left", "right"].forEach((side) => {
+    const label = root.querySelector(`.ctx-head .sec[data-side="${side}"]`);
+    const column = root.querySelector(`.ctx-col.${side}`);
+    if (!label || !column) return;
+    let line = column.querySelector(".ln.focus");
+    const box = line && line.getBoundingClientRect();
+    if (!line || box.bottom < top || box.top > bottom) line = [...column.querySelectorAll(".ln")].find((element) => element.getBoundingClientRect().bottom > top + 4);
+    let title = (data.sections || {})[side] || "";
+    for (let element = line; element; element = element.previousElementSibling) {
+      if (element.matches(".ln.title.l1, .ln.title.l2")) { title = element.dataset.title; break; }
+    }
+    label.innerHTML = title ? `<span class="sep">›</span>${title}` : ""; // déjà échappé
+    label.title = label.textContent.replace(/^›/, "");
+  });
+}
+
 async function copyText(button) {
   try { await navigator.clipboard.writeText(button.dataset.copy); } catch (error) { /* presse-papiers indisponible */ }
   const label = button.textContent;
@@ -268,16 +298,18 @@ export default function (component) {
   const span = (label) => `<mark class="span" title="${label}">${label}</mark>`;
   const legend =
     `<div class="ctx-legend">${span("SUBJ")}${span("DESC")}${span("ADDR")}` +
-    `<span><i style="border-color:var(--neutral)"></i>appariées</span>` +
-    `<span><i style="border-color:var(--ok)"></i>décision du patch</span>` +
-    `<span><i style="border-color:var(--warn);border-top-style:dashed"></i>candidate</span>` +
-    `<span><i style="border-color:var(--danger)"></i>inversion</span>` +
+    `<span><i class="sure"></i>sûre</span>` +
+    `<span><i class="unsure"></i>incertaine</span>` +
+    `<span><i class="cand"></i>candidate non appariée</span>` +
+    `<span><i class="sure"></i>automatique · <i class="sure human"></i>décision humaine</span>` +
+    `<span><i class="sure inv"></i>inversion</span>` +
     `<span><b class="task t1">!</b><b class="task t2">!</b> tâche de relecture</span>` +
     `<span class="hint">clic : ligne courante · loupe : relire en détail · ↑ ↓ partenaire hors fenêtre</span></div>`;
   root.innerHTML =
     banner +
     legend +
-    `<div class="ctx-head"><div>${esc(leftTitle)}</div><div></div><div>${esc(rightTitle)}</div></div>` +
+    `<div class="ctx-head"><div>${esc(leftTitle)}<span class="sec" data-side="left"></span></div><div></div>` +
+    `<div>${esc(rightTitle)}<span class="sec" data-side="right"></span></div></div>` +
     `<div class="ctx-scroll${data.pairing ? " pairing" : ""}" style="height:${height}"><div class="ctx-grid">` +
     column(data.left, "left", data) +
     `<div></div>` +
@@ -290,6 +322,14 @@ export default function (component) {
   const redraw = () => draw(root, root.__data);
   redraw();
   place(root, data, previous, previousFocus);
+  showSections(root, data);
+  const scroll = root.querySelector(".ctx-scroll");
+  let pending = false;
+  scroll.addEventListener("scroll", () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; showSections(root, root.__data); });
+  }, { passive: true });
   requestAnimationFrame(redraw);
   if (!root.__observer) {
     root.__observer = new ResizeObserver(() => requestAnimationFrame(redraw));

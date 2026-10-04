@@ -3,10 +3,10 @@ import unittest
 import pandas as pd
 
 from numrev.alignment.export import CANDIDATE, LEFT_ONLY, PAIR, RIGHT_ONLY
-from numrev.alignment.records import SOURCE_MANUAL, DocLine, Record
+from numrev.alignment.records import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, DocLine, Record
 from numrev.viewers import theme_options
-from numrev.viewers.alignment import TaskOptions, task_levels, task_marks, task_queue
-from numrev.viewers.context import EntryState, Marks, centers, documents, payload, window
+from numrev.viewers.alignment import EntryStates, TaskOptions, task_levels, task_marks, task_queue
+from numrev.viewers.context import EntryState, Marks, centers, documents, payload, section_before, window
 from numrev.viewers.focus import alternatives, char_diff
 
 
@@ -52,6 +52,17 @@ class DocumentsTests(unittest.TestCase):
         self.assertEqual(data["left"][0]["t"], "title")
         self.assertNotIn("s", data["left"][0])
 
+    def test_section_above_the_window(self):
+        def title(uuid: str, markdown: str) -> DocLine:
+            return DocLine(uuid, "TITLE", "1", markdown, "", markdown.count("#"))
+
+        lines = [title("t1", "# LISTES"), title("t2", "## VINS"), line("g0"), title("t3", "### Détail"), line("g1")]
+        self.assertEqual(section_before(lines, 0), "")
+        self.assertEqual(section_before(lines, 2), "VINS")
+        self.assertEqual(section_before(lines, 5), "VINS")  # un titre de niveau 3 n'est pas une rubrique
+        data = payload(self.docs, {"left": (1, 5), "right": (0, 3)}, ("g2", "d1"), Marks(), "400px")
+        self.assertEqual(data["sections"], {"left": "VINS", "right": ""})
+
     def test_marks(self):
         marks = Marks(
             tasks={"left": {"g1": 2}, "right": {}}, hits={"left": set(), "right": {"d0"}}, eligible={"left": set(), "right": {"d0"}}
@@ -64,6 +75,24 @@ class DocumentsTests(unittest.TestCase):
         self.assertTrue(by_uuid["d0"]["e"])
         self.assertFalse(by_uuid["d1"]["e"])
         self.assertNotIn("e", by_uuid["tg"])  # un titre n'est jamais cliquable
+
+
+class EntryStatesTests(unittest.TestCase):
+    def test_uncertain_pairs_are_dashed(self):
+        # Trait en tirets : paire relue « incertaine », ou automatique d'incertitude moyenne ou forte.
+        columns = {
+            "left_uuid": ["g0", "g1", "g2", "g3", "g4"],
+            "right_uuid": ["d0", "d1", "d2", "d3", ""],
+            "kind": [PAIR, PAIR, PAIR, CANDIDATE, LEFT_ONLY],
+            "source": ["nw", "nw", SOURCE_MANUAL_UNCERTAIN, "candidate", ""],
+            "level": [0, 1, 0, 2, 0],
+        }
+        index = {uuid: row for row, uuid in enumerate(columns["left_uuid"])}
+        states = EntryStates("left", columns, index, set(), {"g2"})
+        self.assertEqual([states[uuid].uncertain for uuid in index], [False, True, True, False, False])
+        self.assertEqual(states["g2"], EntryState("pair", "d2", manual=True, local=True, uncertain=True))
+        self.assertEqual(states["g3"].kind, "candidate")
+        self.assertEqual(states["g4"], EntryState("alone", ""))
 
 
 class TaskQueueTests(unittest.TestCase):
@@ -106,7 +135,7 @@ class TaskQueueTests(unittest.TestCase):
 class ThemeTests(unittest.TestCase):
     def test_theme_becomes_streamlit_options(self):
         options = theme_options()
-        self.assertIn("--theme.dark.backgroundColor=#111113", options)
+        self.assertIn("--theme.dark.backgroundColor=#0d1117", options)
         self.assertIn("--theme.light.backgroundColor=#ffffff", options)
         self.assertIn("--theme.showWidgetBorder=true", options)
         self.assertTrue(all(option.startswith("--theme.") for option in options))

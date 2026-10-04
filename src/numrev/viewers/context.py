@@ -34,6 +34,7 @@ class EntryState:
     partner: str = ""  # uuid de l'autre côté (paire ou candidate)
     manual: bool = False  # décidée par le patch (versionné ou journal)
     local: bool = False  # décision du journal, non enregistrée
+    uncertain: bool = False  # paire incertaine : relue « incertaine », ou automatique d'incertitude moyenne ou forte
 
 
 @dataclass
@@ -89,7 +90,7 @@ def line_payload(line: DocLine, state: EntryState | None, direction: int) -> dic
         kind, content = "out", html.escape(line.markdown)
     payload = {"u": line.uuid, "t": kind, "h": content, "p": line.page, "l": line.level or 0}
     if state is not None:
-        payload |= {"s": state.kind, "x": state.partner, "m": state.manual, "d": state.local, "o": direction}
+        payload |= {"s": state.kind, "x": state.partner, "m": state.manual, "d": state.local, "q": state.uncertain, "o": direction}
     return payload
 
 
@@ -100,6 +101,17 @@ class Marks:
     tasks: dict[str, dict[str, int]] = field(default_factory=lambda: {"left": {}, "right": {}})  # uuid → niveau de tâche (1, 2)
     hits: dict[str, set[str]] = field(default_factory=lambda: {"left": set(), "right": set()})  # résultats de recherche
     eligible: dict[str, set[str]] | None = None  # mode « choisir le partenaire » : entrées cliquables
+
+
+def section_before(lines: list[DocLine], start: int) -> str:
+    """Rubrique (titre lisible) en vigueur juste avant la ligne `start` : le
+    dernier titre de niveau 1 ou 2 au-dessus (comme
+    `records.section_of`), "" s'il n'y en a pas."""
+    for index in range(start - 1, -1, -1):
+        line = lines[index]
+        if line.entity == "TITLE" and line.level in (1, 2):
+            return title_text(line.markdown) or line.markdown
+    return ""
 
 
 def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[str, str], marks: Marks, height: str, info: str = "") -> dict:
@@ -134,6 +146,9 @@ def payload(docs: Documents, bounds: dict[str, tuple[int, int]], focus: tuple[st
         "pairing": marks.eligible is not None,
         "height": height,
         "more": {side: [bounds[side][0] > 0, bounds[side][1] < len(docs.lines[side])] for side in SIDES},
+        "sections": {
+            side: html.escape(section_before(docs.lines[side], bounds[side][0])) for side in SIDES
+        },  # rubrique au-dessus de la fenêtre
     }
 
 
