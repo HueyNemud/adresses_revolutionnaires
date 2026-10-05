@@ -43,6 +43,7 @@ TOOLS: dict[str, Command | dict[str, Command]] = {
     },
     "train-set": Command("numrev.devtools.ner_dataset", "construit le jeu d'entraînement NER (data/ner/train.ls.json)"),
     "train": Command("numrev.devtools.ner_train", "entraîne un modèle GLiNER (machine GPU)"),
+    "typeset": Command("numrev.devtools.typeset", "recompose un annuaire en LaTeX (facsimilé) → annuaires/<volume>/<volume>.tex"),
     "audit": {
         "crf": Command("numrev.devtools.crf_audit", "audit du CRF de lignes → reports/crf/"),
         "ner": Command("numrev.devtools.ner_audit", "audit de la NER sur le gold → reports/ner/"),

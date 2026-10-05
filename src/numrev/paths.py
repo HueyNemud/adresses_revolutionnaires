@@ -99,6 +99,7 @@ NW_SUFFIX = ".nw.csv"
 DEDUPE_SUFFIX = ".dedupe.csv"
 RAW_SECTIONS = ".raw-sections"  # variante `align dedupe --raw-sections`
 JOIN_SUFFIX = ".join.csv"
+TYPESET = ".tex"  # annuaire recomposé en LaTeX (`numrev typeset`)
 ALIGNMENT_SUFFIXES = (DEDUPE_SUFFIX, NW_SUFFIX)  # sorties brutes, lues par le viewer
 
 
@@ -167,3 +168,8 @@ def raw_alignment(final_path: Path) -> Path:
 
 def join_output(alignment_path: Path) -> Path:
     return alignment_path.with_name(alignment_path.name.removesuffix(".csv") + JOIN_SUFFIX)
+
+
+def typeset_output(volume_dir: Path) -> Path:
+    """Annuaire recomposé en LaTeX : `annuaires/<volume>/<volume>.tex`."""
+    return volume_dir / f"{volume_dir.name}{TYPESET}"

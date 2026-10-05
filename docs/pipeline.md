@@ -26,6 +26,7 @@ Documents associés :
 - [Étape 5 — Segmentation NER](#étape-5--segmentation-ner-subj--desc--addr)
 - [Étapes 6 et 7 — Alignement de deux éditions et jointure](#étapes-6-et-7--alignement-de-deux-éditions-et-jointure)
 - [Audit du CRF](#audit-du-crf--numrev-audit-crf)
+- [Recomposer un annuaire en LaTeX (expérimental)](#recomposer-un-annuaire-en-latex-expérimental--numrev-typeset)
 - [Fichiers produits](#fichiers-produits)
 - [Organisation du code](#organisation-du-code)
 - [Conventions des commandes](#conventions-des-commandes)
@@ -835,6 +836,34 @@ uv run numrev audit alignment data/alignment/<g>__<d>.gold-inversions.csv
   baisse plus de l'incertitude faible à forte, règle imprécise, motifs qui n'attrapent pas
   les erreurs).
 
+## Recomposer un annuaire en LaTeX (expérimental) : `numrev typeset`
+
+```bash
+uv run numrev typeset annuaires/1807_AD75-PER292 [--pdf] [-o sortie.tex] --apply
+```
+
+Recompose un volume entier, façon facsimilé d'époque, à partir de la sortie
+finale de la chaîne (ses `*.ner.csv`, plages dans l'ordre des pages) :
+EB Garamond, deux colonnes, format proche de l'in-8 d'origine. Les titres `#`
+ouvrent une partie, les `##` sont des rubriques centrées en capitales reprises
+dans le titre courant (« Agens de change, Architectes. — PARIS. »), les `###`
+et plus des intertitres en italique. Chaque ENTRY est un paragraphe en retrait
+suspendu, son sujet (SUBJ) en petites capitales, l'emphase de l'OCR
+conservée. Hors liste : en-têtes et pieds de page, images et groupes vides
+sont ignorés (le titre courant est régénéré) ; avis et notes en petit corps
+italique ; les cellules d'une table, éclatées en lignes par `numrev extract`,
+sont rejointes par « · ».
+
+Le texte est fluide : LaTeX pagine librement, et chaque page de l'original est
+repérée en marge par son folio imprimé, lu dans ses en-têtes (« 114 »), à
+défaut par « p. <page du PDF> ».
+
+Sortie : `annuaires/<volume>/<volume>.tex` ; `--pdf` la compile avec
+`pdflatex` (deux passes, pour les titres courants ; pdfLaTeX plutôt que
+LuaLaTeX, qui exige `luaotfload`, absent de certaines installations Debian).
+Il faut les paquets TeX `extsizes`, `ebgaramond`, `ragged2e`, `needspace` et
+`fancyhdr`. Sur 1807 : 265 pages en quelques secondes.
+
 ## Audit du CRF : `numrev audit crf`
 
 Mesure la performance du CRF de l'étape 2 et l'apport de chacune de ses
@@ -894,6 +923,7 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 | `data/alignment/<g>__<d>.gold-inversions.csv` | `numrev gold alignment` + étiquetage manuel | Gold des inversions (versionné) |
 | `data/ner/gold.ls.json`, `data/ner/train.ls.json` | `numrev gold ner` + Label Studio, `numrev train-set` | Gold d'évaluation et jeu d'entraînement NER (versionnés) |
 | `reports/crf/`, `reports/ner/`, `reports/alignment/` | audits | Rapports Markdown et tables |
+| `annuaires/<volume>/<volume>.tex` (+ `.pdf`) | `numrev typeset` | Annuaire recomposé en LaTeX (expérimental) |
 
 ## Organisation du code
 
