@@ -197,7 +197,7 @@ def task_bar(controls: Controls) -> None:
     previous, progress, following, undo = st.columns([1.2, 4.6, 1.2, 1.4], vertical_alignment="center")
     previous.button(
         "◀ Tâche",
-        shortcut="Left",
+        shortcut="Q",
         width="stretch",
         disabled=controls.previous is None,
         on_click=controls.move,
@@ -214,7 +214,7 @@ def task_bar(controls: Controls) -> None:
     )
     following.button(
         "Tâche ▶",
-        shortcut="Right",
+        shortcut="D",
         width="stretch",
         disabled=controls.following is None,
         on_click=controls.move,
@@ -232,14 +232,16 @@ def task_bar(controls: Controls) -> None:
 
 
 def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> None:
-    """Boutons de décision sur la ligne courante (mêmes raccourcis dans les deux vues)."""
+    """Boutons de décision sur la ligne courante (mêmes raccourcis dans les
+    deux vues). Raccourcis placés pour un clavier AZERTY : F G H J K suivent
+    l'ordre des boutons, à droite de Z Q S D (navigation)."""
     both = focus.left is not None and focus.right is not None
     columns = st.columns([1.3, 1.1, 1.1, 1.5, 1.1, 1.6] if both else [2.4, 1.5, 1.1, 3.6])
     if both:
         columns[0].button(
             "✓ Même entrée",
             type="primary",
-            shortcut="V",
+            shortcut="F",
             width="stretch",
             on_click=controls.decide,
             args=(SAME, focus.left, focus.right, note_key),
@@ -247,7 +249,7 @@ def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> 
         )
         columns[1].button(
             "≈ Incertaine",
-            shortcut="I",
+            shortcut="G",
             width="stretch",
             on_click=controls.decide,
             args=(PROBABLE, focus.left, focus.right, note_key),
@@ -255,7 +257,7 @@ def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> 
         )
         columns[2].button(
             "✗ Différentes",
-            shortcut="X",
+            shortcut="H",
             width="stretch",
             on_click=controls.decide,
             args=(DIFFERENT, focus.left, focus.right, note_key),
@@ -267,7 +269,7 @@ def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> 
         columns[0].button(
             "✓ Confirmer sans correspondance",
             type="primary",
-            shortcut="V",
+            shortcut="F",
             width="stretch",
             on_click=controls.decide,
             args=(ALONE, focus.left, focus.right, note_key),
@@ -286,7 +288,7 @@ def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> 
     else:
         rest[0].button(
             "⇄ Autre partenaire…",
-            shortcut="A",
+            shortcut="J",
             width="stretch",
             on_click=controls.pairing,
             args=(True,),
@@ -295,6 +297,7 @@ def decision_buttons(focus: Focus, controls: Controls, note_key: str | None) -> 
     if focus.manual or focus.local:
         rest[1].button(
             "↺ Défaire",
+            shortcut="K",
             width="stretch",
             on_click=controls.decide,
             args=(UNDO, focus.left, focus.right, None),

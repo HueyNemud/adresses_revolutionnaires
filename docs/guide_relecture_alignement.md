@@ -20,14 +20,14 @@ L'incertitude (faible, moyenne, forte) ne sert qu'à ordonner la relecture : ell
 
 | Réponse | Gold (`meme_entree`) | Bouton du viewer (raccourci) | Ligne(s) de patch produites |
 |---|---|---|---|
-| Même entrée | `OUI` | **✓ Même entrée** (`V`) | la paire |
-| Pas la même entrée | `NON` | **✗ Différentes** (`X`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (**⇄ Autre partenaire…**, `A`, ou *Rapprochements possibles*) |
-| On ne peut pas trancher | `INCERTAIN` | **≈ Incertaine** (`I`) si la paire est plausible ; sinon **Tâche ▶** (`N`) | la paire avec `certitude=incertaine` |
+| Même entrée | `OUI` | **✓ Même entrée** (`F`) | la paire |
+| Pas la même entrée | `NON` | **✗ Différentes** (`H`) | une ligne par entrée, seule ; si l'une a un autre partenaire, l'apparier ensuite (**⇄ Autre partenaire…**, `A`, ou *Rapprochements possibles*) |
+| On ne peut pas trancher | `INCERTAIN` | **≈ Incertaine** (`G`) si la paire est plausible ; sinon **Tâche ▶** (`D`) | la paire avec `certitude=incertaine` |
 
 Le patch ne sait pas dire « pas avec celle-là » : *Différentes*
 déclare les deux entrées sans correspondance, ce qui retire aussi la
 candidate de la file. Une entrée seule se confirme avec **✓ Confirmer sans
-correspondance** (`V`).
+correspondance** (`F`).
 
 `INCERTAIN` est une réponse à part entière, pas un échec. L'export la transmet aux utilisateurs des données (`certitude = incertaine`), qui décident de s'en servir ou non. Mieux vaut `INCERTAIN` qu'un `OUI` ou un `NON` arbitraire.
 
@@ -68,7 +68,7 @@ correspondance** (`V`).
   humaine ; halo jaune : inversion (le lien en croise d'autres). Au-dessus
   de chaque colonne, la rubrique courante.
   Un clic sur une entrée ou sur un lien en fait la ligne courante ; on
-  décide sur place avec les boutons du haut. **⇄ Autre partenaire…** (`A`) fait
+  décide sur place avec les boutons du haut. **⇄ Autre partenaire…** (`J`) fait
   choisir le partenaire dans les documents : seules les entrées des
   rubriques appariées restent cliquables.
 - **Relecture** (onglet, ou la loupe du lien courant ; l'onglet
@@ -78,8 +78,11 @@ correspondance** (`V`).
   l'autre côté (la concurrente d'un `homonyme proche` y est signalée). La
   note facultative va dans la colonne `note` du patch. Après une décision,
   on passe à la tâche suivante.
-- Dans les deux vues : `→` / `←` tâche suivante / précédente, `↓` / `↑` défilement des documents, `Ctrl+Z`
-  annule la dernière décision. La file de tâches se règle dans la barre
+- Raccourcis (clavier AZERTY), dans les deux vues : `Z Q S D` comme des
+  flèches — `Q` / `D` tâche précédente / suivante, `Z` / `S` défilement
+  des documents — puis, dans l'ordre des boutons, `F` même entrée, `G`
+  incertaine, `H` différentes, `J` autre partenaire, `K` défaire ;
+  `Ctrl+Z` annule la dernière décision, `Échap` le choix du partenaire. La file de tâches se règle dans la barre
   latérale (*Tâches de relecture*).
 
 Les décisions vont dans un journal gardé par le navigateur (il survit à un

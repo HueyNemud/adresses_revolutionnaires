@@ -750,15 +750,15 @@ gardant.
     relecture portent un « ! » (orange : incertitude moyenne ; rouge :
     forte ou candidate).
 
-  Les deux lignes courantes sont alignées ; une tâche atteinte par `→` /
-  `←`, la recherche ou une rubrique est centrée.
+  Les deux lignes courantes sont alignées ; une tâche atteinte par `D` /
+  `Q`, la recherche ou une rubrique est centrée.
   - **Clic sur une entrée ou sur un lien** : la paire devient la ligne
     courante, sans bouger à l'écran ; son partenaire vient en face. Le lien
     courant (bleu, épais) porte une **loupe 🔍** qui ouvre la relecture détaillée ;
     son infobulle résume statut, score et motifs.
   - **Boutons de décision**, au-dessus (ci-dessous). On décide sur place ;
     la ligne courante ne change pas.
-  - **⇄ Autre partenaire…** (`A`) : mode « choisir le partenaire ». Seules
+  - **⇄ Autre partenaire…** (`J`) : mode « choisir le partenaire ». Seules
     les entrées des rubriques appariées avec celles de la ligne courante
     restent cliquables (les autres sont estompées) ; un clic crée la paire
     (les lignes du patch qui touchaient ces entrées sont retirées). `Échap`
@@ -786,11 +786,16 @@ gardant.
   documents. Après une décision, on passe à la tâche suivante.
 
 **Bandeau de tâches**, commun : progression (tâches restantes, lignes
-décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`←` / `→` ; `↑` / `↓` font défiler les documents),
-`↶ Annuler` la dernière décision (`Ctrl+Z`). **Décisions** : `V` ✓ même entrée (ou, pour une
-entrée seule, confirmer sans correspondance), `I` ≈ incertaine (paire
-retenue, `certitude = incertaine`), `X` ✗ différentes, `A` ⇄ autre
-partenaire, `↺ Défaire` (l'alignement automatique reprend la main).
+décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`Q` / `D`),
+`↶ Annuler` la dernière décision (`Ctrl+Z`). **Décisions** : `F` ✓ même entrée (ou, pour une
+entrée seule, confirmer sans correspondance), `G` ≈ incertaine (paire
+retenue, `certitude = incertaine`), `H` ✗ différentes, `J` ⇄ autre
+partenaire, `K` ↺ Défaire (l'alignement automatique reprend la main).
+
+Les raccourcis sont placés pour un clavier AZERTY : `Z Q S D` servent de
+flèches (`Q` / `D` tâches, `Z` / `S` défilement des documents, dans
+`assets/context.js`), `F G H J K` suivent l'ordre des boutons de décision,
+juste à droite ; les flèches du clavier restent au navigateur.
 
 **Thème** : classique, gris et accent bleu de GitHub (palette Primer), en
 clair et en sombre, dans `viewers/assets/theme.toml`, passé en options de

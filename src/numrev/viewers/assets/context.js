@@ -265,25 +265,28 @@ async function copyText(button) {
   setTimeout(() => { button.textContent = label; }, 1200);
 }
 
-// ↑ / ↓ font défiler les documents (sinon ils feraient défiler la page),
-// sauf pendant une saisie. Un seul écouteur pour la page ; il agit sur la
-// vue la plus récente.
-const ARROW_STEP = 90; // pixels par appui
-function installArrows(root) {
+// Z / S font défiler les documents (Q / D, tâche précédente / suivante, et
+// les touches de décision sont des raccourcis Streamlit : ZQSD est le pavé
+// de flèches d'un clavier AZERTY). Ignorées pendant une saisie ou avec une
+// touche de modification (Ctrl+Z annule). Un seul écouteur pour la page ; il
+// agit sur la vue la plus récente.
+const SCROLL_KEYS = { z: -1, s: 1 };
+const SCROLL_STEP = 90; // pixels par appui
+function installScrollKeys(root) {
   window.__numrevDocuments = root;
-  if (window.__numrevArrows) return;
-  window.__numrevArrows = true;
+  if (window.__numrevScrollKeys) return;
+  window.__numrevScrollKeys = true;
   window.addEventListener("keydown", (event) => {
-    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+    const direction = SCROLL_KEYS[event.key.toLowerCase()];
+    if (!direction || event.ctrlKey || event.metaKey || event.altKey) return;
     const target = event.composedPath()[0];
     if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
     const current = window.__numrevDocuments;
     const scroll = current && current.isConnected && current.querySelector(".ctx-scroll");
     if (!scroll) return;
     event.preventDefault();
-    scroll.scrollBy({ top: event.key === "ArrowDown" ? ARROW_STEP : -ARROW_STEP });
-  }, true);
+    scroll.scrollBy({ top: direction * SCROLL_STEP });
+  });
 }
 
 export default function (component) {
@@ -368,7 +371,7 @@ export default function (component) {
 
   root.__data = data;
   root.__viewKey = viewKey(data);
-  installArrows(root);
+  installScrollKeys(root);
   const redraw = () => draw(root, root.__data);
   redraw();
   place(root, data, previous, previousKey);

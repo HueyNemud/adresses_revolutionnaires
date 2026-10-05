@@ -26,9 +26,10 @@ affiché est le résultat final.
   l'avance automatique à la tâche suivante après chaque décision. On y entre
   par l'onglet ou par la loupe posée sur le lien courant.
 
-Le bandeau de tâches, commun, mène d'une tâche à l'autre (← / →), annule la
-dernière décision (Ctrl+Z) ; les onglets en haut changent de vue. Les décisions : V même entrée (ou confirmer sans
-correspondance), I incertaine, X pas la même entrée, A apparier autrement.
+Le bandeau de tâches, commun, mène d'une tâche à l'autre (Q / D), annule la
+dernière décision (Ctrl+Z) ; les onglets en haut changent de vue ; Z / S font défiler les documents. Les décisions,
+dans l'ordre des boutons (clavier AZERTY) : F même entrée (ou confirmer sans correspondance), G incertaine,
+H pas la même entrée, J apparier autrement, K défaire.
 La **file de tâches** se règle dans la barre latérale (candidates,
 incertitude moyenne ou forte, entrées seules, paires de score faible,
 rubrique, lignes déjà décidées, ordre).
