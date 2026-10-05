@@ -766,11 +766,14 @@ gardant.
   - **Navigation** : *Aller à la rubrique* ; **Rechercher** dans le texte
     des deux annuaires (résultats surlignés, ◀ ▶ d'un résultat à l'autre) ;
     en haut et en bas de chaque colonne, « ⋯ 10 lignes précédentes /
-    suivantes » ajoute quelques lignes sans faire bouger la vue, et
-    « Page précédente / suivante » recentre la fenêtre sur son bord : les
-    deux colonnes, qui se décalent peu à peu loin de la ligne alignée, sont
-    réalignées, sans changer la ligne courante (un clic ou une tâche
-    ramène la fenêtre sur la ligne courante).
+    suivantes » agrandit cette colonne (l'autre s'étend jusqu'aux
+    partenaires des lignes ajoutées) sans faire bouger la vue, et
+    « Page précédente / suivante » fait **glisser cette colonne** d'une page
+    (200 lignes) : l'autre colonne montre alors tous les partenaires de la
+    page, de la première à la dernière, quitte à déborder (au plus trois
+    pages ; `context.follow`). Les deux colonnes partent du haut, alignées.
+    La ligne courante ne change pas ; un clic ou une tâche ramène la fenêtre
+    sur elle.
   - Au survol d'un titre, **uuid** copie l'uuid de la rubrique (patch des
     rubriques).
 - **Relecture** (`numrev/viewers/focus.py`) : le zoom sur la ligne

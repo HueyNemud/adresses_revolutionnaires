@@ -6,7 +6,7 @@ from numrev.alignment.export import CANDIDATE, LEFT_ONLY, PAIR, RIGHT_ONLY
 from numrev.alignment.records import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, DocLine, Record
 from numrev.viewers import theme_options
 from numrev.viewers.alignment import EntryStates, TaskOptions, task_levels, task_marks, task_queue
-from numrev.viewers.context import EntryState, Marks, centers, documents, payload, section_before, window
+from numrev.viewers.context import EntryState, Marks, centers, documents, follow, payload, section_before, window
 from numrev.viewers.focus import alternatives, char_diff
 
 
@@ -62,6 +62,12 @@ class DocumentsTests(unittest.TestCase):
         self.assertEqual(section_before(lines, 5), "VINS")  # un titre de niveau 3 n'est pas une rubrique
         data = payload(self.docs, {"left": (1, 5), "right": (0, 3)}, ("g2", "d1"), Marks(), "400px")
         self.assertEqual(data["sections"], {"left": "VINS", "right": ""})
+
+    def test_follow_shows_every_partner_of_the_page(self):
+        # Page de droite [1 ; 3[ (d0, d1) : à gauche, de g0 (partenaire de d0) à g2 (de d1), lignes intermédiaires comprises.
+        self.assertEqual(follow(self.docs, "right", (1, 3), 2), {"right": (1, 3), "left": (1, 5)})
+        # Page de gauche sans partenaire (titre seul) : la paire la plus proche ancre l'autre côté.
+        self.assertEqual(follow(self.docs, "left", (0, 1), 2), {"left": (0, 1), "right": (0, 2)})
 
     def test_marks(self):
         marks = Marks(

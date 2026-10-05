@@ -103,6 +103,38 @@ class Marks:
     eligible: dict[str, set[str]] | None = None  # mode « choisir le partenaire » : entrées cliquables
 
 
+MAX_SPREAD = 3  # « Page » : l'autre colonne montre au plus 3 pages
+
+
+def follow(docs: Documents, side: str, bounds: tuple[int, int], size: int) -> dict[str, tuple[int, int]]:
+    """Fenêtre glissante (« Page ») : le côté `side` montre ses lignes
+    [début ; fin[ ; l'autre, toutes les lignes de la première à la dernière
+    de leurs partenaires, quitte à déborder d'une page (au plus `MAX_SPREAD`
+    pages, autour du partenaire médian ; au-delà, les flèches ↑ ↓ signalent
+    les partenaires hors fenêtre). Sans partenaire, `size` lignes à partir de
+    la paire la plus proche (`centers`)."""
+    start, end = bounds
+    there = other(side)
+    positions = []
+    for line in docs.lines[side][start:end]:
+        state = docs.states[side].get(line.uuid)
+        if state is not None and state.partner in docs.positions[there]:
+            positions.append(docs.positions[there][state.partner])
+    total = len(docs.lines[there])
+    if positions:
+        positions.sort()
+        low, high = positions[0], positions[-1] + 1
+        limit = MAX_SPREAD * size
+        if high - low > limit:
+            middle = positions[len(positions) // 2]
+            low, high = max(0, middle - limit // 2), min(total, middle + limit // 2)
+    else:
+        first = next((line.uuid for line in docs.lines[side][start:end] if line.entity == "ENTRY"), "")
+        low = centers(docs, *((first, "") if side == "left" else ("", first)))[there]
+        high = min(total, low + size)
+    return {side: (start, end), there: (low, high)}
+
+
 def section_before(lines: list[DocLine], start: int) -> str:
     """Rubrique (titre lisible) en vigueur juste avant la ligne `start` : le
     dernier titre de niveau 1 ou 2 au-dessus (comme
@@ -121,12 +153,12 @@ def payload(
     marks: Marks,
     height: str,
     info: str = "",
-    center: tuple[str, str] | None = None,
+    page: str = "",
 ) -> dict:
     """Données du composant : lignes des deux fenêtres, ligne courante,
-    marqueurs (tâches, recherche) et mode d'appariement. `center` : la paire
-    sur laquelle la fenêtre est alignée (la ligne courante par défaut, une
-    autre après « Page »)."""
+    marqueurs (tâches, recherche) et mode d'appariement. `page` : la page
+    tournée (`follow`), "" quand la fenêtre est centrée sur la ligne
+    courante."""
     sides = {}
     for side in SIDES:
         start, end = bounds[side]
@@ -152,7 +184,7 @@ def payload(
         "left": sides["left"],
         "right": sides["right"],
         "focus": list(focus),
-        "center": list(center or focus),
+        "page": page,  # nouvelle page : la vue se place en haut
         "info": info,  # la ligne courante en une phrase (infobulle de la loupe)
         "pairing": marks.eligible is not None,
         "height": height,
