@@ -26,7 +26,7 @@ affiché est le résultat final.
   l'avance automatique à la tâche suivante après chaque décision. On y entre
   par l'onglet ou par la loupe posée sur le lien courant.
 
-Le bandeau de tâches, commun, mène d'une tâche à l'autre (P / N), annule la
+Le bandeau de tâches, commun, mène d'une tâche à l'autre (← / →), annule la
 dernière décision (Ctrl+Z) ; les onglets en haut changent de vue. Les décisions : V même entrée (ou confirmer sans
 correspondance), I incertaine, X pas la même entrée, A apparier autrement.
 La **file de tâches** se règle dans la barre latérale (candidates,

@@ -750,8 +750,8 @@ gardant.
     relecture portent un « ! » (orange : incertitude moyenne ; rouge :
     forte ou candidate).
 
-  Les deux lignes courantes sont alignées ; une tâche atteinte par `N` /
-  `P`, la recherche ou une rubrique est centrée.
+  Les deux lignes courantes sont alignées ; une tâche atteinte par `→` /
+  `←`, la recherche ou une rubrique est centrée.
   - **Clic sur une entrée ou sur un lien** : la paire devient la ligne
     courante, sans bouger à l'écran ; son partenaire vient en face. Le lien
     courant (bleu, épais) porte une **loupe 🔍** qui ouvre la relecture détaillée ;
@@ -786,7 +786,7 @@ gardant.
   documents. Après une décision, on passe à la tâche suivante.
 
 **Bandeau de tâches**, commun : progression (tâches restantes, lignes
-décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`P` / `N`),
+décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`←` / `→`),
 `↶ Annuler` la dernière décision (`Ctrl+Z`). **Décisions** : `V` ✓ même entrée (ou, pour une
 entrée seule, confirmer sans correspondance), `I` ≈ incertaine (paire
 retenue, `certitude = incertaine`), `X` ✗ différentes, `A` ⇄ autre

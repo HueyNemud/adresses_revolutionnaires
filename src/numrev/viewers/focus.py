@@ -197,7 +197,7 @@ def task_bar(controls: Controls) -> None:
     previous, progress, following, undo = st.columns([1.2, 4.6, 1.2, 1.4], vertical_alignment="center")
     previous.button(
         "◀ Tâche",
-        shortcut="P",
+        shortcut="Left",
         width="stretch",
         disabled=controls.previous is None,
         on_click=controls.move,
@@ -214,7 +214,7 @@ def task_bar(controls: Controls) -> None:
     )
     following.button(
         "Tâche ▶",
-        shortcut="N",
+        shortcut="Right",
         width="stretch",
         disabled=controls.following is None,
         on_click=controls.move,
