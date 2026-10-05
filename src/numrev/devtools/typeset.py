@@ -9,7 +9,9 @@ est repérée en marge par son folio imprimé (lu dans les en-têtes de page,
 à défaut « p. <page du PDF> »). Rendu :
 
 - titre `#` : bloc pleine largeur ; `##` : rubrique centrée en capitales,
-  reprise en titre courant (« Agens de change, Architectes. — PARIS. ») ;
+  reprise en titre courant (« Agens de change, Architectes. — PARIS. ») et
+  dans la table des rubriques, en fin de volume (cliquable, et signets du
+  PDF) ;
   `###` et plus : intertitre en italique ;
 - ENTRY : paragraphe en retrait suspendu, le sujet (SUBJ) en petites
   capitales, l'emphase Markdown de l'OCR conservée ;
@@ -261,7 +263,7 @@ def body(lines: list[Line], stats: Stats) -> list[str]:
             stats.titles[min(level, 3)] += 1
             text = inline(heading_body(line.markdown))
             if level == 1:
-                blocks.append(rf"\partie{{{text}}}")
+                blocks.append(rf"\partie{{{text}}}{{{latex_escape(title_text(line.markdown))}}}")
             elif level == 2:
                 blocks.append(rf"\rubrique{{{text}}}{{{latex_escape(running_title(line.markdown))}}}")
             else:
@@ -320,7 +322,8 @@ PREAMBLE = r"""% Annuaire recomposé par `numrev typeset` à partir des CSV NER 
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[LE,RO]{\thepage}
-\fancyhead[C]{\itshape\rubriques. — PARIS.}
+\newcommand{\entete}{\rubriques. — PARIS.}
+\fancyhead[C]{\itshape\entete}
 \renewcommand{\headrulewidth}{0pt}
 
 \newcommand{\nom}[1]{\textsc{#1}}
@@ -331,10 +334,24 @@ PREAMBLE = r"""% Annuaire recomposé par `numrev typeset` à partir des CSV NER 
   {\centering\itshape #1\par}\nopagebreak\addvspace{0.4ex}}
 \newcommand{\rubrique}[2]{\par\Needspace{4\baselineskip}\addvspace{1.6ex}%
   {\centering\rule{2em}{0.3pt}\par}\nopagebreak\addvspace{0.6ex}%
-  \InsertMark{rubrique}{#2}%
+  \InsertMark{rubrique}{#2}\phantomsection\addcontentsline{toc}{subsection}{#2}%
   {\centering\MakeUppercase{#1}\par}\nopagebreak\addvspace{0.8ex}}
-\newcommand{\partie}[1]{\twocolumn[{\centering\vspace*{2ex}\rule{0.6\textwidth}{0.4pt}\par\vspace{1.5ex}
-  {\large\MakeUppercase{#1}\par}\vspace{1.5ex}\rule{0.6\textwidth}{0.4pt}\par\vspace{3ex}}]}
+\newcommand{\partie}[2]{\twocolumn[{\centering\vspace*{2ex}\rule{0.6\textwidth}{0.4pt}\par\vspace{1.5ex}
+  {\large\MakeUppercase{#1}\par}\vspace{1.5ex}\rule{0.6\textwidth}{0.4pt}\par\vspace{3ex}}]%
+  \phantomsection\addcontentsline{toc}{section}{#2}}
+
+% Table des rubriques, en fin de volume comme dans les livres de l'époque (et
+% sans décaler les pages qu'elle cite) : parties en italique, rubriques avec
+% points de conduite.
+\makeatletter
+\renewcommand{\l@section}[2]{\par\addvspace{1.2ex}{\RaggedRight\itshape #1\par}\nopagebreak\addvspace{0.4ex}}
+\renewcommand{\l@subsection}{\@dottedtocline{2}{0em}{2em}}
+\renewcommand{\@pnumwidth}{2em}
+\newcommand{\tabledesrubriques}{\clearpage\renewcommand{\entete}{Table des rubriques.}%
+  \twocolumn[{\centering\vspace*{2ex}{\large TABLE DES RUBRIQUES\par}\vspace{1.5ex}\rule{2em}{0.3pt}\par\vspace{3ex}}]%
+  {\small\@starttoc{toc}}}
+\makeatother
+\usepackage[hidelinks,bookmarksopen]{hyperref}
 
 \begin{document}
 """
@@ -376,7 +393,9 @@ du volume \textup{{{latex_escape(volume)}}}, {stats.pages} pages de l'original.\
 def compose(volume: str, lines: list[Line]) -> tuple[str, Stats]:
     stats = Stats()
     blocks = body(lines, stats)
-    document = PREAMBLE + title_page(volume, lines) + "\n".join(blocks) + "\n" + colophon(volume, stats) + "\\end{document}\n"
+    document = (
+        PREAMBLE + title_page(volume, lines) + "\n".join(blocks) + "\n\\tabledesrubriques\n" + colophon(volume, stats) + "\\end{document}\n"
+    )
     return document, stats
 
 

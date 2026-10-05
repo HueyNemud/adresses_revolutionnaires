@@ -87,7 +87,7 @@ class VolumeTests(unittest.TestCase):
             lines = read_volume(volume)
             self.assertEqual([(item.markdown, item.page) for item in lines], [("# LISTES", 0), ("Bou", 1), ("Cou, rue Y.", 9)])
             document, stats = compose("1807_X", lines)
-        self.assertIn(r"\partie{LISTES}", document)
+        self.assertIn(r"\partie{LISTES}{LISTES}", document)
         self.assertIn("{\\Large 1807\\par}", document)
         self.assertTrue(document.rstrip().endswith(r"\end{document}"))
         self.assertEqual(stats.entries, 2)

@@ -846,8 +846,10 @@ Recompose un volume entier, façon facsimilé d'époque, à partir de la sortie
 finale de la chaîne (ses `*.ner.csv`, plages dans l'ordre des pages) :
 EB Garamond, deux colonnes, format proche de l'in-8 d'origine. Les titres `#`
 ouvrent une partie, les `##` sont des rubriques centrées en capitales reprises
-dans le titre courant (« Agens de change, Architectes. — PARIS. »), les `###`
-et plus des intertitres en italique. Chaque ENTRY est un paragraphe en retrait
+dans le titre courant (« Agens de change, Architectes. — PARIS. ») et dans la
+**table des rubriques** en fin de volume (comme dans les livres de l'époque,
+et sans décaler les pages qu'elle cite ; cliquable, et reprise dans les signets
+du PDF), les `###` et plus des intertitres en italique. Chaque ENTRY est un paragraphe en retrait
 suspendu, son sujet (SUBJ) en petites capitales, l'emphase de l'OCR
 conservée. Hors liste : en-têtes et pieds de page, images et groupes vides
 sont ignorés (le titre courant est régénéré) ; avis et notes en petit corps
@@ -862,7 +864,7 @@ Sortie : `annuaires/<volume>/<volume>.tex` ; `--pdf` la compile avec
 `pdflatex` (deux passes, pour les titres courants ; pdfLaTeX plutôt que
 LuaLaTeX, qui exige `luaotfload`, absent de certaines installations Debian).
 Il faut les paquets TeX `extsizes`, `ebgaramond`, `ragged2e`, `needspace` et
-`fancyhdr`. Sur 1807 : 265 pages en quelques secondes.
+`fancyhdr`. Sur 1807 : 267 pages en quelques secondes.
 
 ## Audit du CRF : `numrev audit crf`
 
