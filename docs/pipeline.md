@@ -786,7 +786,7 @@ gardant.
   documents. Après une décision, on passe à la tâche suivante.
 
 **Bandeau de tâches**, commun : progression (tâches restantes, lignes
-décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`←` / `→`),
+décidées, décisions non enregistrées), `◀ Tâche` / `Tâche ▶` (`←` / `→` ; `↑` / `↓` font défiler les documents),
 `↶ Annuler` la dernière décision (`Ctrl+Z`). **Décisions** : `V` ✓ même entrée (ou, pour une
 entrée seule, confirmer sans correspondance), `I` ≈ incertaine (paire
 retenue, `certitude = incertaine`), `X` ✗ différentes, `A` ⇄ autre

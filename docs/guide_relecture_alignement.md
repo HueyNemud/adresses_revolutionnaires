@@ -78,7 +78,7 @@ correspondance** (`V`).
   l'autre côté (la concurrente d'un `homonyme proche` y est signalée). La
   note facultative va dans la colonne `note` du patch. Après une décision,
   on passe à la tâche suivante.
-- Dans les deux vues : `→` / `←` tâche suivante / précédente, `Ctrl+Z`
+- Dans les deux vues : `→` / `←` tâche suivante / précédente, `↓` / `↑` défilement des documents, `Ctrl+Z`
   annule la dernière décision. La file de tâches se règle dans la barre
   latérale (*Tâches de relecture*).
 
