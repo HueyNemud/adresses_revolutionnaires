@@ -67,6 +67,12 @@ On y corrige deux colonnes : `classe` (le type de ligne : `B-ENTRY`,
 `I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`, `OUT OF SCOPE`) et
 `markdown` (le texte, y compris les `#` qui donnent le niveau d'un titre).
 
+**Par où commencer :** filtrez la colonne `douteuse` sur `oui`. Elle signale les
+lignes dont au moins un mot a été lu avec une confiance OCR faible (le plus
+faible score de la ligne est dans `confiance` : triez dessus pour voir les
+pires d'abord). Ces deux colonnes ne se corrigent pas : elles décrivent la
+lecture de la machine, et gardent leur valeur après une correction du texte.
+
 Dans les exemples qui suivent, on ne montre que les colonnes utiles.
 
 ### Changer une classe

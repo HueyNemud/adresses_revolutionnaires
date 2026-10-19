@@ -5,7 +5,7 @@ Un **document** est une plage de pages d'un volume,
 plages n'ont pas de point). Chaque étape ajoute à ce nom le suffixe de sa
 sortie :
 
-    <document>.ocr.json            sortie OCR Chandra (hors chaîne)
+    <document>.ocr.json            0 · ocr (latynna, depuis annuaires/<volume>/<volume>.pdf)
     <document>.lines.json          1 · extract
     <document>.labeled.json        2 · label (+ <document>.label-session.json)
     <document>.lines.csv           3 · tabulate (corrigé à la main)
@@ -63,6 +63,22 @@ def step_path(path: Path, suffix: str) -> Path:
 def volume_of(document: str) -> str:
     """« 1808_AD75-PER292.7-186 » → « 1808_AD75-PER292 »."""
     return document.split(".", 1)[0]
+
+
+def page_range(range_dir: Path) -> tuple[int, int]:
+    """« …/7-186 » → (7, 186) : première et dernière page de la plage, numéros
+    1-based des pages du PDF du volume. ValueError si le nom n'est pas `a-b` avec a ≤ b."""
+    match = RANGE_PATTERN.match(range_dir.name)
+    if match is None or int(match.group(1)) > int(match.group(2)) or int(match.group(1)) < 1:
+        raise ValueError(
+            f"{range_dir} : le dossier d'une plage se nomme <première page>-<dernière page> (ex. 7-186, pages comptées à partir de 1)."
+        )
+    return int(match.group(1)), int(match.group(2))
+
+
+def volume_pdf(volume_dir: Path) -> Path:
+    """PDF complet d'un volume, lu par `numrev ocr` : `annuaires/<volume>/<volume>.pdf`."""
+    return volume_dir / f"{volume_dir.name}.pdf"
 
 
 def range_dirs(volume_dir: Path) -> list[Path]:

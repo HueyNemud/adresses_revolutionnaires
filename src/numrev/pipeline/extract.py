@@ -1,20 +1,24 @@
-"""Étape 1 · lignes Markdown d'une sortie OCR Chandra (`<document>.ocr.json` →
+"""Étape 1 · lignes Markdown de la sortie OCR latynna (`<document>.ocr.json` →
 `<document>.lines.json`).
 
 Le JSON de sortie est une copie du JSON d'entrée : chaque page reçoit en plus
-une liste de blocs de données (« data_blocks »), et chaque bloc contient la
-liste de ses lignes Markdown avec leur provenance (chunk, position). Les
-tableaux sont éclatés : chaque cellule (et chaque ligne d'une cellule)
-devient une ligne, sans syntaxe Markdown de tableau.
+une liste de blocs de données (« data_blocks », un par `div` de premier
+niveau du `raw`), et chaque bloc la liste de ses lignes. latynna met chaque
+ligne dans un `<span>` (HTML complet) : une ligne = un `<span>`, tableaux
+compris. Chaque ligne porte `uid` (`page.bloc.ligne`, tout en 1-based),
+`line_index`, `markdown`, `cle` et, si le `<span>` les a, `word_confidence`
+(`[[mot, score], …]`) et `line_bbox_estimate` (`[x0, y0, x1, y1]`, repère
+0–1000 de la page, estimée).
 """
 
 import argparse
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Comment, Tag
 from markdownify import markdownify
 
 from numrev.command import CommandError, Writes, add_apply_argument, console, default_output, require_file
@@ -23,6 +27,9 @@ from numrev.document import iter_line_locations
 from numrev.paths import LINES
 
 BBox = tuple[float, float, float, float]
+
+IMAGE_LABELS = ("Image", "Figure")  # blocs dont le texte décrit une image : pas de lignes
+HEADING_TAG = re.compile(r"^h[1-6]$")
 
 
 def load_raw_pages(json_path: str | Path) -> list[dict[str, Any]]:
@@ -145,54 +152,82 @@ def generate_line_uid(page_index: int, block_index: int, line_index: int, sep=".
     return sep.join(str(i) for i in (page_index, block_index, line_index))
 
 
-def table_cell_lines(table: Tag) -> Iterator[str]:
-    """Yield table cells in visual reading order without Markdown table syntax."""
-    for row in table.find_all("tr"):
-        if row.find_parent("table") is not table:
-            continue
-        for cell in row.find_all(["th", "td"], recursive=False):
-            markdown = markdownify(cell.decode_contents(), heading_style="ATX")
-            # As a table cell might contain multiple lines,
-            # we yield each line separately,
-            # after cleaning whitespace.
-            for line in markdown.splitlines():
-                cleaned = " ".join(line.split())
-                if cleaned:
-                    yield cleaned
+def top_level_spans(container: Tag) -> list[Tag]:
+    """Les `<span>` de ligne du bloc, dans l'ordre : ceux qui ne sont pas
+    dans un autre `<span>` (latynna permet un `span` en ligne à l'intérieur)."""
+    return [span for span in container.find_all("span") if span.find_parent("span") is None]
 
 
-def _markdown_fragment_lines(html_fragments: list[str]) -> Iterator[str]:
-    """Convert accumulated non-table HTML fragments into Markdown lines."""
-    if not html_fragments:
-        return
-    yield from markdownify("".join(html_fragments), heading_style="ATX").splitlines()
+def text_outside_spans(container: Tag) -> str:
+    """Texte visible du bloc qui n'est dans aucun `<span>` (vide si tout le texte est dans des `<span>`)."""
+    pieces = [text for text in container.find_all(string=True) if not isinstance(text, Comment) and text.find_parent("span") is None]
+    return " ".join(" ".join(pieces).split())
 
 
-def no_table_markdown_lines(raw_html: str) -> Iterator[str]:
-    """Yield normal Markdown lines and table cells, retaining document order."""
-    soup = BeautifulSoup(raw_html, "html.parser")
-    container = soup.find("div")
+def heading_level(span: Tag) -> int | None:
+    """Niveau du titre `<h1>`…`<h6>` qui contient la ligne, None hors titre."""
+    heading = span.find_parent(HEADING_TAG)
+    return int(heading.name[1]) if heading is not None else None
+
+
+def word_confidence(span: Tag) -> list[list[str | float]] | None:
+    """`[[mot, score], …]` : un score de `data-word-confidence` par mot du
+    texte visible du `<span>` (format de latynna). None sans attribut, ou si
+    le nombre de scores n'est pas le nombre de mots : on n'apparie jamais des
+    scores décalés."""
+    value = span.get("data-word-confidence")
+    if not isinstance(value, str):
+        return None
+    words = span.get_text().split()
+    scores = [float(score) for score in value.split()]
+    if len(words) != len(scores):
+        return None
+    return [[word, score] for word, score in zip(words, scores)]
+
+
+def line_bbox_estimate(span: Tag) -> list[int] | None:
+    """Boîte estimée de la ligne `[x0, y0, x1, y1]` (repère 0–1000 de la page), None sans attribut."""
+    value = span.get("data-line-bbox-estimate")
+    return [int(number) for number in value.split()] if isinstance(value, str) else None
+
+
+def span_lines(page: Page, block: DataBlock) -> list[dict[str, object]]:
+    """Lignes d'un bloc : un `<span>` = une ligne (garantie de latynna).
+
+    Texte = Markdown du seul contenu du `<span>`, précédé de `#` × niveau
+    dans un titre `<hN>`. Un bloc d'image (`IMAGE_LABELS`) et un `<span>`
+    sans texte ne donnent aucune ligne. ValueError si du texte du bloc
+    n'est dans aucun `<span>`."""
+    container = BeautifulSoup(block.raw_html, "html.parser").find("div")
     if container is None:
-        return
+        return []
+    outside = text_outside_spans(container)
+    if outside:
+        excerpt = outside if len(outside) <= 40 else outside[:40] + "…"
+        raise ValueError(f"page {page.index}, bloc {block.index} : texte hors de toute balise <span> : « {excerpt} »")
+    if block.label in IMAGE_LABELS:
+        return []
 
-    non_table_fragments: list[str] = []
-    for child in container.contents:
-        if isinstance(child, Tag) and child.name == "table":
-            yield from _markdown_fragment_lines(non_table_fragments)
-            non_table_fragments = []
-            yield from table_cell_lines(child)
-        else:
-            non_table_fragments.append(str(child))
-    yield from _markdown_fragment_lines(non_table_fragments)
-
-
-def _line_record(page: Page, block: DataBlock, line_index: int, line: str) -> dict[str, object]:
-    """Build one JSON record for a Markdown line and its Chandra provenance."""
-    return {
-        "uid": generate_line_uid(page.index, block.index, line_index),
-        "line_index": line_index,
-        "markdown": line,
-    }
+    lines: list[dict[str, object]] = []
+    for span in top_level_spans(container):
+        markdown = " ".join(markdownify(span.decode_contents()).split())
+        if not markdown:
+            continue
+        level = heading_level(span)
+        if level is not None:
+            markdown = "#" * level + " " + markdown
+        line_index = len(lines) + 1
+        line: dict[str, object] = {
+            "uid": generate_line_uid(page.index, block.index, line_index),
+            "line_index": line_index,
+            "markdown": markdown,
+        }
+        if (confidence := word_confidence(span)) is not None:
+            line["word_confidence"] = confidence
+        if (bbox := line_bbox_estimate(span)) is not None:
+            line["line_bbox_estimate"] = bbox
+        lines.append(line)
+    return lines
 
 
 def assign_line_keys(pages: list[dict[str, Any]]) -> None:
@@ -211,7 +246,7 @@ def build_data_block_record(page: Page, block: DataBlock) -> dict[str, object]:
         "bbox": list(block.bbox),
         "label": block.label,
         "chunk_index": block.chunk_index,
-        "lines": [_line_record(page, block, line_index, line) for line_index, line in enumerate(no_table_markdown_lines(block.raw_html))],
+        "lines": span_lines(page, block),
     }
 
 

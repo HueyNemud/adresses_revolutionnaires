@@ -32,19 +32,20 @@ Documents associés :
 
 ## Organisation des fichiers
 
-Chaque annuaire a son dossier de volume dans `annuaires/` (hors git). La
-sortie OCR complète est découpée en **plages de pages** (partie utile de
-l'annuaire, liste annexe…), chacune dans son sous-dossier ; toute la chaîne
-s'exécute par plage. Une plage est un **document**, nommé
+Chaque annuaire a son dossier de volume dans `annuaires/` (hors git), avec
+le PDF complet du volume, `<volume>.pdf`. Ce PDF est lu par **plages de pages**
+(partie utile de l'annuaire, liste annexe…), chacune dans son sous-dossier
+nommé `<première page>-<dernière page>` (pages du PDF comptées à partir de 1) ;
+toute la chaîne s'exécute par plage. Une plage est un **document**, nommé
 `<volume>.<plage>` ; chaque étape écrit à côté de son entrée un fichier
 `<document><suffixe de l'étape>` (convention : `src/numrev/paths.py`) :
 
 ```text
 annuaires/
 ├── 1808_AD75-PER292/                         dossier de volume
-│   ├── 1808_AD75-PER292.ocr.json             sortie OCR Chandra complète
-│   ├── 7-186/                                plage de pages
-│   │   ├── 1808_AD75-PER292.7-186.ocr.json   pages de la plage
+│   ├── 1808_AD75-PER292.pdf                  PDF complet du volume
+│   ├── 7-186/                                plage de pages (pages 7 à 186 du PDF)
+│   │   ├── 1808_AD75-PER292.7-186.ocr.json   0 · ocr (latynna)
 │   │   ├── ….lines.json                      1 · extract
 │   │   ├── ….label-session.json              2 · label (session)
 │   │   ├── ….labeled.json                    2 · label
@@ -57,14 +58,6 @@ annuaires/
 data/curation/                                corrections humaines (versionnées)
 ├── 1808_AD75-PER292.7-186.lines.patch.csv    étape 3
 └── 1808_AD75-PER292.7-186.ner.patch.csv      étape 5
-```
-
-Une plage s'extrait de la sortie OCR complète avec `jq`, par exemple :
-
-```bash
-jq 'map(select(.page_index >= 6 and .page_index <= 185))' \
-    annuaires/1808_AD75-PER292/1808_AD75-PER292.ocr.json \
-    > annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186.ocr.json
 ```
 
 **Simulation par défaut.** Toute commande qui écrit des fichiers de données
@@ -96,8 +89,9 @@ uv run numrev assemble $D.lines.csv --apply      # → $D.entities.csv
 
 ```mermaid
 flowchart TD
-    A["Sortie OCR Chandra d'une plage<br/><code>….ocr.json</code>"]
-    A -->|"1 · numrev extract"| B["Lignes Markdown par bloc<br/><code>….lines.json</code>"]
+    P["PDF du volume<br/><code>&lt;volume&gt;.pdf</code>"]
+    P -->|"0 · numrev ocr<br/>(latynna, par plage)"| A["Sortie OCR d'une plage<br/><code>….ocr.json</code>"]
+    A -->|"1 · numrev extract"| B["Lignes par bloc<br/><code>….lines.json</code>"]
     B -->|"2 · numrev label<br/>(annotation interactive, CRF)"| C["Lignes annotées<br/><code>….labeled.json</code>"]
     C -->|"3 · numrev tabulate"| D["Une ligne CSV par ligne Markdown<br/><code>….lines.csv</code>"]
     D -.->|"curation manuelle<br/>(corrige = oui)"| D
@@ -195,29 +189,69 @@ Les patchs vivent dans `data/`, versionné avec le code. Les commits de
 données restent séparés de ceux du code (préfixe `données:`), et les commandes
 ne commitent jamais elles-mêmes.
 
+## Étape 0 — OCR : `numrev ocr`
+
+L'OCR est fait par **latynna** (Chandra 2 affiné sur les annuaires, modèle
+latynna-v3, servi par vLLM ; paquet `latynna` du projet
+`finetuning_chandra_for_directories`, installé par `uv sync --group ocr`).
+
+```bash
+uv run latynna serve --detach && uv run latynna serve --wait   # serveur vLLM (machine GPU)
+uv run numrev ocr annuaires/<volume>/<plage> --apply
+```
+
+- **Entrée :** les pages de la plage dans `annuaires/<volume>/<volume>.pdf`.
+- **Sortie :** `<document>.ocr.json`, le JSON de Chandra (une entrée par page :
+  `raw`, `html`, `markdown`, `chunks`, `page_box`…) où **chaque ligne est un
+  `<span>`** en HTML complet, avec `data-word-confidence` (un score par mot)
+  et `data-line-bbox-estimate` (boîte estimée de la ligne, repère 0–1000).
+  Format détaillé : README du paquet latynna.
+- **`page_index`** est le numéro de la page dans le PDF, compté à partir de 1
+  (la plage `7-186` donne les pages 7 à 186).
+- Sans `--apply`, la commande vérifie la plage et le PDF mais ne lance pas
+  l'OCR (plusieurs minutes de GPU). Un OCR existant n'est remplacé qu'avec
+  `--force`.
+
 ## Étape 1 — Extraction des lignes : `numrev extract`
 
-Parse le HTML de chaque bloc de la sortie Chandra et le convertit en lignes
-Markdown, avec leur provenance (page, bloc, position).
+Découpe le HTML de chaque bloc de la sortie latynna en lignes : **un
+`<span>` = une ligne**.
 
 ```bash
 uv run numrev extract <document>.ocr.json --apply
 ```
 
-- **Entrée :** le JSON OCR de Chandra (`<document>.ocr.json` : `markdown` et
-  `html` par page, blocs repérés par `data-block-id`).
 - **Sortie :** une copie du JSON où chaque page reçoit une liste
-  `data_blocks`, chacun portant sa liste de `lines` (`uid`, `line_index`,
-  `markdown`, `cle`). Défaut : `<document>.lines.json`.
+  `data_blocks` (un par `div` de premier niveau du `raw`), chacun portant sa
+  liste de `lines`. Défaut : `<document>.lines.json`.
+- **Une ligne** : `uid` (`page.bloc.ligne`, tout compté à partir de 1 :
+  `12.3.1` = page 12, bloc 3, ligne 1), `line_index`, `markdown` (Markdown du
+  seul contenu du `<span>` ; une italique sur deux lignes est refermée puis
+  rouverte, chaque ligne porte la sienne), `cle` et, si latynna les a
+  fournies, `word_confidence` (`[[mot, score], …]`) et `line_bbox_estimate`
+  (`[x0, y0, x1, y1]`).
+- **Titres :** le niveau vient de la balise `<h1>`…`<h6>` qui entoure le
+  `<span>` : la ligne commence par autant de `#`.
+- **Images :** les blocs `Image` et `Figure` ne donnent aucune ligne (leur
+  texte décrit l'image, il n'est pas imprimé). Les `<span>` vides sont
+  ignorés. Les tableaux n'ont pas de traitement à part : chaque `<span>` d'une
+  cellule est une ligne.
+- **Confiance :** les scores vont avec les mots du texte visible du `<span>` ;
+  si leur nombre diffère de celui des mots, ils sont ignorés pour cette ligne
+  plutôt que décalés.
+- Du texte hors de tout `<span>` arrête la commande, avec la page, le bloc et
+  le début du texte en cause.
 - **`cle`** : clé stable de la ligne (hash du texte OCR, voir
   [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)),
-  recopiée par toutes les étapes suivantes.
-- **Tableaux :** chaque cellule (et chaque ligne d'une cellule) devient une
-  ligne séparée, sans syntaxe Markdown de tableau.
+  recopiée par toutes les étapes suivantes. Pour retrouver une ligne dans la
+  sortie OCR : `cle` → `uid` → `<span>` du JSON OCR.
 - Ce schéma (pages → `data_blocks` → `lines`) est le **contrat partagé** des
   étapes 2 et 3 ; il est décrit et validé en un seul endroit,
   `numrev/document.py` (`iter_line_locations`). C'est là qu'il faut le
   modifier.
+- **Plus tard :** un visualiseur pourra montrer, à côté d'une ligne douteuse,
+  l'extrait du scan désigné par `line_bbox_estimate` (un peu élargi, puisque
+  c'est une estimation), ramené du repère 0–1000 aux pixels par `page_box`.
 
 ## Étape 2 — Annotation interactive des lignes : `numrev label`
 
@@ -287,10 +321,15 @@ uv run numrev tabulate <document>.labeled.json --apply
 
 - **Colonnes :** `cle`, `uid`, `page_index`, `chunk_index`,
   `data_block_index`, `line_index`, `data_block_bbox`, `data_block_label`,
-  `markdown`, `classe`, `corrige`, `provenance`, `probability`, `timestamp`,
-  `empreinte` (`CSV_FIELDS`). `classe` est la prédiction de l'annotateur
-  (`prediction` dans le JSON). `cle` est recopiée du JSON : un JSON sans
-  clé (antérieur à l'étape 1 actuelle) est refusé.
+  `markdown`, `confiance`, `douteuse`, `classe`, `corrige`, `provenance`,
+  `probability`, `timestamp`, `empreinte` (`CSV_FIELDS`). `classe` est la
+  prédiction de l'annotateur (`prediction` dans le JSON). `cle` est recopiée
+  du JSON : un JSON sans clé est refusé.
+- **Confiance OCR :** `confiance` = le plus faible score des mots de la ligne
+  (`0,44`) ; `douteuse` = `oui` sous le seuil `OCR_DOUBTFUL_THRESHOLD` (0,9,
+  repère de latynna à recalibrer). Filtrer `douteuse = oui` dans le tableur
+  donne les lignes à relire en priorité. Vides si la ligne n'a pas de scores.
+  Ni l'une ni l'autre n'est éditable (hors de l'`empreinte`).
 - Sur le JSON brut de l'étape 1, `classe` est vide et aucun patch n'est lu
   ni écrit : pratique pour inspecter l'extraction.
 - **Curation :** on corrige directement ce CSV (classe, texte, notamment les

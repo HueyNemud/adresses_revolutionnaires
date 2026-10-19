@@ -6,106 +6,152 @@ from pathlib import Path
 from numrev.pipeline.extract import load_document, process_json_to_json
 
 
-class ExtractChandraLinesTests(unittest.TestCase):
+def span(text: str, confidence: str | None = None, bbox: str | None = None) -> str:
+    """Une ligne au format de latynna : un `<span>`, avec ses attributs facultatifs."""
+    attributes = ""
+    if confidence is not None:
+        attributes += f' data-word-confidence="{confidence}"'
+    if bbox is not None:
+        attributes += f' data-line-bbox-estimate="{bbox}"'
+    return f"<span{attributes}>{text}</span>"
+
+
+def page(raw: str, chunks: int = 0, page_index: int = 7) -> dict:
+    return {
+        "page_index": page_index,
+        "page_box": [0, 0, 100, 100],
+        "chunks": [{"bbox": [0, 0, 100, 100]}] * chunks,
+        "raw": raw,
+    }
+
+
+class ExtractLatynnaLinesTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.document = [
-            {
-                "page_index": 0,
-                "page_box": [0, 0, 100, 100],
-                "chunks": [
-                    {"bbox": [0, 0, 33, 100]},
-                    {"bbox": [33, 0, 66, 100]},
-                    {"bbox": [66, 0, 100, 100]},
-                ],
-                "raw": (
-                    '<div data-bbox="0 0 330 1000" data-label="Text">Avant</div>'
-                    '<div data-bbox="330 0 660 1000" data-label="Table">'
-                    "<table><tr><th>En-tête</th><td><b>Gauche</b></td></tr>"
-                    "<tr><td>Bas gauche</td><td>Bas<br/>droite</td></tr></table></div>"
-                    '<div data-bbox="660 0 1000 1000" data-label="Text">Après</div>'
-                ),
-            }
-        ]
         self.temporary_directory = tempfile.TemporaryDirectory()
-        self.json_path = Path(self.temporary_directory.name) / "document.json"
-        self.json_path.write_text(json.dumps(self.document), encoding="utf-8")
+        self.directory = Path(self.temporary_directory.name)
 
     def tearDown(self) -> None:
         self.temporary_directory.cleanup()
 
-    def export_pages(self) -> list[dict]:
-        output_path = Path(self.temporary_directory.name) / "output.json"
-        process_json_to_json(self.json_path, output_path)
+    def write(self, pages: list[dict]) -> Path:
+        json_path = self.directory / "document.ocr.json"
+        json_path.write_text(json.dumps(pages), encoding="utf-8")
+        return json_path
+
+    def export(self, pages: list[dict]) -> list[dict]:
+        output_path = self.directory / "document.lines.json"
+        process_json_to_json(self.write(pages), output_path)
         return json.loads(output_path.read_text(encoding="utf-8"))
 
+    def lines(self, raw: str) -> list[dict]:
+        return [line for block in self.export([page(raw)])[0]["data_blocks"] for line in block["lines"]]
+
     def test_output_is_a_copy_of_the_input_with_data_blocks_added(self) -> None:
-        pages = self.export_pages()
+        document = [
+            page(
+                '<div data-bbox="0 0 500 1000" data-label="Section-Header"><h2>' + span("TITRE") + "</h2></div>"
+                '<div data-bbox="500 0 1000 1000" data-label="Text"><p>' + span("Brou, rue A.") + "</p></div>",
+                chunks=2,
+            )
+        ]
+        pages = self.export(document)
 
-        self.assertEqual(len(pages), 1)
-        page = pages[0]
-        for key, value in self.document[0].items():
-            self.assertEqual(page[key], value)
-        self.assertIn("data_blocks", page)
-        self.assertEqual(
-            [block["label"] for block in page["data_blocks"]],
-            ["Text", "Table", "Text"],
+        for key, value in document[0].items():
+            self.assertEqual(pages[0][key], value)
+        self.assertEqual([block["label"] for block in pages[0]["data_blocks"]], ["Section-Header", "Text"])
+        self.assertEqual([block["chunk_index"] for block in pages[0]["data_blocks"]], [0, 1])
+
+    def test_one_span_is_one_line_with_one_based_indices(self) -> None:
+        lines = self.lines(
+            '<div data-bbox="0 0 1000 1000" data-label="List-Group"><p>'
+            + span("Brou, R. Mouffertard, 24.")
+            + "<br/>"
+            + span("Brunet, palais du Luxembourg, 1201.")
+            + "</p></div>"
         )
 
-    def test_maps_data_blocks_to_chunks_by_source_order(self) -> None:
-        pages = load_document(self.json_path)
+        self.assertEqual([line["markdown"] for line in lines], ["Brou, R. Mouffertard, 24.", "Brunet, palais du Luxembourg, 1201."])
+        self.assertEqual([line["line_index"] for line in lines], [1, 2])
+        self.assertEqual([line["uid"] for line in lines], ["7.1.1", "7.1.2"])
+        self.assertTrue(all(line["cle"] for line in lines))
 
-        self.assertEqual([block.chunk_index for block in pages[0].data_blocks], [0, 1, 2])
+    def test_heading_level_comes_from_the_enclosing_h_tag(self) -> None:
+        lines = self.lines('<div data-bbox="0 0 1000 1000" data-label="Section-Header"><h3>' + span("NÉGOCIANS.") + "</h3></div>")
 
-    def test_tables_are_exploded_into_cells_and_their_lines_in_reading_order(self) -> None:
-        pages = self.export_pages()
-        table_block = next(block for block in pages[0]["data_blocks"] if block["label"] == "Table")
+        self.assertEqual([line["markdown"] for line in lines], ["### NÉGOCIANS."])
 
-        self.assertEqual(
-            [line["markdown"] for line in table_block["lines"]],
-            # `Bas<br/>droite` : chaque ligne d'une cellule devient une ligne.
-            ["En-tête", "**Gauche**", "Bas gauche", "Bas", "droite"],
+    def test_table_cells_are_lines_like_any_other(self) -> None:
+        lines = self.lines(
+            '<div data-bbox="0 0 1000 1000" data-label="Table"><table>'
+            "<tr><td>" + span("Gauche") + "</td><td>" + span("Bas") + "<br/>" + span("droite") + "</td></tr>"
+            "</table></div>"
         )
-        self.assertEqual([line["line_index"] for line in table_block["lines"]], [0, 1, 2, 3, 4])
-        self.assertTrue(all("|" not in line["markdown"] for line in table_block["lines"]))
 
-    def test_table_explosion_preserves_non_table_content_and_provenance(self) -> None:
-        pages = self.export_pages()
-        blocks = pages[0]["data_blocks"]
+        self.assertEqual([line["markdown"] for line in lines], ["Gauche", "Bas", "droite"])
+
+    def test_each_line_carries_its_own_formatting(self) -> None:
+        lines = self.lines(
+            '<div data-bbox="0 0 1000 1000" data-label="Text"><p>'
+            + span("Foucher, (<i>de la Société des inventions et</i>")
+            + "<br/>"
+            + span("<i>découvertes</i>) rue de la Ferronnerie, 4.")
+            + "</p></div>"
+        )
 
         self.assertEqual(
-            [line["markdown"] for block in blocks for line in block["lines"]],
+            [line["markdown"] for line in lines],
+            ["Foucher, (*de la Société des inventions et*", "*découvertes*) rue de la Ferronnerie, 4."],
+        )
+
+    def test_a_span_inside_a_line_span_is_not_a_line(self) -> None:
+        lines = self.lines('<div data-bbox="0 0 1000 1000" data-label="Text"><p>' + span("Brou, <span>rue</span> A.") + "</p></div>")
+
+        self.assertEqual([line["markdown"] for line in lines], ["Brou, rue A."])
+
+    def test_empty_spans_give_no_line(self) -> None:
+        lines = self.lines('<div data-bbox="0 0 1000 1000" data-label="Text"><p>' + span(" ") + "<br/>" + span("Brou.") + "</p></div>")
+
+        self.assertEqual([(line["line_index"], line["markdown"]) for line in lines], [(1, "Brou.")])
+
+    def test_image_blocks_give_no_line_but_keep_block_numbering(self) -> None:
+        blocks = self.export(
             [
-                "Avant",
-                "En-tête",
-                "**Gauche**",
-                "Bas gauche",
-                "Bas",
-                "droite",
-                "Après",
-            ],
+                page(
+                    '<div data-bbox="0 0 1000 500" data-label="Image">' + span("Gravure d'un vaisseau") + "</div>"
+                    '<div data-bbox="0 500 1000 1000" data-label="Text"><p>' + span("Brou.") + "</p></div>"
+                )
+            ]
+        )[0]["data_blocks"]
+
+        self.assertEqual([block["lines"] for block in blocks][0], [])
+        self.assertEqual(blocks[1]["lines"][0]["uid"], "7.2.1")
+
+    def test_word_confidence_pairs_visible_words_with_their_scores(self) -> None:
+        lines = self.lines(
+            '<div data-bbox="0 0 1000 1000" data-label="Text"><p>'
+            + span("Brou, <i>R.</i> Mouffertard,&nbsp;24.", confidence="0.99 0.97 0.44 0.98", bbox="91 241 702 268")
+            + "</p></div>"
         )
-        table_block = blocks[1]
-        self.assertEqual(table_block["chunk_index"], 1)
-        self.assertEqual(table_block["index"], 2)
-        self.assertEqual(table_block["bbox"], [330.0, 0.0, 660.0, 1000.0])
+
+        self.assertEqual(lines[0]["word_confidence"], [["Brou,", 0.99], ["R.", 0.97], ["Mouffertard,", 0.44], ["24.", 0.98]])
+        self.assertEqual(lines[0]["line_bbox_estimate"], [91, 241, 702, 268])
+
+    def test_scores_are_dropped_when_their_count_differs_from_the_words(self) -> None:
+        lines = self.lines(
+            '<div data-bbox="0 0 1000 1000" data-label="Text"><p>' + span("Brou, rue A.", confidence="0.99 0.97") + "</p></div>"
+        )
+
+        self.assertNotIn("word_confidence", lines[0])
+        self.assertNotIn("line_bbox_estimate", lines[0])
+
+    def test_text_outside_any_span_is_refused_with_its_location(self) -> None:
+        with self.assertRaisesRegex(ValueError, r"page 7, bloc 1 : texte hors de toute balise <span> : « LISTES PARTICULIÈRES »"):
+            self.export([page('<div data-bbox="0 0 1000 1000" data-label="Text"><p>LISTES PARTICULIÈRES</p></div>')])
 
     def test_exports_an_empty_chunk_index_when_no_chunk_contains_a_block(self) -> None:
-        document = [
-            {
-                "page_index": 0,
-                "page_box": [0, 0, 100, 100],
-                "chunks": [],
-                "raw": '<div data-bbox="0 0 1000 1000">Texte</div>',
-            }
-        ]
-        json_path = Path(self.temporary_directory.name) / "no_chunks.json"
-        json_path.write_text(json.dumps(document), encoding="utf-8")
+        document = [page('<div data-bbox="0 0 1000 1000" data-label="Text">' + span("Texte") + "</div>", chunks=0)]
 
-        output_path = Path(self.temporary_directory.name) / "no_chunks.json.out"
-        process_json_to_json(json_path, output_path)
-        pages = json.loads(output_path.read_text(encoding="utf-8"))
-
-        self.assertIsNone(pages[0]["data_blocks"][0]["chunk_index"])
+        self.assertIsNone(load_document(self.write(document))[0].data_blocks[0].chunk_index)
 
 
 if __name__ == "__main__":

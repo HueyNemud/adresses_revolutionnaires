@@ -5,7 +5,8 @@ Accepte aussi le JSON brut de `numrev extract` (`<document>.lines.json`) :
 classes vides, aucun patch lu ni écrit, pour inspecter l'extraction. Chaque
 ligne du CSV correspond à une ligne Markdown d'un bloc de données,
 avec sa clé stable (`cle`), sa provenance (page, chunk, bloc de données,
-position) et, si le JSON en dispose, l'annotation produite par
+position), sa confiance OCR (`confiance`, drapeau `douteuse` pour filtrer
+les lignes à relire ; ni l'une ni l'autre n'est éditable) et, si le JSON en dispose, l'annotation produite par
 `numrev label` (`classe`, provenance, probability, timestamp).
 
 Le CSV d'un document annoté est aussi le fichier qu'on corrige à la main
@@ -44,6 +45,12 @@ from numrev.paths import LINES_CSV
 
 KEY_COLUMN = "cle"
 CLASS_COLUMN = "classe"
+CONFIDENCE_COLUMN = "confiance"
+DOUBTFUL_COLUMN = "douteuse"
+
+# Une ligne est douteuse si l'un de ses mots a un score OCR sous ce seuil (repère du README de
+# latynna : sur latynna-v1, les mots sous 0,9 font 7,5 % des mots et 74 % des erreurs ; à recalibrer).
+OCR_DOUBTFUL_THRESHOLD = 0.9
 
 CSV_FIELDS = [
     KEY_COLUMN,
@@ -55,6 +62,8 @@ CSV_FIELDS = [
     "data_block_bbox",
     "data_block_label",
     "markdown",
+    CONFIDENCE_COLUMN,
+    DOUBTFUL_COLUMN,
     CLASS_COLUMN,
     CORRECTED_COLUMN,
     "provenance",
@@ -64,6 +73,19 @@ CSV_FIELDS = [
 ]
 
 LINES_STEP = Step("lines", KEY_COLUMN, (CLASS_COLUMN, "markdown"), context=("uid",), insertions=True)
+
+
+def confidence_columns(line: dict[str, Any]) -> dict[str, str]:
+    """`confiance` = plus faible score OCR des mots de la ligne (`0,44`) ;
+    `douteuse` = `oui` sous `OCR_DOUBTFUL_THRESHOLD`. Vides sans scores."""
+    scores = [score for _, score in line.get("word_confidence", [])]
+    if not scores:
+        return {CONFIDENCE_COLUMN: "", DOUBTFUL_COLUMN: ""}
+    lowest = min(scores)
+    return {
+        CONFIDENCE_COLUMN: f"{lowest:.2f}".replace(".", ","),
+        DOUBTFUL_COLUMN: "oui" if lowest < OCR_DOUBTFUL_THRESHOLD else "",
+    }
 
 
 def iter_csv_rows(document: list[dict[str, Any]]) -> Iterator[dict[str, str]]:
@@ -84,6 +106,7 @@ def iter_csv_rows(document: list[dict[str, Any]]) -> Iterator[dict[str, str]]:
             "data_block_bbox": location.block.get("bbox", ""),
             "data_block_label": location.block.get("label", ""),
             "markdown": location.line.get("markdown", ""),
+            **confidence_columns(location.line),
             CLASS_COLUMN: location.line.get("prediction", ""),
             "provenance": location.line.get("provenance", ""),
             "probability": location.line.get("probability", ""),

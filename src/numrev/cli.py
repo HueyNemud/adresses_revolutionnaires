@@ -22,7 +22,8 @@ class Command:
 
 
 PIPELINE: dict[str, Command | dict[str, Command]] = {
-    "extract": Command("numrev.pipeline.extract", "1 · lignes Markdown de la sortie OCR       <doc>.ocr.json → <doc>.lines.json"),
+    "ocr": Command("numrev.pipeline.ocr", "0 · OCR latynna d'une plage de pages      <vol>.pdf → <doc>.ocr.json"),
+    "extract": Command("numrev.pipeline.extract", "1 · lignes de la sortie OCR (1 <span> = 1 ligne) → <doc>.lines.json"),
     "label": Command("numrev.pipeline.label", "2 · annotation interactive des lignes (CRF) → <doc>.labeled.json"),
     "tabulate": Command("numrev.pipeline.tabulate", "3 · table des lignes, corrigée à la main   → <doc>.lines.csv"),
     "assemble": Command("numrev.pipeline.assemble", "4 · entités et arbre des titres            → <doc>.entities.csv"),
@@ -66,7 +67,7 @@ def usage() -> str:
         [
             "usage : numrev <commande> [<sous-commande>] [options]   (numrev <commande> --help pour le détail)",
             "",
-            "Chaîne de traitement, par plage de pages (1-5) puis par paire d'annuaires (6-7) :",
+            "Chaîne de traitement, par plage de pages (0-5) puis par paire d'annuaires (6-7) :",
             *lines(PIPELINE),
             "",
             "Consultation, modèles et évaluation :",

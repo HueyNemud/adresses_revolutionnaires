@@ -9,7 +9,7 @@ dependencies = [
     "btrees<6",
     "dedupe>=3.0.3",
     "gliner>=0.2.29",
-    "markdownify>=1.2.3",
+    "markdownify>=1.1.0",  # chandra-ocr (groupe ocr) épingle 1.1.0
     "numpy>=2.5.2",
     "pandas>=3.0.5",
     "python-crfsuite>=0.9.12",
@@ -26,12 +26,19 @@ dev = [
     "black>=26.10.0",
     "ruff>=0.16.9",
 ]
+ocr = [
+    # OCR latynna (Chandra affiné, servi par vLLM) : numrev ocr
+    "latynna",
+]
 explorations = [
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
     "nbconvert>=7.17.1",
     "nbformat>=5.11.1",
 ]
+
+[tool.uv.sources]
+latynna = { path = "../finetuning_chandra_for_directories/packages/latynna", editable = true }
 
 [project.scripts]
 numrev = "numrev.cli:main"

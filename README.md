@@ -19,9 +19,10 @@ début du XIXᵉ siècle en données structurées :
 
 - Python 3.12 ou plus récent
 - [uv](https://docs.astral.sh/uv/)
-- Les sorties OCR Chandra d'un annuaire (`<document>.ocr.json`). L'OCR n'est
-  pas exécuté par cette chaîne : il est produit en local par un projet
-  séparé.
+- Le PDF complet de chaque annuaire, rangé en `annuaires/<volume>/<volume>.pdf`.
+- Pour l'OCR (étape 0) : le paquet `latynna` (projet voisin
+  `../finetuning_chandra_for_directories`, `uv sync --group ocr`) et une
+  machine GPU qui sert le modèle latynna-v3 avec vLLM.
 
 ## Installation
 
@@ -32,15 +33,16 @@ uv run numrev      # liste des commandes
 
 ## Vue d'ensemble
 
-Tout passe par une seule commande, `numrev`. Les étapes 1 à 5 traitent une
+Tout passe par une seule commande, `numrev`. Les étapes 0 à 5 traitent une
 **plage de pages** d'un volume (un *document*), les étapes 6 et 7 une
 **paire d'annuaires** complets. Chaque étape ajoute son suffixe au nom du
 document :
 
 ```mermaid
 flowchart TD
-    A["Sortie OCR Chandra<br/><code>&lt;document&gt;.ocr.json</code>"]
-    A -->|"1 · numrev extract"| B["Lignes Markdown<br/><code>.lines.json</code>"]
+    P["PDF du volume<br/><code>&lt;volume&gt;.pdf</code>"]
+    P -->|"0 · numrev ocr<br/>(latynna)"| A["Sortie OCR d'une plage<br/><code>&lt;document&gt;.ocr.json</code>"]
+    A -->|"1 · numrev extract"| B["Lignes<br/><code>.lines.json</code>"]
     B -->|"2 · numrev label<br/>(annotation interactive, CRF)"| C["Lignes annotées<br/><code>.labeled.json</code>"]
     C -->|"3 · numrev tabulate"| D["Table des lignes<br/><code>.lines.csv</code>"]
     D -.->|"curation manuelle"| D
