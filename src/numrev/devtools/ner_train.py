@@ -44,7 +44,7 @@ de mesurable sur le gold.
 
 Jeu gold et validation
 ----------------------
-Les textes du gold (`--gold`, dev et test) sont exclus des données, quelle
+Les textes du gold (`data/ner/gold.ls.json`, dev et test) sont exclus des données, quelle
 que soit leur source. Le split de validation se fait **par page** (les
 entrées d'une même page ne se répartissent pas entre entraînement et
 validation). Ce split ne sert qu'au suivi de l'entraînement ; la mesure qui
@@ -59,7 +59,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from numrev.command import APPLY_FLAG, CommandError, add_apply_argument, console
+from numrev import paths
+from numrev.command import APPLY_FLAG, CommandError, add_apply_argument, console, fine_tuning
 from numrev.ner.corpus import ls_texts
 from numrev.ner.gliner import DEFAULT_LABEL_TEXT, DEFAULT_THRESHOLD, NerConfig, predict_entities
 from numrev.ner.spans import (
@@ -71,7 +72,7 @@ from numrev.ner.spans import (
     project_spans,
     tokenize_with_offsets,
 )
-from numrev.paths import MODELS_DIR, NER_DATA_DIR
+from numrev.paths import MODELS_DIR
 
 DESCRIPTION = (
     "Entraîne un modèle GLiNER-bi sur des pré-annotations NER " "SUBJ/DESC/ADDR (format Label Studio) et évalue sur un split 80/20."
@@ -83,7 +84,6 @@ DEFAULT_SEED = 42
 DEFAULT_EPOCHS = 3.0
 DEFAULT_BATCH_SIZE = 8
 DEFAULT_LEARNING_RATE = 5e-5
-DEFAULT_GOLD = NER_DATA_DIR / "gold.ls.json"
 DEFAULT_MODELS_DIR = MODELS_DIR
 
 
@@ -418,55 +418,50 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         help="JSON Label Studio (ex. data/ner/train.ls.json de numrev train-set), un ou plusieurs.",
     )
     parser.add_argument(
-        "--gold",
-        type=Path,
-        default=DEFAULT_GOLD,
-        help=f"Gold dont les textes sont exclus de l'entraînement (défaut : {DEFAULT_GOLD}).",
-    )
-    parser.add_argument(
         "-o",
         "--output",
         type=Path,
         default=None,
         help="Dossier du modèle entraîné (défaut : models/<première entrée>.gliner-model/).",
     )
-    parser.add_argument(
+    fine = fine_tuning(parser)
+    fine.add_argument(
         "--base-model",
         type=str,
         default=DEFAULT_MODEL,
         help=f"Modèle GLiNER-bi de départ (défaut : {DEFAULT_MODEL}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--test-ratio",
         type=float,
         default=DEFAULT_TEST_RATIO,
         help=f"Proportion réservée à l'évaluation (défaut : {DEFAULT_TEST_RATIO}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--seed",
         type=int,
         default=DEFAULT_SEED,
         help=f"Graine du split train/test, pour reproductibilité (défaut : {DEFAULT_SEED}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--epochs",
         type=float,
         default=DEFAULT_EPOCHS,
         help=f"Nombre d'époques d'entraînement (défaut : {DEFAULT_EPOCHS}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--batch-size",
         type=int,
         default=DEFAULT_BATCH_SIZE,
         help=f"Taille de batch par device (défaut : {DEFAULT_BATCH_SIZE}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--learning-rate",
         type=float,
         default=DEFAULT_LEARNING_RATE,
         help=f"Taux d'apprentissage (défaut : {DEFAULT_LEARNING_RATE}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--max-width",
         type=int,
         default=None,
@@ -475,31 +470,31 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
             "à partir de la largeur maximale observée dans les données)."
         ),
     )
-    parser.add_argument(
+    fine.add_argument(
         "--threshold",
         type=float,
         default=DEFAULT_THRESHOLD,
         help=f"Score minimal d'un empan GLiNER, pour l'évaluation finale (défaut : {DEFAULT_THRESHOLD}).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--bf16",
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Entraînement en bfloat16 (défaut : activé automatiquement si un GPU CUDA est détecté).",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--label-subj",
         type=str,
         default=DEFAULT_LABEL_TEXT["SUBJ"],
         help=f"Libellé envoyé au modèle pour SUBJ (défaut : '{DEFAULT_LABEL_TEXT['SUBJ']}').",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--label-desc",
         type=str,
         default=DEFAULT_LABEL_TEXT["DESC"],
         help=f"Libellé envoyé au modèle pour DESC (défaut : '{DEFAULT_LABEL_TEXT['DESC']}').",
     )
-    parser.add_argument(
+    fine.add_argument(
         "--label-addr",
         type=str,
         default=DEFAULT_LABEL_TEXT["ADDR"],
@@ -513,8 +508,8 @@ def run(args: argparse.Namespace) -> None:
     missing = [path for path in args.input_paths if not path.exists()]
     if missing:
         raise CommandError(f"Fichier(s) introuvable(s) : {', '.join(map(str, missing))}.")
-    if not args.gold.exists():
-        console.print(f"[yellow]⚠ gold '{args.gold}' introuvable : aucune exclusion, l'audit sur ce gold serait biaisé.[/yellow]")
+    if not paths.NER_GOLD.exists():
+        console.print(f"[yellow]⚠ gold '{paths.NER_GOLD}' introuvable : aucune exclusion, l'audit sur ce gold serait biaisé.[/yellow]")
 
     label_text = {
         "SUBJ": args.label_subj,
@@ -530,7 +525,7 @@ def run(args: argparse.Namespace) -> None:
 
     console.print(f"Lecture et conversion de [yellow]{', '.join(p.name for p in args.input_paths)}[/yellow]...")
     try:
-        examples, conversion_report = load_examples(args.input_paths, label_text, ls_texts(args.gold))
+        examples, conversion_report = load_examples(args.input_paths, label_text, ls_texts(paths.NER_GOLD))
     except (json.JSONDecodeError, ValueError) as error:
         raise CommandError(str(error)) from error
 
@@ -608,7 +603,7 @@ def run(args: argparse.Namespace) -> None:
     report_path.write_text(
         format_report(
             input_paths=args.input_paths,
-            gold_path=args.gold if args.gold.exists() else None,
+            gold_path=paths.NER_GOLD if paths.NER_GOLD.exists() else None,
             output_dir=output_dir,
             model_name=args.base_model,
             label_text=label_text,

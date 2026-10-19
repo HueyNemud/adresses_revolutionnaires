@@ -37,7 +37,7 @@ class NerConfig:
     def load(cls, model_dir: Path) -> "NerConfig":
         path = model_dir / CONFIG_FILENAME
         if not path.exists():
-            raise FileNotFoundError(f"{path} introuvable : modèle non entraîné par numrev train.")
+            raise FileNotFoundError(f"{path} introuvable (numrev train l'écrit dans le dossier de chaque modèle).")
         return cls(json.loads(path.read_text(encoding="utf-8"))["label_text"])
 
     def save(self, model_dir: Path) -> None:

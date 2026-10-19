@@ -28,9 +28,12 @@ from numrev.command import (
     Writes,
     add_apply_argument,
     add_capture_arguments,
+    add_folder_argument,
     console,
-    default_output,
-    require_file,
+    fine_tuning,
+    require_input,
+    require_ranges,
+    write_or_plan,
 )
 from numrev.curation import (
     CORRECTED_COLUMN,
@@ -41,7 +44,7 @@ from numrev.curation import (
     write_csv,
 )
 from numrev.document import iter_line_locations
-from numrev.paths import LINES_CSV
+from numrev.paths import LABELED, LINES, LINES_CSV, range_document
 
 KEY_COLUMN = "cle"
 CLASS_COLUMN = "classe"
@@ -132,10 +135,9 @@ def process_json_to_csv(
 
     Pour un document annoté, applique le protocole de curation (lève
     CurationConflict sans rien écrire) et retourne la Curation ; None pour
-    un document brut, exporté tel quel. `writes` décide si les fichiers sont
-    écrits (numrev/command.py ; défaut : oui).
+    un document brut, exporté tel quel. `writes` : plan d'écriture de la
+    commande (numrev/command.py) ; sans lui, les fichiers sont écrits aussitôt.
     """
-    writes = writes or Writes()
     document: Any = json.loads(json_path.read_text(encoding="utf-8"))
     if not isinstance(document, list):
         raise ValueError("Le document JSON doit être une liste de pages.")
@@ -146,24 +148,34 @@ def process_json_to_csv(
         curation = Curation(LINES_STEP, csv_path, patch_file, force=force, capture=capture)
         rows = curation.apply(rows)
         curation.save_patch(writes)
-    writes.add(csv_path, lambda: write_csv(csv_path, CSV_FIELDS, rows))
+    write_or_plan(writes, csv_path, lambda: write_csv(csv_path, CSV_FIELDS, rows))
     return curation
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input", type=Path, help="JSON annoté (<document>.labeled.json) ou brut (<document>.lines.json).")
-    parser.add_argument("-o", "--output", type=Path, default=None, help="CSV de sortie (défaut : <document>.lines.csv).")
-    add_capture_arguments(parser)
+    add_folder_argument(parser)
+    add_capture_arguments(parser, fine_tuning(parser))
     add_apply_argument(parser)
 
 
+def table_input(range_dir: Path) -> Path:
+    """Le JSON annoté (`numrev label`) s'il existe, sinon le JSON brut de `numrev extract` (export sans patch)."""
+    labeled = range_document(range_dir, LABELED)
+    return labeled if labeled.exists() else require_input(range_dir, LINES, "extract")
+
+
 def run(args: argparse.Namespace) -> None:
-    output_path = args.output or default_output(args.input, LINES_CSV)
     writes = Writes(args.apply)
-    try:
-        curation = process_json_to_csv(require_file(args.input), output_path, force=args.force, capture=not args.no_capture, writes=writes)
-    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
-        raise CommandError(f"JSON {args.input} : {error}") from error
-    if curation is not None:
-        print_report(console, curation)
+    for range_dir in require_ranges(args.folder):
+        input_path = table_input(range_dir)
+        annotated = input_path.name.endswith(LABELED)
+        console.print(f"Entrée : [yellow]{input_path}[/yellow]" + ("" if annotated else " (lignes non annotées : export brut, sans patch)"))
+        try:
+            curation = process_json_to_csv(
+                input_path, range_document(range_dir, LINES_CSV), force=args.force, capture=not args.no_capture, writes=writes
+            )
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
+            raise CommandError(f"JSON {input_path} : {error}") from error
+        if curation is not None:
+            print_report(console, curation)
     writes.finish(console)

@@ -43,17 +43,16 @@ from pathlib import Path
 
 from rich.table import Table
 
-from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console
+from numrev import paths
+from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.curation import read_csv
 from numrev.ner.corpus import Entry, iter_corpus, ls_texts
 from numrev.ner.shapes import shape_profile
 from numrev.ner.spans import ls_result, normalize_markdown, signature
-from numrev.paths import ANNUAIRES_DIR, NER_DATA_DIR, NER_GOLD
+from numrev.paths import NER_DATA_DIR
 
 DESCRIPTION = "Tire le jeu gold NER stratifié et pondéré (tâches Label Studio)."
 
-DEFAULT_ROOT = ANNUAIRES_DIR
-DEFAULT_OUTPUT = NER_GOLD
 DEFAULT_EXCLUDE = sorted(NER_DATA_DIR.glob("train*.ls.json"))
 COMMON_SIGNATURES = {"SUBJ,ADDR", "SUBJ,DESC,ADDR"}
 STRATA = ("désaccord", "signature rare", "forme rare", "courant")
@@ -133,29 +132,29 @@ def build_task(entry: Entry, spans, stratum_name: str, weight: float, split: str
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="Dossier des volumes (défaut : annuaires).")
-    parser.add_argument("-o", "--output", type=Path, default=DEFAULT_OUTPUT, help=f"JSON Label Studio (défaut : {DEFAULT_OUTPUT}).")
-    parser.add_argument("--size", type=int, default=600, help="Nombre d'entrées tirées (défaut : 600).")
-    parser.add_argument("--random-share", type=float, default=0.5, help="Part répartie proportionnellement aux strates (défaut : 0.5).")
-    parser.add_argument("--dev-share", type=float, default=0.25, help="Part des pages en dev (défaut : 0.25).")
-    parser.add_argument("--rare-shape", type=int, default=50, help="Seuil d'effectif sous lequel une forme est rare (défaut : 50).")
-    parser.add_argument(
+    add_force_argument(parser, "Écraser un gold existant (et ses relectures).")
+    fine = fine_tuning(parser)
+    fine.add_argument("--size", type=int, default=600, help="Nombre d'entrées tirées (défaut : 600).")
+    fine.add_argument("--random-share", type=float, default=0.5, help="Part répartie proportionnellement aux strates (défaut : 0.5).")
+    fine.add_argument("--dev-share", type=float, default=0.25, help="Part des pages en dev (défaut : 0.25).")
+    fine.add_argument("--rare-shape", type=int, default=50, help="Seuil d'effectif sous lequel une forme est rare (défaut : 50).")
+    fine.add_argument(
         "--exclude",
         type=Path,
         nargs="*",
         default=DEFAULT_EXCLUDE,
         help="Échantillons d'entraînement à exclure (JSON Label Studio ou CSV ; défaut : data/ner/train*.ls.json).",
     )
-    parser.add_argument("--seed", type=int, default=42, help="Graine du tirage (défaut : 42).")
-    add_force_argument(parser, "Écraser un gold existant (et ses relectures).")
+    fine.add_argument("--seed", type=int, default=42, help="Graine du tirage (défaut : 42).")
     add_apply_argument(parser)
 
 
 def run(args: argparse.Namespace) -> None:
-    if args.output.exists() and not args.force:
-        raise CommandError(f"{args.output} existe déjà (relectures ?) ; --force pour l'écraser.")
+    output = paths.NER_GOLD
+    if output.exists() and not args.force:
+        raise CommandError(f"{output} existe déjà (relectures ?) ; --force pour l'écraser.")
 
-    entries = list(iter_corpus(args.root))
+    entries = list(iter_corpus(paths.ANNUAIRES_DIR))
     excluded = excluded_texts(args.exclude)
     console.print(f"{len(entries)} ENTRY lues, {len(excluded)} textes d'entraînement exclus ({len(args.exclude)} fichier(s)).")
 
@@ -183,11 +182,10 @@ def run(args: argparse.Namespace) -> None:
     rng.shuffle(tasks)  # ordre de relecture sans regroupement par strate
 
     def write() -> None:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(tasks, ensure_ascii=False, indent=1), encoding="utf-8")
+        output.write_text(json.dumps(tasks, ensure_ascii=False, indent=1), encoding="utf-8")
 
     writes = Writes(args.apply)
-    writes.add(args.output, write)
+    writes.add(output, write)
 
     table = Table(title=f"Jeu gold : {len(tasks)} entrées sur {len(universe)} textes distincts")
     for column in ("strate", "effectif", "tirées", "poids", "dev", "test"):

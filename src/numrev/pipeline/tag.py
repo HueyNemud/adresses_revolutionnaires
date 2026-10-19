@@ -58,6 +58,7 @@ reste du lot.
 import argparse
 import csv
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 from rich.progress import (
@@ -74,9 +75,11 @@ from numrev.command import (
     Writes,
     add_apply_argument,
     add_capture_arguments,
+    add_folder_argument,
     console,
-    default_output,
-    require_file,
+    fine_tuning,
+    require_input,
+    require_ranges,
 )
 from numrev.curation import (
     CORRECTED_COLUMN,
@@ -92,7 +95,7 @@ from numrev.curation import (
 from numrev.ner.gliner import DEFAULT_THRESHOLD, NerConfig, load_model, predict_spans
 from numrev.ner.spans import LABELS, normalize_markdown, parse_tagged_text, render_tagged_text, unproject_spans
 from numrev.ner.suspicion import DEFAULT_MIN_SCORE, SEPARATOR, confidence, suspicion_reasons
-from numrev.paths import NER
+from numrev.paths import ENTITIES, NER, NER_MODEL, range_document
 from numrev.titles import ROOT_UUID
 
 # Colonnes du CSV fusionné (numrev assemble).
@@ -186,23 +189,25 @@ def select_entries(rows: list[dict[str, str]]) -> tuple[list[int], list[str], li
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input", type=Path, help="Entités (<document>.entities.csv, sortie de numrev assemble).")
-    parser.add_argument("--model", type=Path, required=True, help="Dossier du modèle GLiNER entraîné (sortie de numrev train).")
-    parser.add_argument("-o", "--output", type=Path, default=None, help="CSV de sortie (défaut : <document>.ner.csv).")
+    add_folder_argument(parser)
     parser.add_argument(
+        "--model", type=Path, default=NER_MODEL, help=f"Dossier du modèle GLiNER entraîné par numrev train (défaut : {NER_MODEL})."
+    )
+    fine = fine_tuning(parser)
+    add_capture_arguments(parser, fine)
+    fine.add_argument(
         "--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help=f"Nombre de textes par lot d'inférence (défaut : {DEFAULT_BATCH_SIZE})."
     )
-    parser.add_argument(
+    fine.add_argument(
         "--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD})."
     )
-    parser.add_argument(
+    fine.add_argument(
         "--min-score",
         type=float,
         default=DEFAULT_MIN_SCORE,
         help=f"Score minimal d'empan sous lequel une entrée est signalée « score bas » (défaut : {DEFAULT_MIN_SCORE}).",
     )
-    add_capture_arguments(parser)
-    parser.add_argument(
+    fine.add_argument(
         "--verbose", action="store_true", help="Affiche le résultat de chaque ligne traitée (déconseillé sur un gros fichier)."
     )
     add_apply_argument(parser)
@@ -227,45 +232,44 @@ def write_output(curation: Curation, rows: list[dict[str, str]], output_path: Pa
     print_report(console, curation)
 
 
-def run(args: argparse.Namespace) -> None:
-    require_file(args.input)
-    try:
-        config = NerConfig.load(args.model)
-    except FileNotFoundError as error:
-        raise CommandError(str(error)) from error
-    output_path = args.output or default_output(args.input, NER)
-    writes = Writes(args.apply)
-    # Capture avant de charger le modèle : une panique ne coûte rien.
-    curation = Curation(NER_STEP, output_path, force=args.force, capture=not args.no_capture)
+@dataclass
+class Document:
+    """Une plage à baliser : ses entités lues, ses corrections capturées."""
 
-    console.print(f"Lecture de [yellow]{args.input.name}[/yellow]...")
+    input_path: Path
+    output_path: Path
+    curation: Curation
+    fieldnames: list[str]
+    rows: list[dict[str, str]]
+    indices: list[int]  # lignes ENTRY à traiter
+    texts: list[str]
+
+
+def read_document(range_dir: Path, args: argparse.Namespace) -> Document:
+    """Capture les corrections du `<document>.ner.csv` existant et lit les entités."""
+    input_path = require_input(range_dir, ENTITIES, "assemble")
+    output_path = range_document(range_dir, NER)
+    curation = Curation(NER_STEP, output_path, force=args.force, capture=not args.no_capture)
     try:
-        fieldnames, rows = read_csv(args.input)
+        fieldnames, rows = read_csv(input_path)
         output_fieldnames = insert_columns_after(fieldnames, ENTITY_COLUMN, NEW_COLUMNS)
     except (csv.Error, ValueError) as error:
-        raise CommandError(f"{args.input} : {error}") from error
+        raise CommandError(f"{input_path} : {error}") from error
     if FINGERPRINT_COLUMN not in output_fieldnames:
         output_fieldnames.append(FINGERPRINT_COLUMN)
     for row in rows:
         for column in NEW_COLUMNS:
             row.setdefault(column, "")
-
     indices, texts, empty_text_indices = select_entries(rows)
-    console.print(f"[green]{len(indices)}[/green] ligne(s) '{ENTRY_VALUE}' à traiter sur {len(rows)} lignes au total.")
+    console.print(f"{input_path.name} : [green]{len(indices)}[/green] ligne(s) '{ENTRY_VALUE}' à traiter sur {len(rows)}.")
     if empty_text_indices:
         console.print(f"[yellow]{len(empty_text_indices)} ligne(s) '{ENTRY_VALUE}' au texte vide, ignorée(s).[/yellow]")
-    if not indices:
-        console.print("[yellow]Aucune ligne à traiter.[/yellow]")
-        write_output(curation, rows, output_path, output_fieldnames, writes)
-        writes.finish(console)
-        return
+    return Document(input_path, output_path, curation, output_fieldnames, rows, indices, texts)
 
-    console.print(f"Chargement du modèle [cyan]{args.model}[/cyan]...")
-    try:
-        model = load_model(args.model)
-    except Exception as error:  # Surface large et imprévisible côté torch/HF Hub.
-        raise CommandError(f"chargement du modèle : {error}") from error
 
+def tag_document(document: Document, model, config: NerConfig, args: argparse.Namespace, writes: Writes) -> None:
+    """Inférence sur les ENTRY du document, corrections réappliquées, sortie planifiée."""
+    rows, indices, texts = document.rows, document.indices, document.texts
     errors: list[int] = []
 
     def report_error(position: int, error: Exception) -> None:
@@ -282,7 +286,7 @@ def run(args: argparse.Namespace) -> None:
         TimeRemainingColumn(),
     )
     with Progress(*columns, console=console) as progress:
-        task = progress.add_task("Inférence", total=len(indices))
+        task = progress.add_task(document.input_path.name, total=len(indices))
         predictions = predict_spans(
             model,
             config,
@@ -316,10 +320,10 @@ def run(args: argparse.Namespace) -> None:
         if args.verbose:
             console.print(f"[green]✓[/green] ligne {row_index}  {row['tagged_text']}")
 
-    write_output(curation, rows, output_path, output_fieldnames, writes)
+    write_output(document.curation, rows, document.output_path, document.fieldnames, writes)
 
     processed = len(indices) - len(errors)
-    console.print(f"\nInférence : {processed}/{len(indices)} lignes traitées.")
+    console.print(f"Inférence : {processed}/{len(indices)} lignes traitées.")
     console.print("Empans détectés — " + "  ·  ".join(f"{label} : {span_counts[label]}" for label in LABELS))
     if processed:
         detail = ", ".join(f"{reason} {count}" for reason, count in reason_counts.most_common())
@@ -329,4 +333,31 @@ def run(args: argparse.Namespace) -> None:
         )
     if errors:
         console.print(f"[red]✗ {len(errors)} ligne(s) en échec (voir le détail ci-dessus).[/red]")
+
+
+def run(args: argparse.Namespace) -> None:
+    if not args.model.is_dir():
+        raise CommandError(f"dossier de modèle '{args.model}' introuvable (--model pour en désigner un autre).")
+    try:
+        config = NerConfig.load(args.model)
+    except FileNotFoundError as error:
+        raise CommandError(str(error)) from error
+    writes = Writes(args.apply)
+    # Capture de toutes les plages avant de charger le modèle : une panique ne coûte rien.
+    documents = [read_document(range_dir, args) for range_dir in require_ranges(args.folder)]
+
+    model = None
+    if any(document.indices for document in documents):
+        console.print(f"Chargement du modèle [cyan]{args.model}[/cyan]...")
+        try:
+            model = load_model(args.model)
+        except Exception as error:  # Surface large et imprévisible côté torch/HF Hub.
+            raise CommandError(f"chargement du modèle : {error}") from error
+
+    for document in documents:
+        if document.indices:
+            tag_document(document, model, config, args, writes)
+        else:
+            console.print(f"[yellow]{document.input_path.name} : aucune ligne à traiter.[/yellow]")
+            write_output(document.curation, document.rows, document.output_path, document.fieldnames, writes)
     writes.finish(console)

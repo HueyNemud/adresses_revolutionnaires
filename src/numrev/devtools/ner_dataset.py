@@ -29,16 +29,13 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from numrev.command import Writes, add_apply_argument, console
+from numrev import paths
+from numrev.command import Writes, add_apply_argument, console, fine_tuning
 from numrev.ner.corpus import iter_corpus, ls_texts
 from numrev.ner.spans import Span, ls_result, signature
-from numrev.paths import ANNUAIRES_DIR, NER_GOLD, NER_TRAIN
 
 DESCRIPTION = "Construit un jeu d'entraînement NER à partir des CSV NER de annuaires/."
 
-DEFAULT_ROOT = ANNUAIRES_DIR
-DEFAULT_GOLD = NER_GOLD
-DEFAULT_OUTPUT = NER_TRAIN
 DEFAULT_SIZE = 15000
 
 
@@ -106,24 +103,23 @@ def to_task(candidate: Candidate) -> dict:
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help="Dossier des volumes (défaut : annuaires).")
-    parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD, help=f"Gold dont les textes sont exclus (défaut : {DEFAULT_GOLD}).")
-    parser.add_argument("--size", type=int, default=DEFAULT_SIZE, help=f"Nombre d'exemples (défaut : {DEFAULT_SIZE}).")
-    parser.add_argument("--seed", type=int, default=42, help="Graine du tirage (défaut : 42).")
-    parser.add_argument("-o", "--output", type=Path, default=DEFAULT_OUTPUT, help=f"JSON de sortie (défaut : {DEFAULT_OUTPUT}).")
+    fine = fine_tuning(parser)
+    fine.add_argument("--size", type=int, default=DEFAULT_SIZE, help=f"Nombre d'exemples (défaut : {DEFAULT_SIZE}).")
+    fine.add_argument("--seed", type=int, default=42, help="Graine du tirage (défaut : 42).")
     add_apply_argument(parser)
 
 
 def run(args: argparse.Namespace) -> None:
     rng = random.Random(args.seed)
-    if not args.gold.exists():
-        console.print(f"[yellow]⚠ gold '{args.gold}' introuvable : aucune exclusion.[/yellow]")
-    excluded = ls_texts(args.gold)
+    gold, output = paths.NER_GOLD, paths.NER_TRAIN
+    if not gold.exists():
+        console.print(f"[yellow]⚠ gold '{gold}' introuvable : aucune exclusion.[/yellow]")
+    excluded = ls_texts(gold)
 
     seen: set[str] = set()
     candidates: list[Candidate] = []
     dropped = Counter()
-    for candidate in corpus_candidates(args.root):
+    for candidate in corpus_candidates(paths.ANNUAIRES_DIR):
         if candidate.text in excluded:
             dropped["gold"] += 1
         elif candidate.text in seen:
@@ -139,11 +135,10 @@ def run(args: argparse.Namespace) -> None:
     writes = Writes(args.apply)
 
     def write() -> None:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
         # JSON compact : le fichier est versionné pour la machine d'entraînement.
-        args.output.write_text(json.dumps([to_task(c) for c in chosen], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        output.write_text(json.dumps([to_task(c) for c in chosen], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
-    writes.add(args.output, write)
+    writes.add(output, write)
 
     manifest = {
         "arguments": {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items() if k != "apply"},
@@ -155,7 +150,7 @@ def run(args: argparse.Namespace) -> None:
         "formes_distinctes": len({c.shape for c in chosen}),
         "20_formes_principales": Counter(c.shape for c in chosen).most_common(20),
     }
-    manifest_path = args.output.with_suffix(".manifest.json")
+    manifest_path = output.with_suffix(".manifest.json")
     writes.add(manifest_path, lambda: manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8"))
 
     console.print(f"{len(candidates)} candidats ({dict(dropped)} écartés) → [cyan]{len(chosen)}[/cyan] exemples.")

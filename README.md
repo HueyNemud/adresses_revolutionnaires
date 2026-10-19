@@ -69,16 +69,20 @@ et s'arrête sans rien écrire si une correction ne s'applique plus (voir
 Toutes les commandes se lancent depuis la racine du dépôt. Celles qui
 écrivent des fichiers de données **simulent par défaut** (elles affichent ce
 qu'elles écriraient) : `--apply` écrit. `uv run numrev <commande> --help`
-détaille les options.
+détaille les options : l'essentiel d'abord, puis les « Réglages fins ».
 
 ```bash
-# Étapes 1 à 5, sur une plage de pages
-D=annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186
-uv run numrev extract  $D.ocr.json --apply        # → $D.lines.json
-uv run numrev label    $D.lines.json --apply      # → $D.labeled.json (annotation interactive)
-uv run numrev tabulate $D.labeled.json --apply    # → $D.lines.csv, à corriger à la main
-uv run numrev assemble $D.lines.csv --apply       # → $D.entities.csv (+ .entities.report.txt)
-uv run numrev tag      $D.entities.csv --model models/<nom>.gliner-model --apply   # → $D.ner.csv, à relire
+# Où en est-on ? (par plage : étapes faites, absentes ou périmées, et la commande suivante)
+uv run numrev status
+
+# Étapes 0 à 5 : sur une plage (annuaires/<volume>/<première>-<dernière page>)
+# ou sur un volume entier (annuaires/<volume>, toutes ses plages)
+uv run numrev ocr      annuaires/1808_AD75-PER292/7-186 --apply   # OCR latynna (serveur vLLM lancé)
+uv run numrev extract  annuaires/1808_AD75-PER292 --apply         # lignes
+uv run numrev label    annuaires/1808_AD75-PER292/7-186           # annotation interactive, une plage
+uv run numrev tabulate annuaires/1808_AD75-PER292 --apply         # table des lignes, à corriger à la main
+uv run numrev assemble annuaires/1808_AD75-PER292 --apply         # entités et arbre des titres
+uv run numrev tag      annuaires/1808_AD75-PER292 --apply         # empans NER, à relire
 
 # Étapes 6 et 7, sur une paire d'annuaires complets
 uv run numrev align nw annuaires/<A> annuaires/<B> --apply       # alignement ordonné, sans apprentissage
@@ -93,7 +97,7 @@ uv run numrev view alignment     # un alignement, aide à la relecture
 uv run numrev gold ner --apply                    # tire le gold NER (une fois)
 uv run numrev train-set --apply                   # jeu d'entraînement NER → data/ner/train.ls.json
 uv run numrev train data/ner/train.ls.json --apply   # entraîne GLiNER (machine GPU)
-uv run numrev audit ner --split dev --model models/<nom>.gliner-model   # → reports/ner/
+uv run numrev audit ner --split dev --model models/ner.gliner-model   # → reports/ner/
 uv run numrev audit crf                           # CRF de l'étape 2 → reports/crf/
 uv run numrev gold alignment annuaires/<A> annuaires/<B> --apply   # gold d'inversions à étiqueter (une fois)
 uv run numrev audit alignment data/alignment/<A>__<B>.gold-inversions.csv   # → reports/alignment/
@@ -138,5 +142,5 @@ uv run black src tests && uv run ruff check src tests
 | `data/ner/` | Gold d'évaluation et jeu d'entraînement NER (Label Studio) |
 | `explorations/` | Notebooks exploratoires |
 | `annuaires/` | Dossiers de travail par volume et sorties d'alignement (hors git) |
-| `models/` | Modèles GLiNER entraînés (hors git) |
+| `models/` | Modèles GLiNER entraînés (hors git) ; `models/ner.gliner-model` = modèle de production |
 | `reports/` | Rapports d'audit |

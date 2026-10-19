@@ -6,10 +6,10 @@ humain, réentraîne un CRF après chaque lot, et exporte une copie du JSON où 
 prédiction et de sa provenance.
 
 La session (`<document>.label-session.json`) est enregistrée après chaque
-action : c'est l'état de travail, qu'on reprend en relançant la commande.
-L'export du JSON annoté, lui, suit la convention commune (numrev/command.py) :
-simulation par défaut, écrit avec `--apply` — relancer avec `--apply` et
-quitter aussitôt (`q`) exporte une session terminée.
+action : c'est l'état de travail, qu'on reprend en relançant la commande. Le
+JSON annoté est exporté à la fin de chaque session (`q` ou document terminé) :
+seule exception à la simulation par défaut (numrev/command.py), puisque
+l'annotation est déjà une action explicite.
 
 Ce module ne contient que l'interface (dashboard, sessions, CLI) : le moteur
 (features, entraînement, sélection des lignes) est dans `numrev.crf`.
@@ -27,7 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from numrev.command import CommandError, Writes, add_apply_argument, console, default_output, require_file
+from numrev.command import CommandError, Writes, add_folder_argument, console, fine_tuning, require_input, require_ranges
 from numrev.crf.active_learning import (
     ActiveCRF,
     AnnotationHistory,
@@ -38,7 +38,7 @@ from numrev.crf.active_learning import (
     validate_labels,
 )
 from numrev.crf.labels import CLASSES, AnnotationLabel
-from numrev.paths import LABEL_SESSION, LABELED
+from numrev.paths import LABEL_SESSION, LABELED, LINES, range_document
 
 LABEL_KEYS = {
     "1": AnnotationLabel.BENTRY.value,
@@ -167,13 +167,11 @@ def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int])
 # 2. Point d'entrée CLI
 # ----------------------------------------------------------------------
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input", type=Path, help="Lignes extraites (<document>.lines.json, sortie de numrev extract).")
-    parser.add_argument("-o", "--output", type=Path, default=None, help="JSON annoté de sortie (défaut : <document>.labeled.json).")
-    parser.add_argument(
+    add_folder_argument(parser)
+    parser.add_argument("--reset-session", action="store_true", help="Ignore une session existante et démarre une nouvelle annotation.")
+    fine_tuning(parser).add_argument(
         "--seed-size", type=int, default=12, help="Nombre d'annotations diversifiées avant l'échantillonnage par incertitude (défaut : 12)."
     )
-    parser.add_argument("--reset-session", action="store_true", help="Ignore une session existante et démarre une nouvelle annotation.")
-    add_apply_argument(parser)
 
 
 def load_session_state(session_path: Path, document_hash: str) -> tuple[list[str | None], AnnotationHistory | None, LabelTimestamps] | None:
@@ -342,20 +340,24 @@ def annotate_interactively(crf: ActiveCRF, session_path: Path, document_hash: st
 
 
 def run(args: argparse.Namespace) -> None:
-    require_file(args.input)
+    ranges = require_ranges(args.folder)
+    if len(ranges) > 1:
+        raise CommandError(f"label annote une plage à la fois ; plages de ce volume : {', '.join(r.name for r in ranges)}.")
+    range_dir = ranges[0]
+    input_path = require_input(range_dir, LINES, "extract")
     if args.seed_size < 1:
         raise CommandError("--seed-size doit être supérieur à zéro.")
     try:
-        records, raw_document, document_hash = load_json_lines(args.input)
+        records, raw_document, document_hash = load_json_lines(input_path)
     except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
-        raise CommandError(f"JSON {args.input} : {error}") from error
+        raise CommandError(f"JSON {input_path} : {error}") from error
     if not records:
         console.print("[yellow]Le JSON ne contient pas de lignes Markdown annotables.[/yellow]")
         return
 
-    session_path = default_output(args.input, LABEL_SESSION)
-    output_path = args.output or default_output(args.input, LABELED)
-    writes = Writes(args.apply)
+    session_path = range_document(range_dir, LABEL_SESSION)
+    output_path = range_document(range_dir, LABELED)
+    writes = Writes(apply=True)  # export à la fin de la session, sans --apply (voir la docstring)
     crf = ActiveCRF(records, raw_document, seed_size=args.seed_size)
     if not args.reset_session:
         try:

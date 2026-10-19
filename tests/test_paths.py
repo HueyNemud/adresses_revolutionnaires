@@ -2,7 +2,20 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from numrev.paths import ENTITIES, LINES_CSV, NER, Pair, discover, document_name, join_output, raw_alignment, step_path, volume_of
+from numrev.paths import (
+    ENTITIES,
+    LINES_CSV,
+    NER,
+    Pair,
+    discover,
+    document_name,
+    join_output,
+    page_range,
+    selected_ranges,
+    step_path,
+    volume_of,
+    volume_pdf,
+)
 
 
 class DocumentNameTests(unittest.TestCase):
@@ -30,9 +43,30 @@ class DocumentNameTests(unittest.TestCase):
             self.assertEqual(discover(root, LINES_CSV), [])
 
 
+class RangeTests(unittest.TestCase):
+    def test_page_range_is_one_based_and_inclusive(self):
+        self.assertEqual(page_range(Path("annuaires/V/7-186")), (7, 186))
+        for name in ("notes", "186-7", "0-5"):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                page_range(Path("annuaires/V") / name)
+
+    def test_volume_pdf(self):
+        self.assertEqual(volume_pdf(Path("annuaires/V")), Path("annuaires/V/V.pdf"))
+
+    def test_selected_ranges_of_a_range_or_a_volume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            volume = Path(tmp) / "V"
+            for name in ("188-194", "7-186", "notes"):
+                (volume / name).mkdir(parents=True)
+            self.assertEqual(selected_ranges(volume / "7-186"), [volume / "7-186"])
+            self.assertEqual(selected_ranges(volume), [volume / "7-186", volume / "188-194"])
+            with self.assertRaisesRegex(ValueError, "ni une plage"):
+                selected_ranges(volume / "notes")
+
+
 class PairTests(unittest.TestCase):
     def test_of_file(self):
-        for name in ("A__B.nw.csv", "A__B.raw-sections.dedupe.csv", "A__B.gold-inversions.csv", "A__B.csv"):
+        for name in ("A__B.nw.csv", "A__B.dedupe.csv", "A__B.gold-inversions.csv", "A__B.csv"):
             with self.subTest(name=name):
                 self.assertEqual(Pair.of_file(Path(name)).name, "A__B")
         with self.assertRaises(ValueError):
@@ -49,7 +83,6 @@ class PairTests(unittest.TestCase):
         self.assertEqual(pair.entry_patch, Path("data/alignment/A__B.patch.csv"))
         self.assertEqual(pair.section_patch, Path("data/alignment/A__B.sections.csv"))
         self.assertEqual(pair.output(".nw.csv"), Path("annuaires/alignments/A__B.nw.csv"))
-        self.assertEqual(raw_alignment(pair.output()), Path("annuaires/alignments/A__B.dedupe.csv"))
         self.assertEqual(join_output(pair.output(".nw.csv")), Path("annuaires/alignments/A__B.nw.join.csv"))
 
 

@@ -23,7 +23,7 @@ class Command:
 
 PIPELINE: dict[str, Command | dict[str, Command]] = {
     "ocr": Command("numrev.pipeline.ocr", "0 · OCR latynna d'une plage de pages      <vol>.pdf → <doc>.ocr.json"),
-    "extract": Command("numrev.pipeline.extract", "1 · lignes de la sortie OCR (1 <span> = 1 ligne) → <doc>.lines.json"),
+    "extract": Command("numrev.pipeline.extract", "1 · lignes de la sortie OCR (1 <span> = 1 ligne) <doc>.ocr.json → <doc>.lines.json"),
     "label": Command("numrev.pipeline.label", "2 · annotation interactive des lignes (CRF) → <doc>.labeled.json"),
     "tabulate": Command("numrev.pipeline.tabulate", "3 · table des lignes, corrigée à la main   → <doc>.lines.csv"),
     "assemble": Command("numrev.pipeline.assemble", "4 · entités et arbre des titres            → <doc>.entities.csv"),
@@ -37,6 +37,7 @@ PIPELINE: dict[str, Command | dict[str, Command]] = {
     "join": Command("numrev.pipeline.join", "7 · jointure lisible de deux annuaires alignés → <alignement>.join.csv"),
 }
 TOOLS: dict[str, Command | dict[str, Command]] = {
+    "status": Command("numrev.devtools.status", "état de la chaîne par plage et prochaine commande à lancer"),
     "view": Command("numrev.viewers", "viewer Streamlit : directory (un annuaire, NER) | alignment (relecture d'un alignement)"),
     "gold": {
         "ner": Command("numrev.devtools.ner_gold", "tire le gold NER à relire (data/ner/gold.ls.json)"),
@@ -67,13 +68,15 @@ def usage() -> str:
         [
             "usage : numrev <commande> [<sous-commande>] [options]   (numrev <commande> --help pour le détail)",
             "",
-            "Chaîne de traitement, par plage de pages (0-5) puis par paire d'annuaires (6-7) :",
+            "Chaîne de traitement : étapes 0-5 sur une plage annuaires/<volume>/<plage> ou un volume annuaires/<volume>,"
+            "\nétapes 6-7 sur une paire d'annuaires :",
             *lines(PIPELINE),
             "",
             "Consultation, modèles et évaluation :",
             *lines(TOOLS),
             "",
             "Les commandes qui écrivent des données simulent par défaut : --apply écrit.",
+            "Pour savoir où en est chaque plage et quoi lancer ensuite : numrev status.",
         ]
     )
 

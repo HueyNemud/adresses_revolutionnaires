@@ -48,7 +48,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
-from numrev.command import Writes
+from numrev.command import Writes, write_or_plan
 from numrev.paths import curation_patch
 
 CORRECTED_COLUMN = "corrige"
@@ -362,7 +362,7 @@ class Curation:
         """Réécrit le patch (créé seulement s'il y a des corrections), selon
         `writes` (numrev/command.py ; défaut : écrit)."""
         if self.corrections or self.patch_file.exists():
-            (writes or Writes()).add(self.patch_file, lambda: write_csv(self.patch_file, self.step.patch_fields, self.corrections))
+            write_or_plan(writes, self.patch_file, lambda: write_csv(self.patch_file, self.step.patch_fields, self.corrections))
 
 
 def refuse_orphans(orphans: list[str], force: bool, what: str) -> None:

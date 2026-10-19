@@ -39,7 +39,7 @@ from numrev.alignment.nw import Params
 from numrev.alignment.pair import load_pair, pair_of_file
 from numrev.alignment.records import read_links
 from numrev.alignment.review import DEFAULT_MARGIN, LEVEL_LABELS, review
-from numrev.command import CommandError, console, require_file
+from numrev.command import CommandError, console, fine_tuning, require_file
 from numrev.curation import read_csv
 from numrev.paths import NW_SUFFIX, REPORTS_DIR
 from numrev.reporting import md_table
@@ -85,11 +85,12 @@ def unmatched_section_table(sections, left_name: str, right_name: str) -> str:
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("gold", type=Path, help="Gold étiqueté (data/alignment/<gauche>__<droite>.gold-inversions.csv).")
-    parser.add_argument(
+    parser.add_argument("-o", "--output", type=Path, default=None, help=f"Rapport (défaut : {REPORT_DIR}/<paire>.md).")
+    fine = fine_tuning(parser)
+    fine.add_argument(
         "--alignment", type=Path, default=None, help=f"Sortie d'alignement (défaut : annuaires/alignments/<paire>{NW_SUFFIX})."
     )
-    parser.add_argument("--margin", type=float, default=DEFAULT_MARGIN, help=f"Écart « homonyme proche » (défaut : {DEFAULT_MARGIN}).")
-    parser.add_argument("-o", "--output", type=Path, default=None, help=f"Rapport (défaut : {REPORT_DIR}/<paire>.md).")
+    fine.add_argument("--margin", type=float, default=DEFAULT_MARGIN, help=f"Écart « homonyme proche » (défaut : {DEFAULT_MARGIN}).")
 
 
 def run(args: argparse.Namespace) -> None:

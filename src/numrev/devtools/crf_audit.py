@@ -34,7 +34,8 @@ from pathlib import Path
 import numpy as np
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeElapsedColumn
 
-from numrev.command import CommandError, console
+import numrev.paths
+from numrev.command import CommandError, console, fine_tuning
 from numrev.crf.evaluation import (
     LABEL_INDEX,
     N_CLASSES,
@@ -74,7 +75,7 @@ from numrev.crf.features import (
 from numrev.crf.labels import CLASSES
 from numrev.crf.model import DEFAULT_CONFIG, TrainingConfig, iter_labeled_segments, open_tagger, train_model
 from numrev.crf.silver import SilverDocument, discover_silver_csvs, load_silver_corpus
-from numrev.paths import ANNUAIRES_DIR, REPORTS_DIR
+from numrev.paths import REPORTS_DIR
 from numrev.reporting import fmt, fmt_ci, fmt_delta, md_code, md_table, write_table
 from numrev.stats import bootstrap_weights, calibration_table, expected_calibration_error, interval, resample, review_capture, roc_auc
 
@@ -1167,31 +1168,27 @@ def select_groups(
 # Programme principal
 # ----------------------------------------------------------------------
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("csv_files", nargs="*", type=Path, help="CSV curés (défaut : tous les *.lines.csv sous --root).")
-    parser.add_argument(
-        "--root", type=Path, default=ANNUAIRES_DIR, help="Dossier où chercher les tables de lignes curées (défaut : annuaires)."
-    )
+    parser.add_argument("csv_files", nargs="*", type=Path, help="CSV curés (défaut : tous les *.lines.csv de annuaires/).")
     parser.add_argument("-o", "--output", type=Path, default=REPORTS_DIR / "crf", help="Dossier du rapport (défaut : reports/crf).")
-    parser.add_argument("--folds", type=int, default=5, help="Plis de pages contiguës par document (défaut : 5).")
-    parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
-    parser.add_argument("--workers", type=int, default=12, help="Processus parallèles (défaut : 12).")
-    parser.add_argument("--seed", type=int, default=0, help="Graine des plis et du bootstrap (défaut : 0).")
-    parser.add_argument("--no-single-groups", dest="single_groups", action="store_false", help="Ne pas évaluer chaque groupe seul.")
-    parser.add_argument(
+    fine = fine_tuning(parser)
+    fine.add_argument("--folds", type=int, default=5, help="Plis de pages contiguës par document (défaut : 5).")
+    fine.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
+    fine.add_argument("--workers", type=int, default=12, help="Processus parallèles (défaut : 12).")
+    fine.add_argument("--seed", type=int, default=0, help="Graine des plis et du bootstrap (défaut : 0).")
+    fine.add_argument("--no-single-groups", dest="single_groups", action="store_false", help="Ne pas évaluer chaque groupe seul.")
+    fine.add_argument(
         "--no-candidates", dest="candidates", action="store_false", help="Ne pas évaluer les groupes candidats ni la sélection."
     )
-    parser.add_argument(
-        "--no-learning-curve", dest="learning_curve", action="store_false", help="Ne pas calculer la courbe d'apprentissage."
-    )
-    parser.add_argument("--learning-curve-seeds", type=int, default=3, help="Tirages par budget de la courbe d'apprentissage (défaut : 3).")
-    parser.add_argument("--hyperparams", action="store_true", help="Ajouter une grille c1 × c2 (plus long).")
-    parser.add_argument("--no-cache", action="store_true", help="Ne pas réutiliser ni écrire le cache des prédictions (<sortie>/cache).")
-    parser.add_argument("--examples", type=int, default=6, help="Exemples par type d'erreur dans le rapport (défaut : 6).")
+    fine.add_argument("--no-learning-curve", dest="learning_curve", action="store_false", help="Ne pas calculer la courbe d'apprentissage.")
+    fine.add_argument("--learning-curve-seeds", type=int, default=3, help="Tirages par budget de la courbe d'apprentissage (défaut : 3).")
+    fine.add_argument("--hyperparams", action="store_true", help="Ajouter une grille c1 × c2 (plus long).")
+    fine.add_argument("--no-cache", action="store_true", help="Ne pas réutiliser ni écrire le cache des prédictions (<sortie>/cache).")
+    fine.add_argument("--examples", type=int, default=6, help="Exemples par type d'erreur dans le rapport (défaut : 6).")
 
 
 def run(args: argparse.Namespace) -> None:
     started = time.time()
-    paths = args.csv_files or discover_silver_csvs(args.root)
+    paths = args.csv_files or discover_silver_csvs(numrev.paths.ANNUAIRES_DIR)
     missing = [p for p in paths if not p.exists()]
     if missing or not paths:
         raise CommandError(f"aucun CSV curé trouvé, ou fichier(s) introuvable(s) : {missing}")

@@ -1,8 +1,11 @@
+import argparse
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
+from numrev.command import CommandError
+from numrev.pipeline import extract
 from numrev.pipeline.extract import load_document, process_json_to_json
 
 
@@ -152,6 +155,21 @@ class ExtractLatynnaLinesTests(unittest.TestCase):
         document = [page('<div data-bbox="0 0 1000 1000" data-label="Text">' + span("Texte") + "</div>", chunks=0)]
 
         self.assertIsNone(load_document(self.write(document))[0].data_blocks[0].chunk_index)
+
+
+class ExtractVolumeTests(unittest.TestCase):
+    def test_a_failing_range_leaves_the_whole_volume_unwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            volume = Path(tmp) / "V"
+            good = '<div data-bbox="0 0 1000 1000" data-label="Text"><p>' + span("Brou.") + "</p></div>"
+            bad = '<div data-bbox="0 0 1000 1000" data-label="Text"><p>Brou.</p></div>'
+            for name, raw in (("7-9", good), ("10-12", bad)):
+                (volume / name).mkdir(parents=True)
+                (volume / name / f"V.{name}.ocr.json").write_text(json.dumps([page(raw)]), encoding="utf-8")
+
+            with self.assertRaisesRegex(CommandError, "V.10-12.ocr.json : page 7, bloc 1"):
+                extract.run(argparse.Namespace(folder=volume, apply=True))
+            self.assertFalse((volume / "7-9" / "V.7-9.lines.json").exists())
 
 
 if __name__ == "__main__":

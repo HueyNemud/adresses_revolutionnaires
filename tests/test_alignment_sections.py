@@ -1,6 +1,9 @@
+import io
 import tempfile
 import unittest
 from pathlib import Path
+
+from rich.console import Console
 
 from numrev.alignment.records import SOURCE_MANUAL, Link, Record, dedupe_records
 from numrev.alignment.sections import (
@@ -113,7 +116,9 @@ class AlignSectionsTests(unittest.TestCase):
             write_section_patch(
                 path, [SectionPatchEntry(left_uuid="ancien", right_uuid="d:marchands d arbres", left_title="JARDINIERS FLEURISTES")]
             )
-            load_section_alignment(records("g", LEFT), records("d", RIGHT), path, writes=Writes())
+            writes = Writes()
+            load_section_alignment(records("g", LEFT), records("d", RIGHT), path, writes=writes)
+            writes.finish(Console(file=io.StringIO()))
             self.assertEqual(read_section_patch(path)[0].left_uuid, "g:jardiniers fleuristes")
 
 

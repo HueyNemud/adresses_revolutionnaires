@@ -60,7 +60,7 @@ elle s'arrête et vous explique pourquoi (voir
 ## Corriger les lignes (étape 3)
 
 **Fichier :** `annuaires/<volume>/<plage>/<…>.lines.csv`
-**Commande à relancer :** `uv run numrev tabulate <…>.labeled.json --apply` (sans `--apply` : simulation, qui montre les conflits sans rien écrire)
+**Commande à relancer :** `uv run numrev tabulate annuaires/<volume>/<plage> --apply` (sans `--apply` : simulation, qui montre les conflits sans rien écrire)
 **Patch :** `data/curation/<volume>.<plage>.lines.patch.csv`
 
 On y corrige deux colonnes : `classe` (le type de ligne : `B-ENTRY`,
@@ -157,7 +157,7 @@ originales en `SUPPRIMÉE`, toutes les copies sans clé.
 ## Corriger le NER et les rubriques (étape 5)
 
 **Fichier :** `annuaires/<volume>/<plage>/<…>.ner.csv`
-**Commande à relancer :** `uv run numrev tag <…>.entities.csv --model <modèle> --apply`
+**Commande à relancer :** `uv run numrev tag annuaires/<volume>/<plage> --apply`
 **Patch :** `data/curation/<volume>.<plage>.ner.patch.csv`
 
 Chaque ligne du fichier est une **entrée** (ou un titre). On y corrige

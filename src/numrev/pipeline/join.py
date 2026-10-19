@@ -45,7 +45,7 @@ from numrev.alignment.patch import apply_patch, declared_unmatched, load_patch, 
 from numrev.alignment.records import read_links
 from numrev.alignment.review import DEFAULT_MARGIN, review
 from numrev.alignment.sections import restrict_to_corresponding
-from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console
+from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.curation import refuse_orphans
 from numrev.paths import join_output
 
@@ -54,17 +54,17 @@ DESCRIPTION = "Exporte en CSV la jointure lisible de deux annuaires alignés (un
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("alignment", type=Path, help="Sortie d'alignement (ex. annuaires/alignments/<gauche>__<droite>.nw.csv).")
-    parser.add_argument("-o", "--output", type=Path, help="CSV de sortie (défaut : <entrée>.join.csv).")
     parser.add_argument("--excel", action="store_true", help="Séparateur `;` et UTF-8 avec BOM (tableur en français).")
-    parser.add_argument("--no-patch", action="store_true", help="Ne pas appliquer le patch des corrections manuelles.")
     parser.add_argument("--candidates", action="store_true", help="Ajouter les candidates non appariées à vérifier (statut `candidate`).")
-    parser.add_argument(
+    add_force_argument(parser, "Ignorer les lignes orphelines des patchs (sinon : arrêt sans rien écrire).")
+    fine = fine_tuning(parser)
+    fine.add_argument("--no-patch", action="store_true", help="Ne pas appliquer le patch des corrections manuelles.")
+    fine.add_argument(
         "--margin",
         type=float,
         default=DEFAULT_MARGIN,
         help=f"Écart de similarité sous lequel une concurrente fait signaler `homonyme proche` (défaut : {DEFAULT_MARGIN}).",
     )
-    add_force_argument(parser, "Ignorer les lignes orphelines des patchs (sinon : arrêt sans rien écrire).")
     add_apply_argument(parser)
 
 
@@ -107,7 +107,7 @@ def run(args: argparse.Namespace) -> None:
     if n_missing:
         console.print(f"[bold red]⚠ {n_missing} lien(s) vers des entrées disparues, ignoré(s) : relancer l'alignement.[/bold red]")
 
-    output = args.output or join_output(args.alignment)
+    output = join_output(args.alignment)
     writes.add(
         output, lambda: output.write_text(export_csv(rows, args.excel, found.reviews), encoding=export_encoding(args.excel), newline="")
     )

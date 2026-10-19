@@ -35,7 +35,8 @@ from pathlib import Path
 
 import numpy as np
 
-from numrev.command import CommandError, console
+from numrev import paths
+from numrev.command import CommandError, console, fine_tuning
 from numrev.curation import read_csv
 from numrev.ner.gliner import DEFAULT_THRESHOLD
 from numrev.ner.metrics import METRICS, Comparison, Scored, compare, page_bootstrap, paired_delta, summarize
@@ -49,13 +50,12 @@ from numrev.ner.spans import (
     spans_from_ls_result,
 )
 from numrev.ner.suspicion import DEFAULT_MIN_SCORE, REASONS, SEPARATOR, suspicion_reasons
-from numrev.paths import NER_GOLD, REPORTS_DIR
+from numrev.paths import REPORTS_DIR
 from numrev.reporting import fmt, fmt_ci, fmt_delta, md_code, md_table, write_table
 from numrev.stats import review_capture, roc_auc
 
 DESCRIPTION = "Audit de la NER SUBJ/DESC/ADDR sur le jeu gold relu."
 
-DEFAULT_GOLD = NER_GOLD
 DEFAULT_OUTPUT_DIR = REPORTS_DIR / "ner"
 REVIEW_BUDGETS = (0.05, 0.10, 0.20, 0.30)
 SUSPICION_THRESHOLDS = (0.5, 0.7, 0.8, 0.9, 0.95, 0.99)
@@ -240,7 +240,7 @@ def write_report(
     lines = [
         "# Audit NER SUBJ / DESC / ADDR",
         "",
-        f"Généré par `numrev audit ner` le {time.strftime('%Y-%m-%d %H:%M')} : gold `{args.gold}`, split **{args.split}**, "
+        f"Généré par `numrev audit ner` le {time.strftime('%Y-%m-%d %H:%M')} : gold `{paths.NER_GOLD}`, split **{args.split}**, "
         f"{len(entries)} entrées relues ({unreviewed} non relues ignorées) sur {n_pages} pages, "
         f"{args.bootstrap} rééchantillonnages bootstrap par page. Métriques pondérées par le plan de sondage "
         "(représentatives du corpus entier). Conventions : `docs/guide_annotation_ner.md`.",
@@ -352,19 +352,7 @@ def write_errors(path: Path, entries: Sequence[GoldEntry], systems: Sequence[Sys
 # CLI
 # ----------------------------------------------------------------------
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD, help=f"Gold Label Studio (défaut : {DEFAULT_GOLD}).")
-    parser.add_argument("--split", choices=("test", "dev", "all"), default="test", help="Partie du gold évaluée (défaut : test).")
     parser.add_argument("--model", type=Path, action="append", default=[], help="Dossier d'un modèle GLiNER à évaluer (répétable).")
-    parser.add_argument(
-        "--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD})."
-    )
-    parser.add_argument("--sweep", action="store_true", help=f"Évalue aussi les seuils {SWEEP_THRESHOLDS}.")
-    parser.add_argument(
-        "--min-score",
-        type=float,
-        default=DEFAULT_MIN_SCORE,
-        help=f"Seuil « score bas » du drapeau ner_suspect (défaut : {DEFAULT_MIN_SCORE}).",
-    )
     parser.add_argument(
         "--predictions",
         action="append",
@@ -372,18 +360,30 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         metavar="NOM=FICHIER",
         help="Prédictions précalculées (JSON Label Studio ou CSV tagged_text), répétable.",
     )
-    parser.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier système).")
-    parser.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
-    parser.add_argument("--seed", type=int, default=0, help="Graine du bootstrap (défaut : 0).")
+    parser.add_argument("--split", choices=("test", "dev", "all"), default="test", help="Partie du gold évaluée (défaut : test).")
     parser.add_argument(
         "-o", "--output", type=Path, default=DEFAULT_OUTPUT_DIR, help=f"Dossier du rapport (défaut : {DEFAULT_OUTPUT_DIR})."
     )
+    fine = fine_tuning(parser)
+    fine.add_argument(
+        "--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"Score minimal d'un empan GLiNER (défaut : {DEFAULT_THRESHOLD})."
+    )
+    fine.add_argument("--sweep", action="store_true", help=f"Évalue aussi les seuils {SWEEP_THRESHOLDS}.")
+    fine.add_argument(
+        "--min-score",
+        type=float,
+        default=DEFAULT_MIN_SCORE,
+        help=f"Seuil « score bas » du drapeau ner_suspect (défaut : {DEFAULT_MIN_SCORE}).",
+    )
+    fine.add_argument("--reference", default=None, help="Système de référence des Δ (défaut : le premier système).")
+    fine.add_argument("--bootstrap", type=int, default=1000, help="Rééchantillonnages bootstrap (défaut : 1000).")
+    fine.add_argument("--seed", type=int, default=0, help="Graine du bootstrap (défaut : 0).")
 
 
 def run(args: argparse.Namespace) -> None:
-    if not args.gold.exists():
-        raise CommandError(f"gold '{args.gold}' introuvable (voir numrev gold ner).")
-    entries, unreviewed = load_gold(args.gold, args.split)
+    if not paths.NER_GOLD.exists():
+        raise CommandError(f"gold '{paths.NER_GOLD}' introuvable (voir numrev gold ner).")
+    entries, unreviewed = load_gold(paths.NER_GOLD, args.split)
     if not entries:
         console.print(f"[yellow]Aucune entrée relue dans le split '{args.split}' ({unreviewed} non relues).[/yellow]")
         return

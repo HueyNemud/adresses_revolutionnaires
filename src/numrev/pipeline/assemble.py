@@ -81,10 +81,19 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from numrev.command import CommandError, Writes, add_apply_argument, console, default_output, require_file
+from numrev.command import (
+    CommandError,
+    Writes,
+    add_apply_argument,
+    add_folder_argument,
+    console,
+    require_input,
+    require_ranges,
+    write_or_plan,
+)
 from numrev.crf.labels import AnnotationLabel
 from numrev.curation import CORRECTED_COLUMN, DELETED_CLASS, FINGERPRINT_COLUMN
-from numrev.paths import ENTITIES, document_name
+from numrev.paths import ENTITIES, ENTITIES_REPORT, LINES_CSV, document_name, range_document
 from numrev.pipeline.tabulate import CLASS_COLUMN, KEY_COLUMN
 from numrev.titles import ROOT_UUID, title_level
 
@@ -202,14 +211,7 @@ def _merge_into(
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input", type=Path, help="Table des lignes corrigée (<document>.lines.csv).")
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=None,
-        help="CSV de sortie (défaut : <document>.entities.csv) ; le rapport est écrit à côté (<…>.entities.report.txt).",
-    )
+    add_folder_argument(parser)
     add_apply_argument(parser)
 
 
@@ -342,7 +344,7 @@ def process_csv(input_path: Path, output_path: Path, writes: Writes | None = Non
             writer.writeheader()
             writer.writerows(all_entities)
 
-    (writes or Writes()).add(output_path, write)
+    write_or_plan(writes, output_path, write)
 
     return report
 
@@ -446,24 +448,27 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
 
 
 def run(args: argparse.Namespace) -> None:
-    output_path = args.output or default_output(args.input, ENTITIES)
-    report_path = output_path.with_name(output_path.name.removesuffix(".csv") + ".report.txt")
     writes = Writes(args.apply)
-    try:
-        report = process_csv(require_file(args.input), output_path, writes)
-    except (csv.Error, ValueError) as error:
-        raise CommandError(f"{args.input} : {error}") from error
+    for range_dir in require_ranges(args.folder):
+        input_path = require_input(range_dir, LINES_CSV, "tabulate")
+        output_path = range_document(range_dir, ENTITIES)
+        report_path = range_document(range_dir, ENTITIES_REPORT)
+        try:
+            report = process_csv(input_path, output_path, writes)
+        except (csv.Error, ValueError) as error:
+            raise CommandError(f"{input_path} : {error}") from error
+        report_text = format_report(report, input_path, output_path)
+        # Valeurs liées par défaut : l'écriture a lieu après la boucle (Writes.finish).
+        writes.add(report_path, lambda path=report_path, text=report_text: path.write_text(text, encoding="utf-8"))
 
-    writes.add(report_path, lambda: report_path.write_text(format_report(report, args.input, output_path), encoding="utf-8"))
-
-    problem_count = (
-        len(report.orphan_subentries)
-        + len(report.orphan_entry_continuations)
-        + len(report.orphan_title_continuations)
-        + len(report.alpha_violations)
-        + len(report.unmarked_titles)
-    )
-    console.print(f"{report.rows_read} lignes lues → {report.rows_written} lignes en sortie.")
-    if problem_count:
-        console.print(f"[yellow]⚠ {problem_count} cas à vérifier (voir le rapport pour le détail).[/yellow]")
+        problem_count = (
+            len(report.orphan_subentries)
+            + len(report.orphan_entry_continuations)
+            + len(report.orphan_title_continuations)
+            + len(report.alpha_violations)
+            + len(report.unmarked_titles)
+        )
+        console.print(f"{input_path.name} : {report.rows_read} lignes lues → {report.rows_written} lignes en sortie.")
+        if problem_count:
+            console.print(f"[yellow]⚠ {problem_count} cas à vérifier (voir {report_path.name}).[/yellow]")
     writes.finish(console)

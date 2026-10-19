@@ -15,10 +15,6 @@ annuaires qui se correspondent (`numrev/alignment/sections.py`, alignement
 partagé avec `numrev align nw` et corrigé par le patch des rubriques
 `data/alignment/<gauche>__<droite>.sections.csv`) reçoivent la même clé, y
 compris dans les paires du fichier d'entraînement, réécrites à la lecture.
-Variante d'origine, gardée pour comparaison sur un gold : `--raw-sections`
-compare la clé propre à chaque annuaire (sorties par défaut
-`<gauche>__<droite>.raw-sections.csv` et `….raw-sections.dedupe.csv`,
-pour ne pas écraser la variante par défaut).
 
 Dedupe ne compare la rubrique que comme un champ parmi d'autres : il peut
 donc lier deux entrées de rubriques qui ne se correspondent pas. Ces liens
@@ -32,8 +28,8 @@ l'autre, même pour une même personne, et restent présents dans `text`.
 Dedupe apprend ses poids sur des paires étiquetées. À la première exécution
 (ou avec `--label`), l'étiquetage se fait en console (`y` : même entrée,
 `n` : entrées différentes, `u` : incertain, `f` : terminer) ; les paires
-sont enregistrées dans un fichier d'entraînement JSON (par défaut
-`data/alignment/<gauche>__<droite>.training.json`, à versionner) que les
+sont enregistrées aussitôt dans le fichier d'entraînement JSON
+`data/alignment/<gauche>__<droite>.training.json` (à versionner), que les
 exécutions suivantes réutilisent sans interaction.
 
 L'appariement est un-à-un : chaque entrée a au plus une correspondance dans
@@ -72,9 +68,9 @@ from numrev.alignment.pair import load_pair, pair_of_dirs, print_matched, print_
 from numrev.alignment.patch import PatchStats, Resolution, apply_patch, load_patch, orphan_descriptions, updated_patch, write_patch
 from numrev.alignment.records import Link, Record, dedupe_records, read_links, write_links
 from numrev.alignment.sections import SectionAlignment, canonical_keys, canonical_training_text, restrict_to_corresponding
-from numrev.command import APPLY_FLAG, CommandError, Writes, add_apply_argument, add_force_argument, console
+from numrev.command import APPLY_FLAG, CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.curation import refuse_orphans
-from numrev.paths import RAW_SECTIONS, raw_alignment
+from numrev.paths import DEDUPE_SUFFIX
 
 DESCRIPTION = (
     "Met en correspondance (un-à-un) les ENTRY de deux annuaires complets avec Dedupe, "
@@ -87,16 +83,6 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("left", type=Path, help="Dossier de l'annuaire de gauche (ex. annuaires/1807_AD75-PER292).")
     parser.add_argument("right", type=Path, help="Dossier de l'annuaire de droite (ex. annuaires/1808_AD75-PER292).")
     parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=None,
-        help=(
-            "CSV final des correspondances (défaut : annuaires/alignments/<gauche>__<droite>.csv) ; "
-            "la sortie brute de Dedupe est écrite à côté, en .dedupe.csv."
-        ),
-    )
-    parser.add_argument(
         "--patch-only",
         action="store_true",
         help="Ne pas relancer Dedupe : réappliquer le patch à la sortie .dedupe.csv existante.",
@@ -106,16 +92,10 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Étiqueter (ou compléter) les paires en console même si le fichier d'entraînement existe.",
     )
-    parser.add_argument(
-        "--raw-sections",
-        action="store_true",
-        help=(
-            "Comparer la rubrique par sa clé propre à chaque annuaire plutôt que par la clé commune de son groupe "
-            f"(variante d'origine, pour comparaison ; défaut de sortie : annuaires/alignments/<gauche>__<droite>{RAW_SECTIONS}.csv)."
-        ),
-    )
-    parser.add_argument("--threshold", type=float, default=0.5, help="Score minimal d'une correspondance retenue (défaut : 0.5).")
     add_force_argument(parser, "Ignore les lignes orphelines des patchs (sinon : arrêt sans rien écrire).")
+    fine_tuning(parser).add_argument(
+        "--threshold", type=float, default=0.5, help="Score minimal d'une correspondance retenue (défaut : 0.5)."
+    )
     add_apply_argument(parser)
 
 
@@ -160,7 +140,7 @@ def train(
             with training_path.open("w", encoding="utf-8") as handle:
                 linker.write_training(handle)
 
-        writes.add(training_path, write)
+        writes.add(training_path, write, now=True)  # travail humain : enregistré même si Dedupe échoue ensuite
 
     console.print("Entraînement…")
     linker.train()
@@ -175,10 +155,8 @@ def infer_links(
     writes: Writes,
 ) -> list[Link]:
     """Dedupe compare la rubrique par sa clé canonique : celle du groupe de
-    rubriques (`numrev/alignment/sections.py`), commune aux deux annuaires ;
-    avec `--raw-sections`, par sa clé propre à chaque annuaire (variante
-    d'origine, gardée pour comparaison)."""
-    left_keys, right_keys = ({}, {}) if args.raw_sections else canonical_keys(sections)
+    rubriques (`numrev/alignment/sections.py`), commune aux deux annuaires."""
+    left_keys, right_keys = canonical_keys(sections)
     left = dedupe_records(list(left_records.values()), left_keys)
     right = dedupe_records(list(right_records.values()), right_keys)
     linker = build_linker(left, right)
@@ -237,8 +215,8 @@ def print_scores(links: list[Link]) -> None:
 
 def run(args: argparse.Namespace) -> None:
     pair = pair_of_dirs(args.left, args.right)
-    output_path = args.output or pair.output(f"{RAW_SECTIONS}.csv" if args.raw_sections else ".csv")
-    raw_path = raw_alignment(output_path)
+    output_path = pair.output()
+    raw_path = pair.output(DEDUPE_SUFFIX)
     writes = Writes(args.apply)
     if not args.patch_only and needs_labelling(pair.training, args.label) and not args.apply:
         raise CommandError(

@@ -31,6 +31,7 @@ REPORTS_DIR = Path("reports")
 NER_GOLD = NER_DATA_DIR / "gold.ls.json"  # gold NER relu (évaluation)
 NER_TRAIN = NER_DATA_DIR / "train.ls.json"  # jeu d'entraînement NER
 MODELS_DIR = Path("models")
+NER_MODEL = MODELS_DIR / "ner.gliner-model"  # modèle NER de production, utilisé par défaut par numrev tag
 
 OCR = ".ocr.json"
 LINES = ".lines.json"
@@ -87,6 +88,18 @@ def range_dirs(volume_dir: Path) -> list[Path]:
     return sorted(ranges, key=lambda path: int(RANGE_PATTERN.match(path.name).group(1)))
 
 
+def selected_ranges(folder: Path) -> list[Path]:
+    """Plages désignées par un dossier : lui-même si c'est une plage
+    (`<première>-<dernière>`), sinon toutes les plages du volume, triées par
+    première page. ValueError si le dossier n'est ni l'un ni l'autre."""
+    if RANGE_PATTERN.match(folder.name):
+        return [folder]
+    ranges = range_dirs(folder)
+    if not ranges:
+        raise ValueError(f"{folder} n'est ni une plage (<première page>-<dernière page>) ni un volume qui contient des plages.")
+    return ranges
+
+
 def range_document(range_dir: Path, suffix: str) -> Path:
     """Fichier d'étape d'une plage, nommé d'après son volume et sa plage."""
     return range_dir / f"{range_dir.parent.name}.{range_dir.name}{suffix}"
@@ -113,7 +126,6 @@ def curation_patch(output_path: Path, step: str) -> Path:
 PAIR_SEPARATOR = "__"
 NW_SUFFIX = ".nw.csv"
 DEDUPE_SUFFIX = ".dedupe.csv"
-RAW_SECTIONS = ".raw-sections"  # variante `align dedupe --raw-sections`
 JOIN_SUFFIX = ".join.csv"
 ALIGNMENT_SUFFIXES = (DEDUPE_SUFFIX, NW_SUFFIX)  # sorties brutes, lues par le viewer
 
@@ -174,11 +186,6 @@ class Pair:
     # Sorties
     def output(self, suffix: str = ".csv") -> Path:
         return ALIGNMENTS_DIR / f"{self.name}{suffix}"
-
-
-def raw_alignment(final_path: Path) -> Path:
-    """Sortie brute de Dedupe à côté d'une sortie finale (`<…>.csv` → `<…>.dedupe.csv`)."""
-    return final_path.with_name(final_path.name.removesuffix(".csv") + DEDUPE_SUFFIX)
 
 
 def join_output(alignment_path: Path) -> Path:

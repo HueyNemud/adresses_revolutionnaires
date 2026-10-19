@@ -21,10 +21,19 @@ from typing import Any
 from bs4 import BeautifulSoup, Comment, Tag
 from markdownify import markdownify
 
-from numrev.command import CommandError, Writes, add_apply_argument, console, default_output, require_file
+from numrev.command import (
+    CommandError,
+    Writes,
+    add_apply_argument,
+    add_folder_argument,
+    console,
+    require_input,
+    require_ranges,
+    write_or_plan,
+)
 from numrev.curation import line_keys
 from numrev.document import iter_line_locations
-from numrev.paths import LINES
+from numrev.paths import LINES, OCR, range_document
 
 BBox = tuple[float, float, float, float]
 
@@ -271,24 +280,24 @@ def process_json_to_json(json_path: str | Path, output_path: str | Path, writes:
     assign_line_keys(output_pages)
 
     output_path = Path(output_path)
-    (writes or Writes()).add(
-        output_path, lambda: output_path.write_text(json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_or_plan(
+        writes, output_path, lambda: output_path.write_text(json.dumps(output_pages, ensure_ascii=False, indent=2), encoding="utf-8")
     )
     return len(output_pages), block_count, line_count
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input", type=Path, help="JSON OCR brut de Chandra (<document>.ocr.json).")
-    parser.add_argument("-o", "--output", type=Path, default=None, help="JSON de sortie (défaut : <document>.lines.json).")
+    add_folder_argument(parser)
     add_apply_argument(parser)
 
 
 def run(args: argparse.Namespace) -> None:
-    output_path = args.output or default_output(args.input, LINES)
     writes = Writes(args.apply)
-    try:
-        page_count, block_count, line_count = process_json_to_json(require_file(args.input), output_path, writes)
-    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, KeyError) as error:
-        raise CommandError(f"{args.input} : {error}") from error
-    console.print(f"{page_count} pages, {block_count} blocs, {line_count} lignes.")
+    for range_dir in require_ranges(args.folder):
+        input_path = require_input(range_dir, OCR, "ocr")
+        try:
+            page_count, block_count, line_count = process_json_to_json(input_path, range_document(range_dir, LINES), writes)
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError, KeyError) as error:
+            raise CommandError(f"{input_path} : {error}") from error
+        console.print(f"{input_path.name} : {page_count} pages, {block_count} blocs, {line_count} lignes.")
     writes.finish(console)

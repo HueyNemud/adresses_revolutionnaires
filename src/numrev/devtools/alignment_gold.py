@@ -46,7 +46,7 @@ from numrev.alignment.pair import load_pair, pair_of_dirs
 from numrev.alignment.records import similarity_matrix
 from numrev.alignment.sections import segment_entries
 from numrev.alignment.sequence import needleman_wunsch
-from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console
+from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.curation import write_csv
 
 DESCRIPTION = "Tire un échantillon stratifié de paires candidates « inversion » à étiqueter."
@@ -75,13 +75,11 @@ FIELDS = [
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("left", type=Path, help="Dossier de l'annuaire de gauche.")
     parser.add_argument("right", type=Path, help="Dossier de l'annuaire de droite.")
-    parser.add_argument(
-        "-o", "--output", type=Path, default=None, help="CSV à étiqueter (défaut : data/alignment/<gauche>__<droite>.gold-inversions.csv)."
-    )
-    parser.add_argument("--per-stratum", type=int, default=8, help="Paires tirées par strate (défaut : 8).")
-    parser.add_argument("--min-similarity", type=float, default=0.6, help="Similarité minimale d'une candidate (défaut : 0.6).")
-    parser.add_argument("--seed", type=int, default=0, help="Graine du tirage (défaut : 0).")
     add_force_argument(parser, "Écraser un gold existant (et ses étiquettes).")
+    fine = fine_tuning(parser)
+    fine.add_argument("--per-stratum", type=int, default=8, help="Paires tirées par strate (défaut : 8).")
+    fine.add_argument("--min-similarity", type=float, default=0.6, help="Similarité minimale d'une candidate (défaut : 0.6).")
+    fine.add_argument("--seed", type=int, default=0, help="Graine du tirage (défaut : 0).")
     add_apply_argument(parser)
 
 
@@ -137,7 +135,7 @@ def candidates(sections, params: Params, minimum: float) -> list[dict]:
 
 def run(args: argparse.Namespace) -> None:
     pair = pair_of_dirs(args.left, args.right)
-    output = args.output or pair.gold_inversions
+    output = pair.gold_inversions
     writes = Writes(args.apply)
     if output.exists() and not args.force:
         raise CommandError(f"{output} existe déjà (étiquettes ?) ; --force pour l'écraser.")

@@ -65,26 +65,35 @@ data/curation/                                corrections humaines (versionnées
 d'entraînement, entraînement) calcule et vérifie tout — conflits de
 curation et lignes orphelines compris — puis affiche les fichiers qu'elle
 écrirait (nouveau / remplacé), sans rien écrire. `--apply` écrit
-(`numrev/command.py`). `--force` reste distinct : il passe outre un refus
-(conflit, orphelin, fichier existant) et n'écrit lui aussi qu'avec
-`--apply`. L'annotateur (étape 2) enregistre sa session à chaque action,
-mais n'exporte le JSON annoté qu'avec `--apply` ; `numrev train`
-sans `--apply` vérifie et convertit les données puis s'arrête avant
+(`numrev/command.py`), une fois tout vérifié : sur un volume, une erreur
+dans la dernière plage n'en laisse aucune à moitié écrite. `--force` reste
+distinct : il passe outre un refus (conflit, orphelin, fichier existant) et
+n'écrit lui aussi qu'avec `--apply`. Exceptions : l'annotateur (étape 2) n'a
+pas d'option `--apply` (il enregistre sa session à chaque action et exporte
+le JSON annoté à la fin de chaque session) ; `numrev ocr` sans `--apply`
+vérifie la plage et le PDF mais ne lance pas l'OCR ; `numrev train` sans
+`--apply` vérifie et convertit les données puis s'arrête avant
 d'entraîner. Les audits et les viewers n'écrivent que des rapports ou
 rien : ils n'ont pas cette option.
 
 Toutes les étapes passent par la commande `numrev` (`uv run numrev` liste
-les commandes, `uv run numrev <commande> --help` détaille les options). Les
-étapes 1 à 4 sur une plage :
+les commandes, `uv run numrev <commande> --help` détaille les options :
+l'essentiel d'abord, puis les « Réglages fins »). Les étapes 1 à 5 prennent
+un **dossier** : une plage, ou un volume entier (toutes ses plages) ; chaque
+étape trouve son entrée et nomme sa sortie d'après la convention ci-dessus.
+`uv run numrev status` montre, par plage, les étapes faites, absentes ou
+périmées (sortie plus ancienne que son entrée) et la commande à lancer
+ensuite. Les étapes 0 à 4 sur un volume :
 
 ```bash
-D=annuaires/1808_AD75-PER292/7-186/1808_AD75-PER292.7-186
-uv run numrev extract  $D.ocr.json --apply       # → $D.lines.json
-uv run numrev label    $D.lines.json --apply     # → $D.labeled.json
-uv run numrev tabulate $D.labeled.json --apply   # → $D.lines.csv
-# curation manuelle dans $D.lines.csv (lignes marquées corrige = oui),
+V=annuaires/1808_AD75-PER292
+uv run numrev ocr      $V/7-186 --apply     # une plage à la fois
+uv run numrev extract  $V --apply           # → ….lines.json
+uv run numrev label    $V/7-186             # → ….labeled.json (une plage à la fois)
+uv run numrev tabulate $V --apply           # → ….lines.csv
+# curation manuelle dans ….lines.csv (lignes marquées corrige = oui),
 # puis relancer numrev tabulate : les corrections sont capturées et réappliquées
-uv run numrev assemble $D.lines.csv --apply      # → $D.entities.csv
+uv run numrev assemble $V --apply           # → ….entities.csv
 ```
 
 ```mermaid
@@ -218,12 +227,12 @@ Découpe le HTML de chaque bloc de la sortie latynna en lignes : **un
 `<span>` = une ligne**.
 
 ```bash
-uv run numrev extract <document>.ocr.json --apply
+uv run numrev extract annuaires/<volume>[/<plage>] --apply
 ```
 
 - **Sortie :** une copie du JSON où chaque page reçoit une liste
   `data_blocks` (un par `div` de premier niveau du `raw`), chacun portant sa
-  liste de `lines`. Défaut : `<document>.lines.json`.
+  liste de `lines`. Sortie : `<document>.lines.json`.
 - **Une ligne** : `uid` (`page.bloc.ligne`, tout compté à partir de 1 :
   `12.3.1` = page 12, bloc 3, ligne 1), `line_index`, `markdown` (Markdown du
   seul contenu du `<span>` ; une italique sur deux lignes est refermée puis
@@ -260,23 +269,22 @@ lignes les plus utiles à annoter (graine diversifiée, puis échantillonnage
 par incertitude) et prédit les autres.
 
 ```bash
-uv run numrev label <document>.lines.json --apply
+uv run numrev label annuaires/<volume>/<plage>
 ```
 
-- **Entrée :** le JSON de l'étape 1, ou un JSON déjà partiellement annoté
-  par cette commande.
+- **Entrée :** le `<document>.lines.json` de l'étape 1 (une plage à la fois).
 - **Sortie :** le même JSON, où chaque ligne reçoit `prediction`,
   `provenance` (`human` / `model` / `unclassified`), `probability` et
-  `timestamp`. Défaut : `<document>.labeled.json`, écrit seulement
-  avec `--apply` (relancer avec `--apply` et quitter aussitôt par `q`
-  exporte une session terminée).
-- **Session :** `<document>.label-session.json`, réécrite après chaque action
-  (même sans `--apply`) ; l'annotation reprend exactement où elle a été
-  arrêtée. `--reset-session` l'ignore.
+  `timestamp` : `<document>.labeled.json`, exporté à la fin de chaque
+  session (`q` ou document terminé), sans `--apply` : l'annotation est déjà
+  une action explicite.
+- **Session :** `<document>.label-session.json`, réécrite après chaque
+  action ; l'annotation reprend exactement où elle a été arrêtée.
+  `--reset-session` l'ignore.
 - **Classes :** `B-ENTRY`, `I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`,
   `OUT OF SCOPE`, `¯\_(ツ)_/¯` (incertain).
-- **`--seed-size`** : nombre d'annotations diversifiées avant l'échantillonnage
-  par incertitude (défaut : 12).
+- **`--seed-size`** (réglage fin) : nombre d'annotations diversifiées avant
+  l'échantillonnage par incertitude (défaut : 12).
 
 Boucle d'annotation :
 
@@ -316,8 +324,11 @@ Points de conception :
 Convertit le JSON, annoté ou non, en CSV : une ligne Markdown par ligne.
 
 ```bash
-uv run numrev tabulate <document>.labeled.json --apply
+uv run numrev tabulate annuaires/<volume>[/<plage>] --apply
 ```
+
+- **Entrée :** `<document>.labeled.json` s'il existe, sinon le
+  `<document>.lines.json` brut de l'étape 1 ; la commande affiche lequel.
 
 - **Colonnes :** `cle`, `uid`, `page_index`, `chunk_index`,
   `data_block_index`, `line_index`, `data_block_bbox`, `data_block_label`,
@@ -330,7 +341,7 @@ uv run numrev tabulate <document>.labeled.json --apply
   repère de latynna à recalibrer). Filtrer `douteuse = oui` dans le tableur
   donne les lignes à relire en priorité. Vides si la ligne n'a pas de scores.
   Ni l'une ni l'autre n'est éditable (hors de l'`empreinte`).
-- Sur le JSON brut de l'étape 1, `classe` est vide et aucun patch n'est lu
+- Sur le JSON brut de l'étape 1 (plage pas encore annotée), `classe` est vide et aucun patch n'est lu
   ni écrit : pratique pour inspecter l'extraction.
 - **Curation :** on corrige directement ce CSV (classe, texte, notamment les
   marqueurs de titre `#`) en marquant `corrige = oui`, puis on relance la
@@ -347,10 +358,10 @@ de lignes, rattache chaque ligne produite à son titre parent et écrit un
 rapport.
 
 ```bash
-uv run numrev assemble <document>.lines.csv --apply
+uv run numrev assemble annuaires/<volume>[/<plage>] --apply
 ```
 
-- **Entrée :** un CSV de l'étape 3 (colonnes `cle`, `uid`, `markdown`,
+- **Entrée :** le `<document>.lines.csv` de l'étape 3 (colonnes `cle`, `uid`, `markdown`,
   `classe` obligatoires). Les lignes `SUPPRIMÉE` sont ignorées, et les colonnes
   `corrige` / `empreinte` ne sont pas recopiées.
 - **Sorties :**
@@ -431,7 +442,8 @@ texte normalisé, pas sur l'`uid`).
 ### Inférence : `numrev tag`
 
 ```bash
-uv run numrev tag <document>.entities.csv --model models/<nom>.gliner-model --apply
+uv run numrev tag annuaires/<volume>[/<plage>] --apply                # modèle de production models/ner.gliner-model
+uv run numrev tag annuaires/<volume> --model models/<autre>.gliner-model --apply
 ```
 
 - Ajoute après `entity` la colonne `tagged_text` (texte d'origine balisé,
@@ -506,7 +518,7 @@ uv run numrev train data/ner/train.ls.json -o models/<nom>.gliner-model --apply
 
 ```bash
 uv run numrev gold ner --apply      # une seule fois : tirage du gold
-uv run numrev audit ner --split dev --model models/<actuel>.gliner-model --model models/<nom>.gliner-model
+uv run numrev audit ner --split dev --model models/ner.gliner-model --model models/<nom>.gliner-model
 uv run numrev audit ner --split dev --predictions autre=sortie.ner.csv
 ```
 
@@ -621,23 +633,19 @@ est **orpheline** : conservée, non appliquée, et les commandes paniquent
 uv run numrev align dedupe annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
 uv run numrev align dedupe <gauche> <droite> --label --apply          # compléter l'étiquetage
 uv run numrev align dedupe <gauche> <droite> --patch-only --apply    # réappliquer le patch, sans Dedupe
-uv run numrev align dedupe <gauche> <droite> --raw-sections --apply   # variante à clés de rubrique brutes
 ```
 
 - **Champs comparés :** rubrique, SUBJ et texte, en minuscules. La rubrique
   est comparée par la **clé commune de son groupe** (clé de sa première
   rubrique de gauche) : deux rubriques appariées ont la même clé. Cette
   substitution est aussi appliquée, à la lecture, aux paires du fichier
-  d'entraînement, qui reste donc valable. `--raw-sections` garde les clés
-  propres à chaque volume et écrit
-  `<gauche>__<droite>.raw-sections[.dedupe].csv`, pour comparer les deux
-  variantes.
+  d'entraînement, qui reste donc valable.
 - **Étiquetage :** à la première exécution (ou avec `--label`), Dedupe
   propose des paires en console (`y` / `n` / `u` incertain / `f` terminer).
-  Elles sont enregistrées dans
+  Elles sont enregistrées aussitôt dans
   `data/alignment/<gauche>__<droite>.training.json` et réutilisées ensuite
   sans interaction.
-- **Seuil :** `--threshold` (score minimal, défaut 0,5).
+- **Seuil :** `--threshold` (réglage fin ; score minimal, défaut 0,5).
 - **Seulement entre rubriques appariées :** Dedupe ne voit la rubrique que
   comme un champ parmi d'autres et peut lier deux rubriques qui ne se
   correspondent pas ; ces liens sont écartés (`restrict_to_corresponding`,
@@ -793,7 +801,7 @@ et `PATCH_DIR`, jamais les dossiers réels.
 ### Étape 7 — Jointure lisible : `numrev join`
 
 ```bash
-uv run numrev join annuaires/alignments/<g>__<d>.nw.csv [--excel] [-o sortie.csv] --apply
+uv run numrev join annuaires/alignments/<g>__<d>.nw.csv [--excel] --apply   # → <g>__<d>.nw.join.csv
 ```
 
 Produit, pour les utilisateurs des données (historiens), la jointure des
@@ -967,15 +975,25 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 
 - Une commande par étape ou par outil, déclarée dans `cli.py` ; son module
   expose `add_arguments(parser)` et `run(args)`. Noms de commandes et
-  d'options en anglais, aide et messages en français ; `-o/--output` a
-  toujours une valeur par défaut dérivée du nom d'entrée (`paths.py`).
-- Mêmes noms pour les mêmes choses dans toutes les commandes : l'entrée des
-  étapes 1 à 5 est l'argument positionnel `input` ; toute sortie (fichier
-  ou dossier de rapport) est `-o/--output` ; `--model` désigne toujours un
-  modèle entraîné (`train` prend `--base-model`) ; `--force` est le seul
-  moyen d'écraser un gold ; `--gold`, `--root`, `--seed`, `--bootstrap`,
-  `--threshold`, `--min-score`, `--batch-size` et `--margin` ont le même
-  sens partout où ils apparaissent.
+  d'options en anglais, aide et messages en français.
+- **Simplicité d'usage :** l'usage courant tient en peu d'arguments ; les
+  options d'expert vont dans le groupe « Réglages fins »
+  (`command.fine_tuning`), affiché après l'essentiel. Les étapes 1 à 5
+  prennent un dossier (plage ou volume, `add_folder_argument`) et tirent
+  entrée et sortie de `paths.py`. Un chemin fixé par `paths.py` n'a pas
+  d'option pour le changer (ni `--root`, ni `--gold`, ni `-o` sur les
+  golds, le jeu d'entraînement, les alignements ou les patchs) ; `-o/--output`
+  ne reste que pour les dossiers de rapport des audits et le dossier du
+  modèle de `train`.
+- Mêmes noms pour les mêmes choses dans toutes les commandes : `--model`
+  désigne toujours un modèle entraîné (`train` prend `--base-model` ; `tag`
+  prend par défaut `models/ner.gliner-model`) ; `--force` est le seul moyen
+  d'écraser un gold ou un OCR ; `--seed`, `--bootstrap`, `--threshold`,
+  `--min-score`, `--batch-size` et `--margin` ont le même sens partout où
+  ils apparaissent.
+- Messages clairs : une erreur décrit ce qui a été constaté (où, quoi),
+  jamais une cause supposée ; les numéros montrés au lecteur (pages, blocs,
+  lignes, `uid`) commencent à 1.
 - Sortie console via `rich` (`✅` pour un succès). Une erreur attendue lève
   `CommandError` (fichier introuvable, entrée invalide) : `cli.py` affiche
   `Erreur : …` et sort avec le code 1, comme pour une panique de curation.
