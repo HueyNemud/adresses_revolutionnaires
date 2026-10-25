@@ -112,8 +112,10 @@ si les plages du volume sont redécoupées.
 - **Entrées en début de plage** : le volume est traité par plages de pages,
   et l'arbre des titres est propre à chaque plage. Quand une plage commence
   au milieu d'une rubrique, le curateur restitue le titre de cette rubrique
-  en tête de la plage : c'est une ligne ajoutée (`cle` = `debut+1`, sans
-  `confiance`), recopiée du titre imprimé plus haut, ou déduite des entrées
-  quand aucune page ne le porte, et alors écrite entre crochets
-  (`## [BOUCHERS.]`). Sans titre restitué, ces entrées n'ont pas de
-  rubrique et ne sont jamais appariées dans la jointure.
+  en tête de la plage : c'est une ligne ajoutée, recopiée du titre imprimé
+  plus haut, ou déduite des entrées quand aucune page ne le porte. Rien dans
+  son texte ne la distingue d'un titre lu : on la reconnaît dans le
+  `….ner.csv` à sa clé (`cle` = `debut+1`) et à sa `confiance` vide ; la
+  colonne `rubrique` de la jointure ne fait pas la différence. Sans titre
+  restitué, ces entrées n'ont pas de rubrique et ne sont jamais appariées
+  dans la jointure.

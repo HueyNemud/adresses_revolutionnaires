@@ -133,10 +133,8 @@ vide (comme toute ligne ajoutée, voir le
 - **C'est une autre rubrique** : recopier son titre tel qu'il est imprimé
   (sur une page laissée hors des plages, par exemple).
 - **Le titre n'est imprimé sur aucune page du PDF** (page manquante) et on le
-  déduit des entrées : l'écrire entre crochets, `## [BOUCHERS.]`. Les
-  crochets ne gênent ni l'alignement ni la continuation (la ponctuation est
-  ignorée), et ce sont eux qui disent aux utilisateurs des données que ce
-  titre est déduit, pas lu.
+  déduit des entrées : l'écrire comme un titre imprimé, sans marque
+  particulière.
 
 Pour que le chemin complet des titres soit juste, on peut ajouter aussi,
 au-dessus, le titre de partie (`#`) dont dépend la rubrique.
