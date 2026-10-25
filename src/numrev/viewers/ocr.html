@@ -1,0 +1,637 @@
+<!doctype html>
+<!--
+  Visionneuse OCR : la sortie de latynna (JSON de Chandra, une ligne = un <span>) en
+  surimpression sur le PDF du volume. Un seul fichier, sans serveur : ouvrir dans un navigateur,
+  y déposer le JSON (et le PDF). Seul pdf.js vient d'un CDN, et seulement si un PDF est ouvert.
+  Partager : envoyer ce fichier avec le JSON et le PDF, ou les publier ensemble sur un serveur web
+  et donner le lien ocr.html?json=<url du JSON>&pdf=<url du PDF>#p=<page PDF>.
+  Repère des boîtes (data-bbox, data-line-bbox-estimate) : 0–1000 de l'image de la page.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visionneuse OCR</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #f1f3f5; --panel: #fff; --ink: #1f2328; --muted: #68717b; --line: #d9dee3;
+  --accent: #3b5bdb; --accent-ink: #fff; --low: #c92a2a; --lowbg: #ffe3e3; --hit: #ffe066;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a; --panel: #1e2125; --ink: #e4e6e9; --muted: #98a1ab; --line: #343a40;
+    --accent: #748ffc; --accent-ink: #10131a; --low: #ff8787; --lowbg: #4c1d21; --hit: #7a6511;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171a; --panel: #1e2125; --ink: #e4e6e9; --muted: #98a1ab; --line: #343a40;
+  --accent: #748ffc; --accent-ink: #10131a; --low: #ff8787; --lowbg: #4c1d21; --hit: #7a6511;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font: 14px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--ink); display: flex; flex-direction: column; }
+button, input { font: inherit; color: inherit; }
+button { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+
+/* barre du haut */
+#bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+#bar .files { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px; line-height: 1.2; }
+#bar .files b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bar .files small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bar .group { display: flex; align-items: center; gap: 4px; }
+#bar label { display: flex; align-items: center; gap: 3px; cursor: pointer; user-select: none; }
+#pageno { width: 4.5em; text-align: right; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 4px; }
+#threshold { width: 90px; }
+#thr-out { font-variant-numeric: tabular-nums; min-width: 2.6em; }
+
+/* trois colonnes : pages, scan, texte */
+main { flex: 1; display: grid; grid-template-columns: 180px minmax(0, 1.25fr) minmax(300px, 1fr); min-height: 0; }
+#pages { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-right: 1px solid var(--line); }
+#search { margin: 8px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
+#hits { margin: 0 10px 6px; font-size: 12px; color: var(--muted); }
+#list { list-style: none; margin: 0; padding: 0 0 8px; overflow: auto; flex: 1; }
+#list button { all: unset; box-sizing: border-box; display: flex; gap: 6px; align-items: center; width: 100%; padding: 2px 10px; cursor: pointer; font-variant-numeric: tabular-nums; }
+#list button:hover { background: var(--bg); }
+#list .cur button { background: var(--accent); color: var(--accent-ink); }
+#list .n { flex: 1; }
+.pill { font-size: 11px; border-radius: 8px; padding: 0 6px; background: var(--lowbg); color: var(--low); }
+.pill.hits { background: var(--hit); color: var(--ink); }
+.pill.err { background: var(--low); color: #fff; }
+#list .cur .pill { background: var(--accent-ink); color: var(--accent); }
+
+#scan { overflow: auto; padding: 12px; min-height: 0; }
+#stage { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, .3); }
+#canvas, #svg, #over { position: absolute; inset: 0; width: 100%; height: 100%; }
+#over { pointer-events: none; }
+#nopdf { position: absolute; inset: 40% 10% auto; text-align: center; color: #868e96; font-size: 13px; }
+.blk { fill: none; stroke: var(--c); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.lnr { fill: transparent; stroke: rgba(59, 91, 219, .45); stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; }
+.lnr.low { fill: rgba(224, 49, 49, .14); stroke: rgba(224, 49, 49, .75); }
+.lnr.hit { fill: rgba(255, 212, 59, .4); }
+.lnr.hl { fill: rgba(59, 91, 219, .22); stroke: #3b5bdb; stroke-width: 2; }
+.bdg { position: absolute; transform: translateY(-100%); font: 600 11px/1.3 system-ui, sans-serif; padding: 0 5px; background: var(--c); color: #fff; border-radius: 3px 3px 0 0; white-space: nowrap; }
+.tl { position: absolute; display: flex; align-items: center; background: rgba(255, 255, 255, .9); color: #111; pointer-events: auto; cursor: pointer; font-family: Georgia, "Times New Roman", serif; }
+.tl > span { white-space: nowrap; transform-origin: left center; }
+.tl mark { background: #ffc9c9; color: #a51111; }
+.tl.hit { background: rgba(255, 236, 153, .92); }
+.tl.hl { outline: 2px solid #3b5bdb; }
+body.no-blocks .blk, body.no-blocks .bdg { display: none; }
+body.no-lines .lnr:not(.hl) { stroke: none; fill: transparent; }
+body:not(.show-text) .tl { display: none; }
+
+#text { overflow: auto; min-height: 0; padding: 10px 16px 40px; background: var(--panel); border-left: 1px solid var(--line); }
+#summary { font-size: 12px; color: var(--muted); margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+#summary .warn { color: var(--low); }
+.card { border-left: 3px solid var(--c); padding: 1px 0 1px 10px; margin: 0 0 14px; }
+.card > header { font-size: 12px; color: var(--muted); }
+.card > header b { color: var(--c); }
+.card .body { font: 15px/1.5 Georgia, "Times New Roman", serif; overflow-wrap: anywhere; }
+.card .body p, .card .body h1, .card .body h2, .card .body h3, .card .body h4, .card .body h5, .card .body h6 { margin: .15em 0; }
+.card .body h1 { font-size: 1.35em; } .card .body h2 { font-size: 1.2em; } .card .body h3, .card .body h4, .card .body h5, .card .body h6 { font-size: 1.05em; }
+.card .body table { border-collapse: collapse; } .card .body td, .card .body th { border: 1px solid var(--line); padding: 1px 5px; vertical-align: top; }
+.card.furniture .body { color: var(--muted); font-size: 13px; }
+.ln { border-radius: 3px; cursor: pointer; }
+.ln.hit { background: var(--hit); }
+.ln.hl { background: rgba(116, 143, 252, .25); box-shadow: 0 0 0 1px var(--accent); }
+.ln.nobox { text-decoration: underline dotted var(--muted); }
+.ln.flash { animation: flash 1.4s; }
+@keyframes flash { 0%, 40% { background: rgba(116, 143, 252, .55); } }
+.body mark { background: var(--lowbg); color: var(--low); border-radius: 2px; }
+
+/* accueil et dépôt */
+#welcome { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; padding: 16px; }
+#welcome .box { max-width: 560px; padding: 28px; border: 2px dashed var(--line); border-radius: 12px; background: var(--panel); }
+#welcome h1 { font-size: 20px; margin: 0 0 8px; }
+#welcome p { color: var(--muted); margin: 8px 0; }
+#welcome button { margin-top: 8px; padding: 6px 14px; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+body.ready #welcome, body:not(.ready) #pages, body:not(.ready) #scan, body:not(.ready) #text, body:not(.ready) #bar .viewing { display: none; }
+#drop { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(59, 91, 219, .18); border: 4px dashed var(--accent); font-size: 22px; font-weight: 600; z-index: 10; pointer-events: none; }
+body.dragging #drop { display: flex; }
+#toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); max-width: min(90vw, 720px); padding: 8px 14px; border-radius: 6px; background: var(--ink); color: var(--bg); z-index: 11; }
+#toast.error { background: var(--low); color: #fff; }
+dialog { max-width: min(92vw, 640px); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+dialog h2 { font-size: 16px; margin: 0 0 8px; }
+dialog td { padding: 2px 8px 2px 0; vertical-align: top; }
+dialog p { margin: 6px 0; }
+dialog input[type=number] { width: 4em; }
+
+@media (max-width: 900px) {
+  body { display: block; height: auto; }
+  main { display: flex; flex-direction: column; }
+  #pages { max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  #scan { max-height: 75vh; padding: 8px; }
+  #text { border-left: 0; padding: 10px 16px; }
+}
+</style>
+</head>
+<body>
+<header id="bar">
+  <span class="files"><b id="jname">Visionneuse OCR</b><small id="pname"></small></span>
+  <span class="group viewing">
+    <button id="prev" title="page précédente (←)" aria-label="page précédente">←</button>
+    <span>p.</span><input id="pageno" type="number" min="1" title="numéro de page du PDF" aria-label="numéro de page du PDF">
+    <button id="next" title="page suivante (→)" aria-label="page suivante">→</button>
+  </span>
+  <span class="group viewing">
+    <label title="cadres des blocs (B)"><input type="checkbox" id="show-blocks" checked>blocs</label>
+    <label title="boîtes estimées des lignes (L)"><input type="checkbox" id="show-lines" checked>lignes</label>
+    <label title="la transcription posée sur le scan, dans la boîte de chaque ligne (T)"><input type="checkbox" id="show-text">texte sur le scan</label>
+  </span>
+  <label class="viewing" title="un mot est douteux sous ce score de confiance"><span>seuil</span><input type="range" id="threshold" min="0.5" max="1" step="0.01"><output id="thr-out"></output></label>
+  <span class="group viewing">
+    <button id="zoom-out" title="dézoomer (−)" aria-label="dézoomer">−</button>
+    <button id="zoom-fit" title="pleine largeur (0)">largeur</button>
+    <button id="zoom-in" title="zoomer (+)" aria-label="zoomer">+</button>
+  </span>
+  <span class="group">
+    <button id="open" title="ouvrir le JSON de l'OCR et le PDF (ou les déposer sur la page)">Ouvrir…</button>
+    <button id="help" title="aide et réglages (?)">?</button>
+  </span>
+  <input type="file" id="files" multiple accept=".json,.pdf,application/json,application/pdf" hidden>
+</header>
+<main>
+  <section id="welcome">
+    <div class="box">
+      <h1>Visionneuse OCR</h1>
+      <p>Déposez ici le JSON de l'OCR (<code>&lt;document&gt;.ocr.json</code>, sortie de latynna) et, si vous l'avez, le PDF du volume : la transcription s'affiche en surimpression du scan.</p>
+      <p>Les fichiers restent sur cet ordinateur : rien n'est envoyé. Sans PDF, les blocs et les lignes s'affichent sur une page blanche.</p>
+      <button id="open2">Choisir les fichiers…</button>
+    </div>
+  </section>
+  <nav id="pages" aria-label="pages">
+    <input id="search" type="search" placeholder="Rechercher  (/)" aria-label="rechercher dans le texte">
+    <div id="hits"></div>
+    <ol id="list"></ol>
+  </nav>
+  <section id="scan">
+    <div id="stage">
+      <canvas id="canvas" hidden></canvas>
+      <div id="nopdf" hidden></div>
+      <svg id="svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+      <div id="over"></div>
+    </div>
+  </section>
+  <aside id="text"></aside>
+</main>
+<div id="drop">Déposer le JSON et le PDF</div>
+<div id="toast" hidden></div>
+<dialog id="dlg">
+  <h2>Visionneuse OCR</h2>
+  <p>Chaque ligne de l'OCR est un <code>&lt;span&gt;</code> qui porte la confiance de ses mots et une boîte <b>estimée</b> (elle peut tomber à côté d'un cran). Survoler une ligne la montre des deux côtés ; un clic y amène l'autre vue. Mots sous le seuil : <mark>surlignés</mark> ; ligne soulignée en pointillés : sans boîte.</p>
+  <table>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>page précédente / suivante</td></tr>
+    <tr><td><kbd>Maj</kbd>+<kbd>←</kbd> <kbd>→</kbd></td><td>page précédente / suivante avec des mots douteux (ou, pendant une recherche, avec un résultat)</td></tr>
+    <tr><td><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></td><td>zoomer, dézoomer, pleine largeur</td></tr>
+    <tr><td><kbd>B</kbd> <kbd>L</kbd> <kbd>T</kbd></td><td>blocs, lignes, texte sur le scan</td></tr>
+    <tr><td><kbd>/</kbd></td><td>rechercher (sans tenir compte des accents ni de la casse)</td></tr>
+  </table>
+  <p><b>Numérotation.</b> Page du PDF = <code>page_index</code> + <input type="number" id="offset" step="1"> (0 pour un JSON de <code>numrev ocr</code>, où <code>page_index</code> est déjà la page du PDF ; 1 pour la sortie brute de <code>latynna ocr</code> sur tout le PDF, qui compte depuis 0).</p>
+  <p><b>Partager.</b> Envoyer ce fichier HTML avec le JSON et le PDF ; ou les publier ensemble sur un serveur web et donner le lien <code>ocr.html?json=…&amp;pdf=…#p=12</code>.</p>
+  <p><button onclick="dlg.close()">Fermer</button></p>
+</dialog>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const COLORS = { 'Text': '#4263eb', 'List-Group': '#0ca678', 'Section-Header': '#e8590c', 'Table': '#ae3ec9', 'Caption': '#f08c00',
+  'Footnote': '#1098ad', 'Page-Header': '#868e96', 'Page-Footer': '#868e96', 'Image': '#495057', 'Figure': '#495057' };
+const FURNITURE = new Set(['Page-Header', 'Page-Footer']);
+// balises gardées dans le texte affiché ; les autres sont remplacées par leur contenu, sans attribut
+const ALLOWED = new Set(['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'sup', 'sub', 'small', 'big', 'del', 's', 'code', 'div',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'ul', 'ol', 'li']);
+const PARSED_KEEP = 20;  // pages analysées gardées en mémoire
+
+function recall(key, fallback) { try { const v = localStorage.getItem('ocr-viewer.' + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } }
+function remember(key, value) { try { localStorage.setItem('ocr-viewer.' + key, JSON.stringify(value)); } catch { /* stockage indisponible : réglage non retenu */ } }
+
+const S = {
+  name: '', pages: [], pdf: null, pdfName: '', cur: -1, offset: 0, view: null, task: null,
+  zoom: 1, threshold: recall('threshold', 0.9), query: '', hits: null, parsed: new Map(), hover: null,
+};
+
+const fmt = (x) => x.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fold = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const plural = (n, one, many) => `${n.toLocaleString('fr-FR')} ${n > 1 ? many : one}`;
+const numbers = (s) => (s == null ? null : s.trim() ? s.trim().split(/\s+/).map(Number) : []);
+const quad = (s) => { const v = numbers(s); return v && v.length === 4 && v.every(Number.isFinite) ? v : null; };
+const pdfNo = (p) => p.index + S.offset;
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+const decode = (s) => s.replace(/&(#\d+|#x[0-9a-f]+|\w+);/gi, (m, e) => e[0] !== '#' ? ENTITIES[e.toLowerCase()] ?? m
+  : String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)));
+
+let toastTimer;
+function toast(message, kind = '', ms = 4000) {
+  const t = $('toast'); t.textContent = message; t.className = kind; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, kind === 'error' ? 12000 : ms);
+}
+
+// ---------- chargement ----------
+function loadJson(text, name) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { throw new Error(`${name} : JSON illisible (${e.message})`); }
+  if (!Array.isArray(data)) throw new Error(`${name} : une liste de pages était attendue, le JSON est un ${data === null ? 'null' : typeof data}`);
+  if (!data.length) throw new Error(`${name} : la liste de pages est vide`);
+  // on ne garde que ce qui sert (html, markdown et chunks redisent le raw)
+  S.pages = data.map((p, k) => {
+    if (typeof p?.raw !== 'string') throw new Error(`${name}, page ${k + 1} de la liste : clé « raw » absente`);
+    const box = Array.isArray(p.page_box) && p.page_box.length === 4 ? p.page_box : null;
+    return { raw: p.raw, index: Number.isInteger(p.page_index) ? p.page_index : k, error: !!p.error,
+      size: box ? [box[2] - box[0], box[3] - box[1]] : [1000, 1414] };
+  });
+  // numrev ocr : page_index = page du PDF (depuis 1) ; latynna brut : rang depuis 0
+  S.offset = S.pages.some((p) => p.index === 0) ? 1 : 0;
+  $('offset').value = S.offset;
+  S.name = name; S.parsed.clear(); S.query = ''; S.hits = null; $('search').value = ''; $('hits').textContent = '';
+  countDoubtful(); buildList();
+  document.body.classList.add('ready');
+  $('jname').textContent = name; $('jname').title = name; fileLine();
+  const want = hashPage();
+  go(want !== null ? Math.max(0, S.pages.findIndex((p) => pdfNo(p) === want)) : 0);
+}
+
+let pdfjsReady = null;
+function ensurePdfjs() {
+  pdfjsReady ??= new Promise((ok, ko) => {
+    const s = document.createElement('script'); s.src = PDFJS + 'pdf.min.js';
+    s.onload = ok; s.onerror = () => ko(new Error(`pdf.js n'a pas pu être chargé depuis ${s.src} : l'affichage du PDF demande une connexion`));
+    document.head.append(s);
+  }).then(async () => {
+    // worker d'une autre origine : passé par une URL blob (sinon pdf.js tourne sans worker, plus lentement)
+    try {
+      const r = await fetch(PDFJS + 'pdf.worker.min.js');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([await r.text()], { type: 'text/javascript' }));
+    } catch { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; }
+  }).catch((e) => { pdfjsReady = null; throw e; });
+  return pdfjsReady;
+}
+
+async function loadPdf(source, name) {
+  toast(`ouverture de ${name}…`, '', 120000);
+  await ensurePdfjs();
+  const pdf = await pdfjsLib.getDocument(source).promise.catch((e) => { throw new Error(`${name} : PDF illisible (${e.message})`); });
+  $('toast').hidden = true;
+  S.pdf?.destroy(); S.pdf = pdf; S.pdfName = name; fileLine();
+  const outside = S.pages.filter((p) => pdfNo(p) < 1 || pdfNo(p) > pdf.numPages).length;
+  if (S.pages.length && outside) toast(`${plural(outside, 'page', 'pages')} du JSON hors du PDF (${pdf.numPages} pages) : voir la numérotation dans l'aide (?)`, 'error');
+  if (S.cur >= 0) go(S.cur);
+}
+
+function fileLine() {
+  const n = S.pages.length;
+  $('pname').textContent = `${plural(n, 'page', 'pages')} OCR · ` + (S.pdf ? `${S.pdfName} (${S.pdf.numPages} p.)` : 'sans PDF');
+}
+
+async function openFiles(files) {
+  const list = [...files];
+  const json = list.find((f) => /\.json$/i.test(f.name) || f.type === 'application/json');
+  const pdf = list.find((f) => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  const other = list.filter((f) => f !== json && f !== pdf);
+  if (other.length) toast(`ignoré (ni .json ni .pdf) : ${other.map((f) => f.name).join(', ')}`, 'error');
+  try {
+    if (json) { toast(`lecture de ${json.name}…`, '', 60000); loadJson(await json.text(), json.name); $('toast').hidden = true; }
+    if (pdf) {
+      if (!S.pages.length) toast('PDF retenu : déposez maintenant le JSON de l\'OCR.');
+      await loadPdf({ data: await pdf.arrayBuffer() }, pdf.name);
+    }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function openUrls() {
+  const params = new URLSearchParams(location.search), json = params.get('json'), pdf = params.get('pdf');
+  const base = (url) => decodeURIComponent(url.split(/[?#]/)[0].split('/').pop());
+  try {
+    if (json) {
+      toast(`téléchargement de ${base(json)}…`, '', 60000);
+      const r = await fetch(json);
+      if (!r.ok) throw new Error(`${json} : HTTP ${r.status}`);
+      loadJson(await r.text(), base(json)); $('toast').hidden = true;
+    }
+    if (pdf) await loadPdf({ url: pdf }, base(pdf));  // lu par morceaux quand le serveur le permet
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ---------- analyse d'une page ----------
+const CONFIDENCE = /data-word-confidence="([^"]*)"/g;
+function countDoubtful() {
+  for (const p of S.pages) {
+    let low = 0;
+    for (const m of p.raw.matchAll(CONFIDENCE)) for (const x of m[1].split(/\s+/)) if (x && +x < S.threshold) low++;
+    p.low = low;
+  }
+}
+
+// blocs (enfants du raw) et lignes (<span> de premier niveau de chaque bloc)
+function parse(k) {
+  if (S.parsed.has(k)) return S.parsed.get(k);
+  const doc = new DOMParser().parseFromString(S.pages[k].raw, 'text/html');
+  const blocks = [], lines = [];
+  for (const node of doc.body.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE && !node.data.trim()) continue;
+    const el = node.nodeType === Node.ELEMENT_NODE ? node : Object.assign(doc.createElement('div'), { textContent: node.data });
+    const block = { n: blocks.length, el, bbox: quad(el.getAttribute('data-bbox')), label: el.getAttribute('data-label') || el.tagName.toLowerCase() };
+    blocks.push(block);
+    for (const span of el.querySelectorAll('span')) {
+      if (span.parentElement.closest('span')) continue;
+      const text = span.textContent.replace(/\s+/g, ' ').trim();
+      if (!text) continue;
+      let conf = numbers(span.getAttribute('data-word-confidence'));
+      const mismatch = conf !== null && conf.length !== text.split(' ').length;
+      if (mismatch) conf = null;  // comme numrev extract : scores écartés plutôt que décalés
+      span.dataset.ln = lines.length;
+      lines.push({ n: lines.length, block, text, folded: fold(text), conf, mismatch,
+        box: quad(span.getAttribute('data-line-bbox-estimate')), min: conf && conf.length ? Math.min(...conf) : null });
+    }
+  }
+  const page = { blocks, lines };
+  S.parsed.set(k, page);
+  if (S.parsed.size > PARSED_KEEP) S.parsed.delete(S.parsed.keys().next().value);
+  return page;
+}
+
+// HTML du modèle recopié sans attribut ni balise inconnue ; dans une ligne, les mots sous le seuil sont marqués
+function clean(node, lines, line = null, ctx = null) {
+  const out = document.createDocumentFragment();
+  for (const child of node.childNodes) {
+    if (child.nodeType === Node.TEXT_NODE) { out.append(line ? words(child.data, line, ctx) : child.data); continue; }
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const tag = child.tagName.toLowerCase();
+    if (!line && tag === 'span' && child.dataset.ln !== undefined) {
+      const L = lines[+child.dataset.ln], el = document.createElement('span');
+      el.className = 'ln' + (L.box ? '' : ' nobox') + (S.query && L.folded.includes(S.query) ? ' hit' : '');
+      el.dataset.ln = L.n; el.title = lineTitle(L);
+      el.append(clean(child, lines, L, { w: -1, inWord: false }));
+      out.append(el);
+    } else if (ALLOWED.has(tag)) {
+      const el = document.createElement(tag);
+      for (const a of ['colspan', 'rowspan']) if (child.hasAttribute(a)) el.setAttribute(a, child.getAttribute(a));
+      el.append(clean(child, lines, line, ctx)); out.append(el);
+    } else out.append(clean(child, lines, line, ctx));
+  }
+  return out;
+}
+
+// un mot = ce qui est entre deux espaces du texte visible ; une balise dans un mot ne le coupe pas
+function words(text, line, ctx) {
+  const out = document.createDocumentFragment();
+  for (const piece of text.split(/(\s+)/)) {
+    if (!piece) continue;
+    if (/^\s+$/.test(piece)) { ctx.inWord = false; out.append(piece); continue; }
+    if (!ctx.inWord) { ctx.w++; ctx.inWord = true; }
+    const score = line.conf?.[ctx.w];
+    if (score !== undefined && score < S.threshold) {
+      const m = document.createElement('mark'); m.textContent = piece; m.title = `confiance ${fmt(score)}`; out.append(m);
+    } else out.append(piece);
+  }
+  return out;
+}
+
+function lineTitle(L) {
+  const parts = [`ligne ${L.n + 1}`];
+  if (L.min !== null) parts.push(`confiance min. ${fmt(L.min)}`);
+  else parts.push(L.mismatch ? 'confiances écartées : autant de scores que de mots attendus' : 'sans confiance');
+  if (!L.box) parts.push('sans boîte estimée');
+  return parts.join(' · ');
+}
+
+// ---------- affichage ----------
+function go(k) {
+  if (!S.pages.length) return;
+  k = Math.max(0, Math.min(S.pages.length - 1, k));
+  const changed = k !== S.cur;
+  S.cur = k; S.view = null; S.hover = null;
+  const p = S.pages[k], P = parse(k), n = pdfNo(p);
+  renderText(p, P); renderOverlay(P); layout(); fitText(); renderPdf(k);
+  $('pageno').value = n;
+  document.title = `${S.name} · p. ${n}`;
+  history.replaceState(null, '', '#p=' + n);
+  for (const li of $('list').children) li.classList.toggle('cur', +li.dataset.k === k);
+  $('list').querySelector('.cur')?.scrollIntoView({ block: 'nearest' });
+  if (changed) { $('scan').scrollTop = 0; $('text').scrollTop = 0; }
+}
+
+function renderText(p, P) {
+  const box = $('text'); box.replaceChildren();
+  const low = P.lines.filter((L) => L.min !== null && L.min < S.threshold).length;
+  const nobox = P.lines.filter((L) => !L.box).length, noconf = P.lines.filter((L) => L.conf === null).length;
+  const summary = document.createElement('p'); summary.id = 'summary';
+  const bits = [`page PDF ${pdfNo(p)} (page_index ${p.index})`, plural(P.blocks.length, 'bloc', 'blocs'), plural(P.lines.length, 'ligne', 'lignes'),
+    `${plural(p.low, 'mot', 'mots')} sous ${fmt(S.threshold)}` + (low ? ` (${plural(low, 'ligne', 'lignes')})` : '')];
+  if (nobox) bits.push(`${plural(nobox, 'ligne', 'lignes')} sans boîte`);
+  if (noconf) bits.push(`${plural(noconf, 'ligne', 'lignes')} sans confiance`);
+  summary.textContent = bits.join(' · ');
+  if (p.error) summary.insertAdjacentHTML('afterbegin', '<span class="warn">⚠ page en erreur dans le JSON (error = true)</span><br>');
+  box.append(summary);
+  for (const b of P.blocks) {
+    const card = document.createElement('section');
+    card.className = 'card' + (FURNITURE.has(b.label) ? ' furniture' : '');
+    card.style.setProperty('--c', color(b.label));
+    const head = document.createElement('header');
+    head.innerHTML = `<b>${b.n + 1}</b> `; head.append(b.label + (b.bbox ? '' : ' (sans data-bbox)'));
+    const body = document.createElement('div'); body.className = 'body'; body.append(clean(b.el, P.lines));
+    card.append(head, body); box.append(card);
+  }
+  if (!P.blocks.length) box.insertAdjacentHTML('beforeend', '<p>Page vide.</p>');
+}
+
+function color(label) {
+  if (COLORS[label]) return COLORS[label];
+  let h = 0; for (const c of label) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 55% 45%)`;
+}
+
+const SVG = 'http://www.w3.org/2000/svg';
+function rect([x0, y0, x1, y1], cls) {
+  const r = document.createElementNS(SVG, 'rect');
+  r.setAttribute('x', x0); r.setAttribute('y', y0); r.setAttribute('width', Math.max(1, x1 - x0)); r.setAttribute('height', Math.max(1, y1 - y0));
+  r.setAttribute('class', cls); return r;
+}
+const pct = ([x0, y0, x1, y1]) => `left:${x0 / 10}%;top:${y0 / 10}%;width:${(x1 - x0) / 10}%;height:${(y1 - y0) / 10}%`;
+
+function renderOverlay(P) {
+  const svg = $('svg'), over = $('over'); svg.replaceChildren(); over.replaceChildren();
+  for (const b of P.blocks) {
+    if (!b.bbox) continue;
+    const r = rect(b.bbox, 'blk'); r.style.setProperty('--c', color(b.label)); svg.append(r);
+    const badge = document.createElement('span'); badge.className = 'bdg'; badge.style.cssText = `left:${b.bbox[0] / 10}%;top:${b.bbox[1] / 10}%`;
+    badge.style.setProperty('--c', color(b.label)); badge.textContent = `${b.n + 1} ${b.label}`; over.append(badge);
+  }
+  for (const L of P.lines) {
+    if (!L.box) continue;
+    const low = L.min !== null && L.min < S.threshold, hit = S.query && L.folded.includes(S.query);
+    const r = rect(L.box, 'lnr' + (low ? ' low' : '') + (hit ? ' hit' : '')); r.dataset.ln = L.n;
+    const t = document.createElementNS(SVG, 'title'); t.textContent = `${L.text}\n${lineTitle(L)}`; r.append(t);
+    svg.append(r);
+    const tl = document.createElement('div'); tl.className = 'tl' + (hit ? ' hit' : ''); tl.dataset.ln = L.n; tl.style.cssText = pct(L.box); tl.title = lineTitle(L);
+    const inner = document.createElement('span'); inner.append(clean(L.block.el.querySelector(`span[data-ln="${L.n}"]`), P.lines, L, { w: -1, inWord: false }));
+    tl.append(inner); over.append(tl);
+  }
+}
+
+function layout() {
+  const p = S.pages[S.cur]; if (!p) return;
+  const aspect = S.view ? S.view.height / S.view.width : p.size[1] / p.size[0];
+  const width = Math.max(240, ($('scan').clientWidth - 24) * S.zoom);
+  $('stage').style.width = width + 'px'; $('stage').style.height = width * aspect + 'px';
+}
+
+// texte sur le scan : corps d'après la hauteur de la boîte, étiré ou serré à sa largeur
+function fitText() {
+  if (!document.body.classList.contains('show-text')) return;
+  for (const tl of $('over').querySelectorAll('.tl')) {
+    const inner = tl.firstChild; inner.style.transform = '';
+    tl.style.fontSize = Math.max(4, tl.clientHeight * 0.78) + 'px';
+    const natural = inner.offsetWidth;
+    if (natural) inner.style.transform = `scaleX(${Math.min(3, tl.clientWidth / natural)})`;
+  }
+}
+
+async function renderPdf(k) {
+  const canvas = $('canvas'), note = $('nopdf'), p = S.pages[k], n = pdfNo(p);
+  S.task?.cancel(); S.task = null;
+  if (!S.pdf) { canvas.hidden = true; note.hidden = false; note.textContent = 'pas de PDF ouvert : boîtes sur page blanche'; return; }
+  if (n < 1 || n > S.pdf.numPages) { canvas.hidden = true; note.hidden = false; note.textContent = `page ${n} hors du PDF (${S.pdf.numPages} pages)`; return; }
+  note.hidden = true;
+  const page = await S.pdf.getPage(n);
+  if (k !== S.cur) return;
+  const unit = page.getViewport({ scale: 1 });
+  if (!S.view || S.view.width !== unit.width || S.view.height !== unit.height) { S.view = { width: unit.width, height: unit.height }; layout(); fitText(); }
+  const scale = Math.min(6000, $('stage').clientWidth * devicePixelRatio) / unit.width;
+  const viewport = page.getViewport({ scale });
+  const off = document.createElement('canvas'); off.width = Math.round(viewport.width); off.height = Math.round(viewport.height);
+  const task = page.render({ canvasContext: off.getContext('2d'), viewport }); S.task = task;
+  try { await task.promise; } catch (e) { if (e?.name === 'RenderingCancelledException') return; toast(`page ${n} du PDF : ${e.message}`, 'error'); return; }
+  if (k !== S.cur) return;
+  // rendu hors écran puis recopié : pas de page blanche pendant le rendu
+  canvas.width = off.width; canvas.height = off.height; canvas.getContext('2d').drawImage(off, 0, 0); canvas.hidden = false;
+  if (k + 1 < S.pages.length) { const next = pdfNo(S.pages[k + 1]); if (next >= 1 && next <= S.pdf.numPages) S.pdf.getPage(next); }
+}
+
+let redrawTimer;
+function redraw() { layout(); fitText(); clearTimeout(redrawTimer); redrawTimer = setTimeout(() => S.cur >= 0 && renderPdf(S.cur), 200); }
+function zoom(z) { S.zoom = Math.max(0.3, Math.min(6, z)); redraw(); }
+
+function buildList() {
+  const ol = $('list'), items = [];
+  S.pages.forEach((p, k) => {
+    if (S.hits && !S.hits.has(k)) return;
+    const li = document.createElement('li'); li.dataset.k = k; li.classList.toggle('cur', k === S.cur);
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="n">p. ${pdfNo(p)}</span>`
+      + (p.error ? '<span class="pill err" title="page en erreur dans le JSON">err.</span>' : '')
+      + (S.hits ? `<span class="pill hits" title="résultats de la recherche">${S.hits.get(k)}</span>` : '')
+      + (p.low ? `<span class="pill" title="mots sous le seuil de confiance">${p.low}</span>` : '');
+    b.onclick = () => go(k);
+    li.append(b); items.push(li);
+  });
+  ol.replaceChildren(...items);
+}
+
+// ---------- recherche ----------
+function plainText(p) {
+  return p.folded ??= fold(decode(p.raw.replace(/<\/?(?:br|p|div|h\d|td|th|tr|li|table)\b[^>]*>/gi, ' ').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' '));
+}
+function search(q) {
+  S.query = fold(q.trim().replace(/\s+/g, ' '));
+  if (!S.query) { S.hits = null; $('hits').textContent = ''; }
+  else {
+    S.hits = new Map(); let total = 0;
+    S.pages.forEach((p, k) => { const n = plainText(p).split(S.query).length - 1; if (n) { S.hits.set(k, n); total += n; } });
+    $('hits').textContent = total ? `${plural(total, 'résultat', 'résultats')} sur ${plural(S.hits.size, 'page', 'pages')}` : 'aucun résultat';
+  }
+  buildList();
+  if (S.cur >= 0) { const top = [$('scan').scrollTop, $('text').scrollTop]; go(S.cur); [$('scan').scrollTop, $('text').scrollTop] = top; }
+}
+function nextHit(step) {
+  const keys = S.hits ? [...S.hits.keys()] : S.pages.map((p, k) => (p.low ? k : -1)).filter((k) => k >= 0);
+  const k = step > 0 ? keys.find((x) => x > S.cur) : keys.reverse().find((x) => x < S.cur);
+  if (k !== undefined) go(k); else toast(S.hits ? 'plus de résultat dans ce sens' : 'plus de page avec des mots douteux dans ce sens', '', 1800);
+}
+
+// ---------- survol et clic : une ligne des deux côtés ----------
+function hover(n) {
+  if (n === S.hover) return;
+  for (const e of document.querySelectorAll('.hl')) e.classList.remove('hl');
+  S.hover = n;
+  if (n !== null) for (const e of document.querySelectorAll(`[data-ln="${n}"]`)) e.classList.add('hl');
+}
+function lineOf(ev) { const t = ev.target.closest?.('[data-ln]'); return t ? t.dataset.ln : null; }
+for (const id of ['stage', 'text']) {
+  $(id).addEventListener('mouseover', (ev) => hover(lineOf(ev)));
+  $(id).addEventListener('mouseleave', () => hover(null));
+}
+$('stage').addEventListener('click', (ev) => {
+  const n = lineOf(ev); if (n === null) return;
+  const el = $('text').querySelector(`.ln[data-ln="${n}"]`); if (!el) return;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+});
+$('text').addEventListener('click', (ev) => {
+  const n = lineOf(ev); if (n === null) return;
+  const L = parse(S.cur).lines[+n]; if (!L?.box) return toast('ligne sans boîte estimée : pas de place sur le scan', '', 2500);
+  const stage = $('stage'), scan = $('scan'), h = stage.clientHeight, w = stage.clientWidth;
+  scan.scrollTo({ top: stage.offsetTop + (L.box[1] / 1000) * h - scan.clientHeight / 3, left: stage.offsetLeft + (L.box[0] / 1000) * w - 20, behavior: 'smooth' });
+});
+
+// ---------- commandes ----------
+function hashPage() { const m = location.hash.match(/^#p=(\d+)$/); return m ? +m[1] : null; }
+$('prev').onclick = () => go(S.cur - 1);
+$('next').onclick = () => go(S.cur + 1);
+$('pageno').onchange = () => {
+  const want = +$('pageno').value; let best = 0;
+  S.pages.forEach((p, k) => { if (Math.abs(pdfNo(p) - want) < Math.abs(pdfNo(S.pages[best]) - want)) best = k; });
+  go(best);
+};
+window.addEventListener('hashchange', () => { const n = hashPage(), k = S.pages.findIndex((p) => pdfNo(p) === n); if (k >= 0 && k !== S.cur) go(k); });
+for (const [id, cls, on, key] of [['show-blocks', 'no-blocks', false, 'blocks'], ['show-lines', 'no-lines', false, 'lines'], ['show-text', 'show-text', true, 'text']]) {
+  const box = $(id); box.checked = recall(key, box.checked);
+  const apply = () => { document.body.classList.toggle(cls, box.checked === on); remember(key, box.checked); fitText(); };
+  box.onchange = apply; apply();
+}
+$('threshold').value = S.threshold; $('thr-out').value = fmt(S.threshold);
+let thresholdTimer;
+$('threshold').oninput = () => {
+  S.threshold = +$('threshold').value; $('thr-out').value = fmt(S.threshold); remember('threshold', S.threshold);
+  clearTimeout(thresholdTimer);
+  thresholdTimer = setTimeout(() => { countDoubtful(); buildList(); if (S.cur >= 0) { const top = $('text').scrollTop; go(S.cur); $('text').scrollTop = top; } }, 120);
+};
+$('zoom-in').onclick = () => zoom(S.zoom * 1.25);
+$('zoom-out').onclick = () => zoom(S.zoom / 1.25);
+$('zoom-fit').onclick = () => zoom(1);
+window.addEventListener('resize', redraw);
+let searchTimer;
+$('search').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => search($('search').value), 250); };
+$('search').onkeydown = (ev) => { if (ev.key === 'Enter') { clearTimeout(searchTimer); if (fold($('search').value.trim()) !== S.query) search($('search').value); nextHit(ev.shiftKey ? -1 : 1); } };
+$('offset').onchange = () => { S.offset = Math.round(+$('offset').value) || 0; buildList(); go(S.cur); };
+$('help').onclick = () => $('dlg').showModal();
+$('open').onclick = $('open2').onclick = () => $('files').click();
+$('files').onchange = () => { openFiles($('files').files); $('files').value = ''; };
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.closest('input, textarea, dialog') || ev.ctrlKey || ev.metaKey || ev.altKey || !S.pages.length) return;
+  const keys = {
+    ArrowLeft: () => (ev.shiftKey ? nextHit(-1) : go(S.cur - 1)), ArrowRight: () => (ev.shiftKey ? nextHit(1) : go(S.cur + 1)),
+    '+': () => zoom(S.zoom * 1.25), '=': () => zoom(S.zoom * 1.25), '-': () => zoom(S.zoom / 1.25), '0': () => zoom(1),
+    b: () => $('show-blocks').click(), l: () => $('show-lines').click(), t: () => $('show-text').click(),
+    '/': () => $('search').focus(), '?': () => $('dlg').showModal(),
+  };
+  const act = keys[ev.key] ?? keys[ev.key.toLowerCase()];
+  if (act) { ev.preventDefault(); act(); }
+});
+
+// dépôt de fichiers n'importe où sur la page
+let depth = 0;
+window.addEventListener('dragenter', (ev) => { if (ev.dataTransfer?.types.includes('Files')) { depth++; document.body.classList.add('dragging'); } });
+window.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; document.body.classList.remove('dragging'); } });
+window.addEventListener('dragover', (ev) => ev.preventDefault());
+window.addEventListener('drop', (ev) => { ev.preventDefault(); depth = 0; document.body.classList.remove('dragging'); if (ev.dataTransfer?.files.length) openFiles(ev.dataTransfer.files); });
+
+openUrls();
+</script>
+</body>
+</html>
