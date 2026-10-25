@@ -6,6 +6,12 @@ d'ensemble et l'installation.
 
 Documents associés :
 
+- [`guide_traitement.md`](guide_traitement.md) — parcours d'un annuaire, du
+  PDF aux données, ce que fait l'humain à chaque étape ;
+- [`donnees.md`](donnees.md) — les données livrées, colonne par colonne, et
+  leurs limites (pour les utilisateurs des données) ;
+- [`guide_annotation_lignes.md`](guide_annotation_lignes.md) — classes des
+  lignes et niveaux de titres (étapes 2 et 3) ;
 - [`guide_annotation_ner.md`](guide_annotation_ner.md) — conventions
   d'annotation des empans `SUBJ` / `DESC` / `ADDR` (étape 5) ;
 - [`guide_curation.md`](guide_curation.md) — guide pratique de la curation
@@ -19,6 +25,7 @@ Documents associés :
 
 - [Organisation des fichiers](#organisation-des-fichiers)
 - [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)
+- [Étape 0 — OCR](#étape-0--ocr--numrev-ocr)
 - [Étape 1 — Extraction des lignes](#étape-1--extraction-des-lignes--numrev-extract)
 - [Étape 2 — Annotation interactive des lignes](#étape-2--annotation-interactive-des-lignes--numrev-label)
 - [Étape 3 — Table des lignes et curation](#étape-3--table-des-lignes-et-curation--numrev-tabulate)
@@ -82,7 +89,9 @@ l'essentiel d'abord, puis les « Réglages fins »). Les étapes 1 à 5 prennent
 un **dossier** : une plage, ou un volume entier (toutes ses plages) ; chaque
 étape trouve son entrée et nomme sa sortie d'après la convention ci-dessus.
 `uv run numrev status` montre, par plage, les étapes faites, absentes ou
-périmées (sortie plus ancienne que son entrée) et la commande à lancer
+périmées (sortie plus ancienne que son entrée), le nombre de lignes
+corrigées, de lignes douteuses restant à relire (`douteuse = oui` sans
+`corrige = oui`) et d'entrées NER corrigées, et la commande à lancer
 ensuite. Les étapes 0 à 4 sur un volume :
 
 ```bash
@@ -124,8 +133,10 @@ Version vulgarisée, avec exemples : [`guide_curation.md`](guide_curation.md).
 Trois étapes demandent une curation humaine : les classes et le texte des
 lignes (étape 3), les empans NER et le rattachement des entrées à leur
 rubrique (étape 5), les correspondances entre éditions (étape 6). Toutes
-suivent le même protocole, pour qu'on puisse relancer toute la chaîne depuis
-l'OCR (CRF amélioré, nouveau modèle NER…) sans perdre ce travail.
+suivent le même protocole, pour qu'on puisse relancer toute la chaîne à
+partir d'un même OCR (CRF amélioré, nouveau modèle NER…) sans perdre ce
+travail. Un nouvel OCR, lui, change les clés des lignes dont le texte lu
+change : leurs corrections ne s'appliquent plus (voir plus bas).
 
 | Étape | Clé stable | Champs éditables | Patch versionné |
 |---|---|---|---|
@@ -160,6 +171,8 @@ dès que le résultat ne serait pas prévisible :
 - une correction qui ne s'applique plus mécaniquement : clé disparue (texte
   OCR changé), texte d'entité modifié en amont depuis la correction NER,
   titre parent disparu ;
+- une correction de ligne dont la classe est vide ou inconnue (`b-entry`) :
+  l'étape 4 en ferait une ligne hors champ sans le dire ;
 - une ligne machine effacée ou déplacée dans le fichier (étape 3).
 
 `--force` résout la panique en prenant la **nouvelle sortie machine** pour
@@ -175,18 +188,26 @@ réécrirait, sans toucher ni au CSV ni au patch.
 - **supprimer** : donner la classe `SUPPRIMÉE` (ignorée par l'étape 4) ;
 - **ajouter** ou **dupliquer** : insérer une ligne sans clé (ou copier une
   ligne) ; elle reçoit la clé `<clé de base>+n`, et le patch retient la clé
-  de la ligne qui la précède (`apres`) pour la réinsérer à sa place ;
+  de la ligne qui la précède (`apres`) pour la réinsérer à sa place. Avant
+  la première ligne du fichier, elle reçoit `debut+n` et un `apres` vide
+  (titre restitué en tête de plage). Elle reprend les colonnes de sa voisine
+  (page, bloc), sauf celles que la machine calcule pour chaque ligne
+  (`Step.machine_only` : `confiance`, `douteuse`, `provenance`,
+  `probability`, `timestamp`), qui restent vides ;
 - **déplacer** (ordre de lecture de l'OCR à corriger) : `SUPPRIMÉE` sur
   l'originale et une copie sans clé à la bonne place ; l'ordre des lignes
   machine reste celui de l'OCR.
 
 La **clé** `cle` d'une ligne est calculée une fois à l'extraction (étape 1) :
 hash du texte OCR normalisé, suffixé `~n` pour la n-ième occurrence d'un
-même texte (lignes vides, titres répétés). Elle ne dépend ni de la page ni
-du découpage en blocs : ajouter des pages au PDF ou une re-segmentation de
-l'OCR ne la change pas, au contraire de l'`uid` (`page.bloc.ligne`), gardé
-pour l'ordre de lecture. L'`uuid` d'une entité (étape 4) dérive de la clé de
-sa ligne racine : il est donc stable lui aussi.
+même texte dans le document (lignes vides, titres répétés). Elle ne dépend
+ni de la page ni du découpage en blocs, au contraire de l'`uid`
+(`page.bloc.ligne`), gardé pour l'ordre de lecture : une re-segmentation des
+blocs ne la change pas. Elle change en revanche quand un nouvel OCR lit la
+ligne autrement, et les `~n` se décalent si une ligne de même texte apparaît
+plus haut. L'`uuid` d'une entité (étape 4) dérive du nom du document et de
+la clé de sa ligne racine : stable lui aussi dans les mêmes limites, il
+change si les plages du volume sont redécoupées.
 
 Les patchs d'alignement (étape 6) ne sont pas capturés depuis un CSV : on
 les édite à la main depuis le viewer. Ils suivent sinon les mêmes règles :
@@ -201,7 +222,7 @@ ne commitent jamais elles-mêmes.
 ## Étape 0 — OCR : `numrev ocr`
 
 L'OCR est fait par **latynna** (Chandra 2 affiné sur les annuaires, modèle
-latynna-v3, servi par vLLM ; paquet `latynna` du projet
+latynna-v4, servi par vLLM ; paquet `latynna` du projet
 `finetuning_chandra_for_directories`, installé par `uv sync --group ocr`).
 
 ```bash
@@ -220,6 +241,14 @@ uv run numrev ocr annuaires/<volume>/<plage> --apply
 - Sans `--apply`, la commande vérifie la plage et le PDF mais ne lance pas
   l'OCR (plusieurs minutes de GPU). Un OCR existant n'est remplacé qu'avec
   `--force`.
+- **Voir l'OCR :** `src/numrev/viewers/ocr.html`, une page HTML autonome
+  (sans serveur ni installation) : l'ouvrir dans un navigateur et y déposer le
+  `<document>.ocr.json` et le PDF du volume. Blocs, lignes (boîtes estimées) et
+  mots sous un seuil de confiance réglable sont posés sur le scan, la
+  transcription en regard ; survol et clic relient les deux vues, recherche
+  dans tout le document. Pour la partager : envoyer le fichier avec le JSON et
+  le PDF, ou les publier ensemble sur un serveur web
+  (`ocr.html?json=…&pdf=…#p=12`). Seul pdf.js vient d'un CDN.
 
 ## Étape 1 — Extraction des lignes : `numrev extract`
 
@@ -250,6 +279,11 @@ uv run numrev extract annuaires/<volume>[/<plage>] --apply
   plutôt que décalés.
 - Du texte hors de tout `<span>` arrête la commande, avec la page, le bloc et
   le début du texte en cause.
+- **Accolades :** depuis latynna-v4, une ligne groupée par une accolade porte
+  son signe (`… }` en fin de ligne, `{ …` en début), et le texte commun
+  n'est écrit que sur la première ligne du groupe. `extract` les garde telles
+  quelles ; elles ne sont pas encore interprétées (forme et règles de lecture :
+  `docs/numrev.md` du projet `finetuning_chandra_for_directories`).
 - **`cle`** : clé stable de la ligne (hash du texte OCR, voir
   [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)),
   recopiée par toutes les étapes suivantes. Pour retrouver une ligne dans la
@@ -282,7 +316,12 @@ uv run numrev label annuaires/<volume>/<plage>
   action ; l'annotation reprend exactement où elle a été arrêtée.
   `--reset-session` l'ignore.
 - **Classes :** `B-ENTRY`, `I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`,
-  `OUT OF SCOPE`, `¯\_(ツ)_/¯` (incertain).
+  `OUT OF SCOPE`, `¯\_(ツ)_/¯` (incertain) ; conventions dans le
+  [guide d'annotation des lignes](guide_annotation_lignes.md).
+- **Document modifié :** la session est liée au contenu exact du
+  `….lines.json` ; si celui-ci a changé (nouvelle extraction d'un OCR
+  différent), elle ne se reprend pas et `--reset-session` recommence
+  l'annotation.
 - **`--seed-size`** (réglage fin) : nombre d'annotations diversifiées avant
   l'échantillonnage par incertitude (défaut : 12).
 
@@ -310,7 +349,7 @@ Points de conception :
   est gardé comme feature). Elles sont définies dans `numrev/crf/features.py`
   (`PRODUCTION_GROUPS`) ; les modifier change le comportement de
   l'annotateur — pour essayer une feature, voir
-  [l'audit du CRF](#audit-du-crf--audit_crf_featurespy).
+  [l'audit du CRF](#audit-du-crf--numrev-audit-crf).
 - La feature `is_page_start` signale une rupture de page sans utiliser le
   numéro de page, qui généraliserait mal d'un document à l'autre.
 - La probabilité exportée est l'argmax des **marginales a posteriori**, pas
@@ -349,7 +388,9 @@ uv run numrev tabulate annuaires/<volume>[/<plage>] --apply
   `data/curation/<document>.lines.patch.csv` et les réapplique (voir
   [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)).
   Un nouvel export (CRF amélioré) garde ainsi les corrections et met à jour
-  les autres lignes. Ces fichiers servent de référence à l'audit du CRF.
+  les autres lignes. La classe d'une ligne corrigée doit être l'une des
+  classes ci-dessus ou `SUPPRIMÉE` (sinon : panique). Ces fichiers servent de
+  référence à l'audit du CRF.
 
 ## Étape 4 — Entités et arbre des titres : `numrev assemble`
 
@@ -366,10 +407,20 @@ uv run numrev assemble annuaires/<volume>[/<plage>] --apply
   `corrige` / `empreinte` ne sont pas recopiées.
 - **Sorties :**
   - `<document>.entities.csv` — une ligne par entité : `ENTRY`, `TITLE` ou
-    `OUT OF SCOPE` (toute classe inconnue est recopiée telle quelle), avec
-    son `uuid` et le `parent_uuid` de son titre parent ;
+    `OUT OF SCOPE` (toute classe inconnue, dont `¯\_(ツ)_/¯`, devient
+    `OUT OF SCOPE`), avec son `uuid` et le `parent_uuid` de son titre parent.
+    Les colonnes des lignes fusionnées juxtaposent leurs valeurs, séparées
+    par des virgules (`uid`, `cle`, `page_index`…), sauf `confiance` (la plus
+    faible des lignes) et `douteuse` (`oui` si l'une l'est) ;
   - `<document>.entities.report.txt` — comptages, arbre indenté des titres (entrées
-    directes et de tout le sous-arbre) et cas à vérifier.
+    directes et de tout le sous-arbre) et cas à vérifier. Les entrées placées
+    avant le premier titre de la plage (rubrique commencée plus haut) n'ont
+    pas de titre parent : le rapport et la console les signalent, car
+    l'alignement ne les apparie jamais. Le remède est explicite : restituer
+    le titre de leur rubrique en tête de la table des lignes
+    ([guide](guide_annotation_lignes.md#une-plage-qui-commence-au-milieu-dune-rubrique)) ;
+    la chaîne ne les rattache jamais d'elle-même à la rubrique de la fin de
+    la plage précédente, qui n'est souvent pas contiguë.
 
 ### Fusion des lignes
 
@@ -397,8 +448,9 @@ flowchart LR
 - L'ordre alphabétique des `ENTRY` est vérifié dans l'ordre du document et
   réinitialisé à chaque `TITLE` ; les ruptures sont listées avec l'`uid` de
   l'entrée fautive.
-- Une classe inconnue est traitée comme hors champ et signalée à part :
-  renommer une classe de ligne impose de mettre `numrev/pipeline/assemble.py` à jour.
+- Une classe incertaine ou inconnue est traitée comme hors champ, signalée
+  dans le rapport et comptée dans les cas à vérifier. Les classes viennent de
+  `numrev/crf/labels.py` : c'est là qu'on renomme une classe de ligne.
 
 ### Identifiants et hiérarchie
 
@@ -550,7 +602,7 @@ personne ou le même commerce. Deux méthodes produisent des correspondances
 |---|---|---|
 | Principe | [Dedupe](https://github.com/dedupeio/dedupe) `RecordLink` : ressemblance apprise sur des paires étiquetées | ordre des entrées : Needleman-Wunsch par rubrique, puis pair-HMM entre ancres |
 | Étiquetage | oui, en console | aucun |
-| Corrections manuelles des entrées | appliquées (patch) | non appliquées (seulement dans le viewer) |
+| Corrections manuelles des entrées | appliquées (patch) | non appliquées à la sortie (appliquées en mémoire par le viewer et `numrev join`) |
 | Sortie | `<gauche>__<droite>.dedupe.csv` (brut) et `<gauche>__<droite>.csv` (final) | `<gauche>__<droite>.nw.csv` |
 | Durée (1807/1808) | quelques minutes | ~12 s |
 
@@ -595,8 +647,22 @@ sous-dossiers de plages triés par première page, chacun par son propre
 ENTRY sont alignées. Pour chacune :
 
 - **rubrique** : titre ancêtre de niveau 2, à défaut de niveau 1, selon
-  `parent_uuid` (donc sans héritage d'une plage à l'autre) ; la clé est sans
-  accents ni ponctuation, en minuscules ;
+  `parent_uuid` ; la clé est sans accents ni ponctuation, en minuscules. Un
+  titre sans `#` n'est jamais une rubrique. Il n'y a pas d'héritage d'une
+  plage à l'autre : les entrées placées avant le premier titre d'une plage
+  (une rubrique commencée dans la plage précédente) n'ont pas de rubrique.
+  Ces suites « sans rubrique » ne sont jamais appariées automatiquement :
+  rien ne dit qu'elles continuent la rubrique de la fin de la plage
+  précédente, qui n'est souvent pas contiguë. Elles figurent parmi les
+  rubriques seules sous le libellé `(sans rubrique : <document>, à partir de
+  la p. N)`, et ne peuvent pas figurer au patch des rubriques (elles n'ont
+  pas d'uuid de titre). Le curateur les rattache en restituant leur titre en
+  tête de la table des lignes (étape 3). Si ce titre restitué (ligne ajoutée
+  à la main, clé `debut+n`) a la même clé que la rubrique de l'entrée qui
+  précède dans l'annuaire, ses entrées prennent l'uuid de rubrique de
+  celle-ci : les deux morceaux forment une seule rubrique
+  (`records.continue_sections`). Un titre imprimé ne continue jamais la
+  rubrique d'avant ;
 - **SUBJ** : texte des empans SUBJ, sans Markdown ;
 - **texte** : texte complet sans Markdown. DESC et ADDR, plus variables
   d'une édition à l'autre, n'interviennent que par lui.
@@ -746,8 +812,8 @@ réappliqué après chaque exécution de Dedupe.
 uv run numrev view alignment
 ```
 
-Le viewer est en lecture seule. On choisit une sortie brute (`*.dedupe.csv`,
-`*.nw.csv` ou une variante `rubriques-brutes`) ; la paire de volumes se
+Le viewer est en lecture seule. On choisit une sortie brute (`*.dedupe.csv`
+ou `*.nw.csv`) ; la paire de volumes se
 déduit du nom de fichier, les deux annuaires sont relus en entier et le
 patch des entrées est appliqué en mémoire : l'écran montre le résultat
 final.
@@ -795,8 +861,9 @@ pour apparier deux entrées, coller la ligne de l'une et y reporter l'`uuid`
 (et le fichier) de l'autre. `numrev align dedupe --patch-only --apply` régénère
 ensuite le CSV final en quelques secondes.
 
-Pour tester le viewer, utiliser un wrapper qui redéfinit `ALIGNMENTS_DIR`
-et `PATCH_DIR`, jamais les dossiers réels.
+Pour tester le viewer, utiliser un wrapper qui redéfinit
+`numrev.paths.ALIGNMENTS_DIR`, `ALIGNMENT_DATA_DIR` et `ANNUAIRES_DIR`
+(jamais les dossiers réels), ou `streamlit.testing.v1.AppTest`.
 
 ### Étape 7 — Jointure lisible : `numrev join`
 
@@ -873,7 +940,7 @@ uv run numrev audit alignment data/alignment/<g>__<d>.gold-inversions.csv
   perte due aux rubriques sans correspondance n'y sont pas évalués.
 - **Pour une nouvelle paire d'annuaires**, commencer par les rubriques sans
   correspondance (console d'`numrev align nw`, encart
-  *Rubriques* du viewer, section 3 du rapport d'audit) :
+  *Rubriques* du viewer, section 4 du rapport d'audit) :
   leurs entrées ne sont jamais appariées et le gold ne voit pas cette perte.
   Lier dans le patch des rubriques celles qui ont un équivalent. Ensuite,
   les seuils ne sont pas à reprendre de 1807/1808 les yeux fermés : tirer un petit gold
@@ -924,6 +991,7 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 
 | Fichier | Produit par | Contenu |
 |---|---|---|
+| `….ocr.json` | `numrev ocr` | Sortie de latynna : une entrée par page, chaque ligne un `<span>` avec la confiance de ses mots et sa boîte estimée |
 | `….lines.json` | `numrev extract` | Pages → blocs → lignes Markdown (`uid`, `line_index`, `markdown`, `cle`) |
 | `….labeled.json` / `.label-session.json` | `numrev label` | Classe, provenance, probabilité de chaque ligne ; session reprenable |
 | `….lines.csv` | `numrev tabulate` + curation manuelle | Une ligne CSV par ligne Markdown, corrigée à la main (`corrige = oui`) |
@@ -951,11 +1019,11 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 | Module | Rôle |
 |---|---|
 | `cli.py` | Point d'entrée : table des commandes (nom, module, résumé) ; un module n'est importé que pour la commande lancée |
-| `command.py` | Conventions communes : `Writes` et `--apply`, `CommandError`, options partagées, sortie par défaut |
+| `command.py` | Conventions communes : `Writes` et `--apply`, `CommandError`, options partagées, entrée d'une étape (`require_input`) |
 | `paths.py` | Noms et emplacements des fichiers : suffixes des étapes, nom de document, découverte des plages, fichiers d'une paire (`Pair`) |
-| `pipeline/` | Une commande par étape : `extract`, `label`, `tabulate`, `assemble`, `tag`, `align_nw`, `align_dedupe`, `join` |
-| `viewers/` | Viewers Streamlit `directory` et `alignment` (`numrev view`) |
-| `devtools/` | Gold (`ner_gold`, `alignment_gold`), jeu d'entraînement et entraînement NER (`ner_dataset`, `ner_train`), audits (`crf_audit`, `ner_audit`, `alignment_audit`) |
+| `pipeline/` | Une commande par étape : `ocr`, `extract`, `label`, `tabulate`, `assemble`, `tag`, `align_nw`, `align_dedupe`, `join` |
+| `viewers/` | Viewers Streamlit `directory` et `alignment` (`numrev view`), code commun (`common.py`) ; `ocr.html`, page autonome qui pose une sortie OCR sur son PDF |
+| `devtools/` | État de la chaîne (`status`), gold (`ner_gold`, `alignment_gold`), jeu d'entraînement et entraînement NER (`ner_dataset`, `ner_train`), audits (`crf_audit`, `ner_audit`, `alignment_audit`) |
 | `document.py` | Schéma pages → `data_blocks` → `lines`, validation et parcours (`iter_line_locations`) |
 | `curation.py` | Protocole des corrections humaines rejouables : clés de ligne, empreintes, capture, application, panique (`CurationConflict`), écriture atomique des CSV |
 | `titles.py` | Niveau et texte lisible des titres, racine de l'arbre des titres (`ROOT_UUID`) |

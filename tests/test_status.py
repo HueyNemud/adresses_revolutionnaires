@@ -49,17 +49,33 @@ class StatusTests(unittest.TestCase):
 
         self.assertEqual(range_status(self.range_dir).states["tabulate"], STALE)
 
-    def test_counts_corrected_and_doubtful_lines(self) -> None:
+    def test_stale_ocr_is_replaced_with_force(self) -> None:
+        """`numrev ocr` refuse de remplacer un OCR existant sans --force."""
+        pdf = self.range_dir.parent / "V.pdf"
+        pdf.touch()
+        os.utime(pdf, (300, 300))
+        self.touch(".ocr.json", 200)
+
+        status = range_status(self.range_dir)
+
+        self.assertEqual(status.states["ocr"], STALE)
+        self.assertEqual(status.next_command, f"uv run numrev ocr {self.range_dir} --force --apply")
+
+    def test_counts_corrected_lines_and_doubtful_lines_left_to_review(self) -> None:
         path = self.range_dir / "V.7-9.lines.csv"
         write_csv(
             path,
             ["cle", "douteuse", "corrige"],
-            [{"cle": "a", "douteuse": "oui", "corrige": "oui"}, {"cle": "b", "douteuse": "", "corrige": ""}],
+            [
+                {"cle": "a", "douteuse": "oui", "corrige": "oui"},  # douteuse, relue
+                {"cle": "b", "douteuse": "oui", "corrige": ""},
+                {"cle": "c", "douteuse": "", "corrige": ""},
+            ],
         )
 
         status = range_status(self.range_dir)
 
-        self.assertEqual((status.corrected_lines, status.doubtful_lines), (1, 1))
+        self.assertEqual((status.corrected_lines, status.doubtful_lines, status.corrected_entries), (1, 1, None))
 
 
 if __name__ == "__main__":

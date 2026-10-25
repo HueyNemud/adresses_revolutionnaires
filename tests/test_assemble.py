@@ -6,6 +6,7 @@ from pathlib import Path
 from numrev.pipeline.assemble import (
     alpha_sort_key,
     assign_entity_ids,
+    format_report,
     format_title_tree,
     process_csv,
 )
@@ -86,6 +87,36 @@ class EntityIdTests(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertNotIn("corrige", reader.fieldnames)
         self.assertNotIn("empreinte", reader.fieldnames)
+
+    def test_entity_confidence_is_its_lowest_line_and_doubtful_if_one_line_is(self):
+        """`confiance` a une virgule décimale : la juxtaposer (`0,60,0,88`) serait illisible."""
+        fields = ["cle", "uid", "markdown", "confiance", "douteuse", "classe"]
+        rows = [
+            ("k1", "1.1.1", "Dupont,", "0,88", "oui", "B-ENTRY"),
+            ("k2", "1.1.2", "rue A, 1.", "0,60", "oui", "I-ENTRY"),
+            ("k3", "1.1.3", "Martin,", "0,95", "", "B-ENTRY"),
+            ("k4", "1.1.4", "rue B, 2.", "", "", "I-ENTRY"),  # ligne sans scores
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "Vol.1-9.lines.csv"
+            with source.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(fields)
+                writer.writerows(rows)
+            process_csv(source, Path(tmp) / "out.csv")
+            with (Path(tmp) / "out.csv").open(encoding="utf-8", newline="") as handle:
+                out = list(csv.DictReader(handle))
+        self.assertEqual([(row["confiance"], row["douteuse"]) for row in out], [("0,60", "oui"), ("0,95", "")])
+        self.assertEqual(out[0]["uid"], "1.1.1,1.1.2")
+
+    def test_unknown_classes_are_reported(self):
+        rows = [*ROWS[:2], ("1.1.2", "Boulanger, rue B, 2.", "¯\\_(ツ)_/¯")]
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "Vol.1-9.lines.csv"
+            write_source(source, rows)
+            report = process_csv(source, Path(tmp) / "out.csv")
+        self.assertEqual(report.unknown_labels, [("1.1.2", "¯\\_(ツ)_/¯")])
+        self.assertIn("incertaine ou inconnue (1)", format_report(report, source, Path(tmp) / "out.csv"))
 
 
 class AlphaSortKeyTests(unittest.TestCase):
@@ -170,6 +201,8 @@ class TitleTreeReportTests(unittest.TestCase):
                 "    ## Section B — 0 (0)",
             ],
         )
+        self.assertEqual(report.untitled_entries, ["1.1.0"])
+        self.assertIn("Entrées avant le premier titre de la plage (1, de 1.1.0 à 1.1.0)", format_report(report, source, source))
 
 
 if __name__ == "__main__":

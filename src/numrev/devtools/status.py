@@ -1,5 +1,5 @@
 """État de la chaîne par plage : étapes faites, absentes ou périmées, corrections
-et lignes douteuses, et la prochaine commande à lancer.
+et lignes douteuses à relire, et la prochaine commande à lancer.
 
 Une sortie est **périmée** quand elle est plus ancienne que son entrée (date
 de modification) : l'entrée a changé depuis, l'étape est à relancer. Lecture
@@ -13,7 +13,7 @@ from pathlib import Path
 from rich import box
 from rich.table import Table
 
-from numrev.command import CommandError, console, require_dir
+from numrev.command import APPLY_FLAG, CommandError, console, require_dir
 from numrev.curation import is_corrected, read_csv
 from numrev.paths import (
     ALIGNMENTS_DIR,
@@ -41,11 +41,12 @@ class ChainStep:
     command: str  # commande numrev qui écrit la sortie
     suffix: str  # sortie
     apply: bool = True  # la commande simule sans --apply
+    replace: str = ""  # option sans laquelle la commande refuse de remplacer une sortie existante
 
 
 # Dans l'ordre de la chaîne.
 STEPS = (
-    ChainStep("ocr", OCR),
+    ChainStep("ocr", OCR, replace="--force"),
     ChainStep("extract", LINES),
     ChainStep("label", LABELED, apply=False),
     ChainStep("tabulate", LINES_CSV),
@@ -58,9 +59,9 @@ STEPS = (
 class RangeStatus:
     range_dir: Path
     states: dict[str, str] = field(default_factory=dict)  # commande → DONE / MISSING / STALE
-    corrected_lines: int = 0
-    doubtful_lines: int = 0
-    corrected_entries: int = 0
+    corrected_lines: int | None = None  # None : pas encore de table des lignes
+    doubtful_lines: int | None = None  # douteuses sans « corrige = oui » : à relire
+    corrected_entries: int | None = None  # None : pas encore de CSV NER
     next_command: str = ""
 
 
@@ -96,12 +97,14 @@ def range_status(range_dir: Path) -> RangeStatus:
     if lines_csv.exists():
         _, rows = read_csv(lines_csv)
         status.corrected_lines = sum(is_corrected(row) for row in rows)
-        status.doubtful_lines = sum((row.get(DOUBTFUL_COLUMN) or "").strip().lower() == "oui" for row in rows)
+        status.doubtful_lines = sum((row.get(DOUBTFUL_COLUMN) or "").strip().lower() == "oui" and not is_corrected(row) for row in rows)
     if ner_csv.exists():
         status.corrected_entries = sum(is_corrected(row) for row in read_csv(ner_csv)[1])
     pending = next((step for step in STEPS if status.states[step.command] != DONE), None)
     if pending is not None:
-        status.next_command = f"uv run numrev {pending.command} {range_dir}" + (" --apply" if pending.apply else "")
+        options = [pending.replace] if pending.replace and status.states[pending.command] == STALE else []
+        options += [APPLY_FLAG] if pending.apply else []
+        status.next_command = " ".join([f"uv run numrev {pending.command} {range_dir}", *options])
     return status
 
 
@@ -142,10 +145,12 @@ def print_volume(volume_dir: Path, ranges: list[Path]) -> None:
     if not ranges:
         console.print(f"Aucune plage. Pour en créer une : uv run numrev ocr {volume_dir}/<première page>-<dernière page> --apply")
     for status in statuses:
-        console.print(
-            f"[bold]{status.range_dir.name}[/bold] : {status.corrected_lines} lignes corrigées, {status.doubtful_lines} douteuses, "
-            f"{status.corrected_entries} entrées NER corrigées."
-        )
+        counts = []
+        if status.corrected_lines is not None:
+            counts += [f"{status.corrected_lines} lignes corrigées", f"{status.doubtful_lines} douteuses à relire"]
+        if status.corrected_entries is not None:
+            counts.append(f"{status.corrected_entries} entrées NER corrigées")
+        console.print(f"[bold]{status.range_dir.name}[/bold]" + (f" : {', '.join(counts)}." if counts else ""))
         console.print("  " + (f"Ensuite : {status.next_command}" if status.next_command else "[green]À jour.[/green]"), soft_wrap=True)
     console.print()
 

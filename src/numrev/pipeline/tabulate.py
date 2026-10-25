@@ -15,7 +15,9 @@ Les lignes marquées `corrige = oui` du CSV existant sont capturées dans
 `data/curation/<document>.lines.patch.csv` (versionné), puis réappliquées
 sur le nouvel export. Une ligne se supprime en lui donnant la classe
 `SUPPRIMÉE` ; une ligne ajoutée (ou dupliquée) dans le tableur est gardée à
-sa place.
+sa place, y compris avant la première ligne (titre restitué en tête de
+plage), avec `confiance`, `douteuse` et l'annotation du modèle vides. Une correction dont la classe est vide ou inconnue (`b-entry`)
+fait paniquer, comme toute correction inapplicable.
 """
 
 import argparse
@@ -35,8 +37,10 @@ from numrev.command import (
     require_ranges,
     write_or_plan,
 )
+from numrev.crf.labels import CLASSES
 from numrev.curation import (
     CORRECTED_COLUMN,
+    DELETED_CLASS,
     FINGERPRINT_COLUMN,
     Curation,
     Step,
@@ -75,7 +79,20 @@ CSV_FIELDS = [
     FINGERPRINT_COLUMN,
 ]
 
-LINES_STEP = Step("lines", KEY_COLUMN, (CLASS_COLUMN, "markdown"), context=("uid",), insertions=True)
+# Une ligne ajoutée à la main n'a ni score OCR ni annotation du modèle : elle ne les hérite pas de sa voisine.
+LINE_MACHINE_COLUMNS = (CONFIDENCE_COLUMN, DOUBTFUL_COLUMN, "provenance", "probability", "timestamp")
+LINES_STEP = Step("lines", KEY_COLUMN, (CLASS_COLUMN, "markdown"), context=("uid",), insertions=True, machine_only=LINE_MACHINE_COLUMNS)
+CORRECTION_CLASSES = (*CLASSES, DELETED_CLASS)
+
+
+def class_check(correction: dict[str, str], row: dict[str, str]) -> str | None:
+    """Une correction doit porter une classe connue : `numrev assemble` ferait
+    d'une faute de frappe (`b-entry`) ou d'une classe vide une ligne hors champ."""
+    value = (correction.get(CLASS_COLUMN) or "").strip()
+    if value in CORRECTION_CLASSES:
+        return None
+    observed = f"classe inconnue {value!r}" if value else "classe vide"
+    return f"{observed} (classes possibles : {', '.join(CORRECTION_CLASSES)})"
 
 
 def confidence_columns(line: dict[str, Any]) -> dict[str, str]:
@@ -146,7 +163,7 @@ def process_json_to_csv(
     curation = None
     if is_annotated(document):
         curation = Curation(LINES_STEP, csv_path, patch_file, force=force, capture=capture)
-        rows = curation.apply(rows)
+        rows = curation.apply(rows, check=class_check)
         curation.save_patch(writes)
     write_or_plan(writes, csv_path, lambda: write_csv(csv_path, CSV_FIELDS, rows))
     return curation

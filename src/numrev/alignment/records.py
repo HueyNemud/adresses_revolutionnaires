@@ -12,9 +12,11 @@ Chaque ENTRY devient un `Record` décrit par trois champs de comparaison :
   défaut celui de niveau `#` (d'une édition à l'autre, une même rubrique
   change parfois de niveau). L'arbre des titres est celui de `parent_uuid`
   (`numrev assemble`), propre à chaque fichier : une plage n'hérite pas
-  des titres de la précédente. `section` est la clé comparée (sans accents
-  ni ponctuation) ; `section_title` garde le titre lisible, pour l'affichage
-  et la relecture ;
+  des titres de la précédente. Une rubrique coupée par une frontière de
+  plage reste une seule rubrique quand son titre est recopié à la main en
+  tête de la plage suivante (`continue_sections`). `section` est la clé
+  comparée (sans accents ni ponctuation) ; `section_title` garde le titre
+  lisible, pour l'affichage et la relecture ;
 - `text` : le texte complet, sans Markdown ;
 - `subj` : le texte des empans SUBJ, sans Markdown.
 """
@@ -30,7 +32,7 @@ import numpy as np
 from rapidfuzz.distance import Indel, JaroWinkler
 from rapidfuzz.process import cdist
 
-from numrev.curation import read_csv
+from numrev.curation import is_inserted, read_csv
 from numrev.ner.spans import normalize_markdown, parse_tagged_text, project_spans
 from numrev.paths import NER, range_dirs, range_document
 from numrev.titles import title_level, title_text
@@ -51,7 +53,8 @@ class Record:
     text: str
     markdown: str
     tagged_text: str
-    section_uuid: str = ""  # uuid du TITLE de la rubrique, vide sans rubrique
+    section_uuid: str = ""  # uuid du TITLE de la rubrique (de son 1er titre, voir `continue_sections`), vide sans rubrique
+    section_inserted: bool = False  # titre de la rubrique ajouté à la main (clé de ligne `…+n`, numrev/curation.py)
 
 
 def ner_csv(range_dir: Path) -> Path:
@@ -111,6 +114,8 @@ def section_of(parent_uuid: str, titles: dict[str, tuple[str, str]]) -> tuple[st
 def load_document(path: Path, start: int = 0) -> list[Record]:
     rows = read_csv(path)[1]
     titles = {row["uuid"]: (row.get("parent_uuid", ""), row.get("markdown", "")) for row in rows if row.get("entity") == "TITLE"}
+    # `cle` d'une entité : clés de ses lignes, celle de la ligne racine en premier.
+    inserted = {row["uuid"] for row in rows if row.get("entity") == "TITLE" and is_inserted(row.get("cle", "").split(",")[0])}
     records = []
     for row in rows:
         if row.get("entity") != "ENTRY":
@@ -132,9 +137,24 @@ def load_document(path: Path, start: int = 0) -> list[Record]:
                 markdown=row.get("markdown", ""),
                 tagged_text=row.get("tagged_text", ""),
                 section_uuid=section_uuid,
+                section_inserted=section_uuid in inserted,
             )
         )
     return records
+
+
+def continue_sections(records: list[Record]) -> None:
+    """Une rubrique coupée par une frontière de plage se continue par son
+    titre, recopié à la main en tête de la plage suivante
+    (`docs/guide_annotation_lignes.md`) : les entrées sous ce titre prennent
+    l'uuid de rubrique de l'entrée qui les précède dans l'annuaire, si elle a
+    la même clé de rubrique, et forment avec elle une seule rubrique
+    (`numrev/alignment/sections.py`). Un titre imprimé ne continue jamais la
+    rubrique d'avant : deux plages successives ne sont souvent pas contiguës,
+    seul le curateur sait si la rubrique se poursuit."""
+    for previous, record in zip(records, records[1:]):
+        if record.section_inserted and previous.section_uuid and record.section == previous.section:
+            record.section_uuid = previous.section_uuid
 
 
 def load_volume(volume_dir: Path) -> list[Record]:
@@ -145,6 +165,7 @@ def load_volume(volume_dir: Path) -> list[Record]:
     records: list[Record] = []
     for range_dir in ranges:
         records += load_document(ner_csv(range_dir), start=len(records))
+    continue_sections(records)
     duplicates = len(records) - len({record.uuid for record in records})
     if duplicates:
         warnings.warn(f"{volume_dir.name} : {duplicates} uuid en double, seule la dernière occurrence est comparée")

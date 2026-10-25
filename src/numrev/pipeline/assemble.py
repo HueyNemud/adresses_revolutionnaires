@@ -20,7 +20,10 @@ par ligne :
 
 Les lignes de classe `SUPPRIMÉE` (supprimées à la main, voir
 numrev/curation.py) sont ignorées ; les colonnes de curation des lignes
-(`corrige`, `empreinte`) ne sont pas recopiées.
+(`corrige`, `empreinte`) ne sont pas recopiées. Dans une entité fusionnée,
+`confiance` est la plus faible des confiances OCR de ses lignes et
+`douteuse` vaut `oui` si l'une d'elles l'est ; les autres colonnes
+juxtaposent les valeurs de ses lignes, séparées par des virgules.
 
 Règles de fusion :
 - I-ENTRY se fusionne (avec un espace) à la ligne ENTRY/SUB-ENTRY la plus
@@ -69,7 +72,11 @@ inférieur, et le parent de toute autre entité (ENTRY, OUT OF SCOPE) est le
 dernier TITLE rencontré. Les titres de plus haut niveau, et les entités qui
 précèdent tout titre, ont pour parent la racine artificielle `ROOT_UUID`
 (UUID nul), commune à tous les documents : l'arbre a ainsi toujours une
-racine unique et chaque entité y est rattachée.
+racine unique et chaque entité y est rattachée. L'arbre est propre à la
+plage : les ENTRY qui précèdent son premier titre (rubrique commencée plus
+haut) ne sont rattachées à aucune rubrique ; le rapport et la console les
+signalent. Pour les rattacher, on ajoute à la main, en tête de la table des
+lignes, la ligne de titre de leur rubrique (`docs/guide_annotation_lignes.md`).
 """
 
 import argparse
@@ -94,7 +101,7 @@ from numrev.command import (
 from numrev.crf.labels import AnnotationLabel
 from numrev.curation import CORRECTED_COLUMN, DELETED_CLASS, FINGERPRINT_COLUMN
 from numrev.paths import ENTITIES, ENTITIES_REPORT, LINES_CSV, document_name, range_document
-from numrev.pipeline.tabulate import CLASS_COLUMN, KEY_COLUMN
+from numrev.pipeline.tabulate import CLASS_COLUMN, CONFIDENCE_COLUMN, DOUBTFUL_COLUMN, KEY_COLUMN
 from numrev.titles import ROOT_UUID, title_level
 
 UID_COLUMN = "uid"
@@ -139,6 +146,8 @@ class MergeReport:
     orphan_entry_continuations: list[str] = field(default_factory=list)
     orphan_title_continuations: list[str] = field(default_factory=list)
     unknown_labels: list[tuple[str, str]] = field(default_factory=list)
+    # ENTRY placées avant le premier TITLE de la plage : parent = racine, sans rubrique.
+    untitled_entries: list[str] = field(default_factory=list)
     alpha_violations: list[tuple[str, str, str, str]] = field(default_factory=list)
 
 
@@ -192,6 +201,13 @@ def _new_root(row: dict[str, str], normalized_entity: str) -> dict[str, str]:
     return root
 
 
+def _lowest_confidence(left: str, right: str) -> str:
+    """La plus faible de deux confiances OCR écrites par `numrev tabulate`
+    (`0,44`, virgule décimale) ; vide si aucune n'a de score."""
+    scores = [value for value in (left, right) if value]
+    return min(scores, key=lambda value: float(value.replace(",", "."))) if scores else ""
+
+
 def _merge_into(
     group: dict[str, str],
     row: dict[str, str],
@@ -207,7 +223,12 @@ def _merge_into(
         if strip_whitespace:
             left, right = left.strip(), right.strip()
 
-        group[col] = f"{left}{sep}{right}"
+        if col == CONFIDENCE_COLUMN:
+            group[col] = _lowest_confidence(left, right)
+        elif col == DOUBTFUL_COLUMN:
+            group[col] = "oui" if "oui" in (left, right) else ""
+        else:
+            group[col] = f"{left}{sep}{right}"
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -329,6 +350,8 @@ def process_csv(input_path: Path, output_path: Path, writes: Writes | None = Non
         if entity_row.get("entity") == NORMALIZED_ENTRY:
             report.final_entries += 1
             report.direct_entries[entity_row["parent_uuid"]] += 1
+            if entity_row["parent_uuid"] == ROOT_UUID:
+                report.untitled_entries.append(entity_row.get(UID_COLUMN, ""))
         elif entity_row.get("entity") == NORMALIZED_TITLE:
             report.final_titles += 1
             markdown = entity_row.get("markdown", "")
@@ -404,6 +427,16 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
     if report.unmarked_titles:
         lines.append(f"Titres sans marqueur `#` ({len(report.unmarked_titles)}) " "— placés au niveau le plus profond :")
         lines.extend(f"  - {uid}" for uid in report.unmarked_titles)
+    if report.untitled_entries:
+        first, last = report.untitled_entries[0].split(",")[0], report.untitled_entries[-1].split(",")[0]
+        lines += [
+            f"Entrées avant le premier titre de la plage ({len(report.untitled_entries)}, de {first} à {last}) "
+            "— sans titre parent ni rubrique :",
+            "  la chaîne ne les rattache à aucune rubrique (pas même celle de la fin de la plage précédente,",
+            "  qui n'est souvent pas contiguë), et l'alignement de deux éditions ne les apparie jamais.",
+            "  Pour les rattacher : ajouter en tête de la table des lignes la ligne de titre de leur rubrique",
+            "  (voir docs/guide_annotation_lignes.md, « Une plage qui commence au milieu d'une rubrique »).",
+        ]
     lines += [
         "",
         "== Cas problématiques ==",
@@ -432,7 +465,10 @@ def format_report(report: MergeReport, input_path: Path, output_path: Path) -> s
         lines.append("I-TITLE sans ancre précédente : aucune.")
 
     if report.unknown_labels:
-        lines.append(f"Classes non reconnues ({len(report.unknown_labels)}) :")
+        lines.append(
+            f"Lignes de classe incertaine ou inconnue ({len(report.unknown_labels)}) "
+            "— traitées comme OUT OF SCOPE, à trancher dans la table des lignes :"
+        )
         lines.extend(f"  - {uid} : classe '{label}'" for uid, label in report.unknown_labels)
 
     lines.append("")
@@ -467,8 +503,15 @@ def run(args: argparse.Namespace) -> None:
             + len(report.orphan_title_continuations)
             + len(report.alpha_violations)
             + len(report.unmarked_titles)
+            + len(report.unknown_labels)
         )
         console.print(f"{input_path.name} : {report.rows_read} lignes lues → {report.rows_written} lignes en sortie.")
         if problem_count:
             console.print(f"[yellow]⚠ {problem_count} cas à vérifier (voir {report_path.name}).[/yellow]")
+        if report.untitled_entries:
+            console.print(
+                f"[yellow]⚠ {len(report.untitled_entries)} entrée(s) avant le premier titre de la plage : sans rubrique, "
+                "jamais appariées par l'alignement ; titre à restituer en tête de la table des lignes "
+                f"(voir {report_path.name}).[/yellow]"
+            )
     writes.finish(console)

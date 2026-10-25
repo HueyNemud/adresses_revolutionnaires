@@ -32,7 +32,11 @@ patch versionné (après un `git pull` qui l'a modifié, par exemple).
 Lignes ajoutées à la main (étape des lignes seulement) : une ligne sans clé,
 ou qui reprend la clé de la ligne précédente (ligne dupliquée), reçoit à la
 capture la clé `<clé de base>+n` ; le patch garde sa position (`apres` = clé
-de la ligne qui la précède) et elle est réinsérée à cette place. Une ligne
+de la ligne qui la précède) et elle est réinsérée à cette place. Ajoutée
+avant la première ligne du fichier (titre restitué en tête de plage), elle
+reçoit la clé `debut+n` et un `apres` vide. Elle n'hérite pas des valeurs
+que la machine calcule pour chaque ligne (`Step.machine_only` : scores OCR,
+probabilité…), qui restent vides. Une ligne
 machine effacée du fichier fait paniquer : on supprime une ligne en lui
 donnant la classe `SUPPRIMÉE`, pour que ce soit rejouable. Une ligne machine
 déplacée fait aussi paniquer (l'ordre des lignes machine est celui de
@@ -57,6 +61,7 @@ AFTER_COLUMN = "apres"
 CORRECTED = "oui"
 DELETED_CLASS = "SUPPRIMÉE"  # classe d'une ligne supprimée à la main (étape des lignes)
 INSERTED_SEPARATOR = "+"
+START_KEY = "debut"  # base de clé d'une ligne ajoutée avant la première ligne du fichier
 OCCURRENCE_SEPARATOR = "~"
 HASH_LENGTH = 12
 
@@ -148,15 +153,17 @@ def write_csv(path: Path, fieldnames: list[str], rows: Iterable[dict[str, object
 @dataclass(frozen=True)
 class Step:
     """Ce qu'une étape déclare : nom (dans le nom du patch), colonne clé,
-    champs éditables, colonnes recopiées dans le patch pour la relecture, et
+    champs éditables, colonnes recopiées dans le patch pour la relecture,
     si l'on peut y ajouter des lignes à la main (et donc détecter celles
-    qu'on y a effacées)."""
+    qu'on y a effacées), et les colonnes propres à chaque ligne machine,
+    vides sur une ligne ajoutée (qui reprend les autres de sa voisine)."""
 
     name: str
     key: str
     fields: tuple[str, ...]
     context: tuple[str, ...] = ()
     insertions: bool = False
+    machine_only: tuple[str, ...] = ()
 
     @property
     def patch_fields(self) -> list[str]:
@@ -164,7 +171,7 @@ class Step:
 
 
 # Vérification propre à une étape : message si la correction ne s'applique
-# plus à la nouvelle ligne machine, None sinon.
+# pas à la nouvelle ligne machine (ou à la ligne ajoutée reconstruite), None sinon.
 Check = Callable[[dict[str, str], dict[str, str]], str | None]
 
 
@@ -218,10 +225,7 @@ class Curation:
                 if not step.insertions:
                     problems.append(f"ligne {number} : clé {'vide' if not key else 'en double : ' + key}")
                     continue
-                if not previous:
-                    problems.append(f"ligne {number} : ligne ajoutée avant la première ligne du fichier")
-                    continue
-                key = self._new_key(previous, all_keys)
+                key = self._new_key(previous or START_KEY, all_keys)
                 all_keys.add(key)
                 row[step.key] = key
             seen.add(key)
@@ -287,13 +291,22 @@ class Curation:
         for correction in self.corrections:
             key = correction.get(step.key, "")
             if step.insertions and is_inserted(key):
-                anchor = by_key.get(correction.get(AFTER_COLUMN, ""))
+                after = correction.get(AFTER_COLUMN, "")
+                # `apres` vide : en tête du fichier ; la ligne reprend alors les colonnes de la première ligne machine.
+                anchor = by_key.get(after) if after else next(iter(machine_rows), None)
                 if anchor is None:
-                    refuse(correction, f"ligne ajoutée après {correction.get(AFTER_COLUMN)!r}, introuvable")
+                    refuse(
+                        correction, f"ligne ajoutée après {after!r}, introuvable" if after else "ligne ajoutée en tête d'un fichier vide"
+                    )
                     continue
-                row = {**anchor, **{name: correction.get(name, "") for name in (*step.context, *step.fields)}}
+                row = {**anchor, **dict.fromkeys(step.machine_only, "")}
+                row |= {name: correction.get(name, "") for name in (*step.context, *step.fields)}
                 row |= {step.key: key, FINGERPRINT_COLUMN: "", CORRECTED_COLUMN: CORRECTED}
-                inserted_after.setdefault(anchor[step.key], []).append(row)
+                message = check(correction, row) if check else None
+                if message:
+                    refuse(correction, message)
+                    continue
+                inserted_after.setdefault(after, []).append(row)
                 by_key[key] = row
                 self.report.inserted += 1
             else:
@@ -354,7 +367,7 @@ class Curation:
             for child in inserted_after.get(row[step.key], []):
                 emit(child)
 
-        for row in machine_rows:
+        for row in [*inserted_after.pop("", []), *machine_rows]:
             emit(row)
         return result
 

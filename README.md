@@ -22,7 +22,7 @@ début du XIXᵉ siècle en données structurées :
 - Le PDF complet de chaque annuaire, rangé en `annuaires/<volume>/<volume>.pdf`.
 - Pour l'OCR (étape 0) : le paquet `latynna` (projet voisin
   `../finetuning_chandra_for_directories`, `uv sync --group ocr`) et une
-  machine GPU qui sert le modèle latynna-v3 avec vLLM.
+  machine GPU qui sert le modèle latynna-v4 avec vLLM.
 
 ## Installation
 
@@ -57,12 +57,13 @@ flowchart TD
     style H fill:#dfe,stroke:#393
 ```
 
-Les corrections humaines (classes et texte des lignes, empans NER,
-correspondances) se font directement dans les CSV produits, en marquant
-`corrige = oui` ; chaque commande les capture dans un patch versionné
-(`data/curation/`, `data/alignment/`) et les réapplique quand on la relance,
-et s'arrête sans rien écrire si une correction ne s'applique plus (voir
-[`docs/guide_curation.md`](docs/guide_curation.md)).
+Les corrections humaines des lignes (classes, texte) et des empans NER se
+font directement dans les CSV produits, en marquant `corrige = oui` ; chaque
+commande les capture dans un patch versionné (`data/curation/`) et les
+réapplique quand on la relance. Les décisions sur les correspondances
+s'écrivent dans les patchs de `data/alignment/`, à l'aide du viewer
+d'alignement. Toute commande s'arrête sans rien écrire si une correction ne
+s'applique plus (voir [`docs/guide_curation.md`](docs/guide_curation.md)).
 
 ## Commandes
 
@@ -92,6 +93,7 @@ uv run numrev join annuaires/alignments/<A>__<B>.nw.csv --excel --apply   # join
 # Consultation
 uv run numrev view directory     # un annuaire, empans et entrées suspectes
 uv run numrev view alignment     # un alignement, aide à la relecture
+# src/numrev/viewers/ocr.html : ouvrir dans un navigateur, y déposer un .ocr.json (+ le PDF)
 
 # Modèles et évaluation
 uv run numrev gold ner --apply                    # tire le gold NER (une fois)
@@ -109,28 +111,45 @@ uv run black src tests && uv run ruff check src tests
 
 ## Documentation
 
-- [`docs/pipeline.md`](docs/pipeline.md) — **documentation détaillée** :
-  organisation des fichiers, chaque étape (entrées, sorties, options,
-  schémas), audits, formats et code ;
-- [`docs/guide_curation.md`](docs/guide_curation.md) — **guide de la
-  curation** : corriger les lignes, le NER et l'alignement à la main sans
-  perdre ses corrections quand on relance la chaîne (exemples) ;
+**Traiter un annuaire**
+
+- [`docs/guide_traitement.md`](docs/guide_traitement.md) — **par où
+  commencer** : le parcours d'un annuaire, du PDF aux données, et ce que
+  fait l'humain à chaque étape ;
+- [`docs/guide_curation.md`](docs/guide_curation.md) — corriger les lignes,
+  le NER et l'alignement à la main sans perdre ses corrections quand on
+  relance la chaîne (exemples, messages d'arrêt) ;
+- [`docs/guide_annotation_lignes.md`](docs/guide_annotation_lignes.md) —
+  classes des lignes et niveaux de titres (étapes 2 et 3) ;
 - [`docs/guide_annotation_ner.md`](docs/guide_annotation_ner.md) —
   conventions d'annotation des empans `SUBJ` / `DESC` / `ADDR` ;
-- [`docs/alignement_ordonne.md`](docs/alignement_ordonne.md) — méthode de
-  l'alignement ordonné (Needleman-Wunsch + pair-HMM) et son évaluation sur
-  un gold d'inversions ;
 - [`docs/guide_relecture_alignement.md`](docs/guide_relecture_alignement.md) —
   conventions de relecture des correspondances (motifs, réponses OUI / NON /
   INCERTAIN, patch).
+
+**Utiliser les données**
+
+- [`docs/donnees.md`](docs/donnees.md) — l'annuaire structuré et la jointure
+  de deux éditions, colonne par colonne, et leurs limites.
+
+**Comprendre et faire évoluer la chaîne**
+
+- [`docs/pipeline.md`](docs/pipeline.md) — documentation technique :
+  organisation des fichiers, chaque étape (entrées, sorties, options,
+  schémas), audits, formats et code ;
+- [`docs/alignement_ordonne.md`](docs/alignement_ordonne.md) — méthode de
+  l'alignement ordonné (Needleman-Wunsch + pair-HMM) et son évaluation sur
+  un gold d'inversions ;
+- [`docs/experience_gliner_relex.md`](docs/experience_gliner_relex.md) —
+  essai d'un modèle GLiNER-relex pour la NER.
 
 ## Organisation du dépôt
 
 | Chemin | Contenu |
 |---|---|
 | `src/numrev/cli.py` | Point d'entrée `numrev` : la liste des commandes |
-| `src/numrev/pipeline/` | Une commande par étape (1 à 7) |
-| `src/numrev/viewers/` | Viewers Streamlit (`numrev view`) |
+| `src/numrev/pipeline/` | Une commande par étape (0 à 7) |
+| `src/numrev/viewers/` | Viewers Streamlit (`numrev view`) ; `ocr.html`, page autonome pour voir une sortie OCR sur son PDF |
 | `src/numrev/devtools/` | Gold, jeu d'entraînement, entraînement, audits |
 | `src/numrev/crf/`, `ner/`, `alignment/` | Code partagé de chaque domaine |
 | `src/numrev/paths.py` | Noms et emplacements des fichiers |

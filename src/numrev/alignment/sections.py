@@ -4,7 +4,9 @@
 
 Une **rubrique** est la suite contiguë des ENTRY de même rubrique
 (`Record.section`, `numrev/alignment/records.py`) ; elle est identifiée par l'uuid de
-son TITLE (`Record.section_uuid`).
+son TITLE (`Record.section_uuid` ; pour une rubrique coupée par une frontière
+de plage et continuée par son titre recopié à la main, celui de son premier
+titre : `records.continue_sections`).
 
 L'ordre des rubriques est stable d'une édition à l'autre ; elles sont donc
 alignées par Needleman-Wunsch sur la similarité Jaro-Winkler de leur clé
@@ -17,6 +19,14 @@ seuil se corrige dans un **patch** versionné et édité à la main,
   1-N, N-1 ou N-M (« Jardiniers-fleuristes, pépiniéristes, marchands
   d'arbres » ↔ « Marchands d'arbres », hors ordre alphabétique) ;
 - une ligne à un seul uuid déclare une rubrique sans correspondance.
+
+Une suite d'entrées **sans rubrique** (avant le premier titre d'une plage,
+ou sous des titres sans `#` de niveau 1 ou 2) n'a pas d'uuid de titre : elle
+n'est jamais appariée automatiquement, car rien ne dit qu'elle continue la
+rubrique qui la précède (deux plages successives ne sont souvent pas
+contiguës). Elle figure parmi les rubriques seules, sous un libellé qui dit
+où elle commence ; pour l'apparier, on restitue son titre en tête de la
+table des lignes de sa plage.
 
 Le patch gagne : ses rubriques sont retirées de l'alignement automatique.
 Les titres recopiés servent à la relecture et au **réancrage** : si un uuid
@@ -38,6 +48,7 @@ from numrev.alignment.records import SOURCE_MANUAL, Link, Record, clean_title
 from numrev.alignment.sequence import needleman_wunsch
 from numrev.command import Writes
 from numrev.curation import read_dataclasses, write_csv
+from numrev.paths import NER
 
 SOURCE_AUTO = "auto"
 DEFAULT_THRESHOLD = 0.8  # similarité Jaro-Winkler minimale de deux clés alignées
@@ -49,8 +60,13 @@ SIDES = ("left", "right")
 class Section:
     uuid: str  # uuid du TITLE, vide pour les entrées sans rubrique
     key: str  # clé comparée (`clean_title`)
-    title: str  # titre lisible
+    title: str  # titre lisible (pour une suite sans rubrique : où elle commence)
     records: list[Record]
+
+
+def untitled_label(record: Record) -> str:
+    """Libellé d'une suite d'entrées sans rubrique, d'après sa première entrée."""
+    return f"(sans rubrique : {record.document.removesuffix(NER)}, à partir de la p. {record.page})"
 
 
 def sections(records: list[Record]) -> list[Section]:
@@ -59,7 +75,8 @@ def sections(records: list[Record]) -> list[Section]:
     result: list[Section] = []
     for record in sorted(records, key=lambda record: record.order):
         if not result or (result[-1].uuid, result[-1].key) != (record.section_uuid, record.section):
-            result.append(Section(record.section_uuid, record.section, record.section_title, []))
+            title = record.section_title if record.section_uuid else untitled_label(record)
+            result.append(Section(record.section_uuid, record.section, title, []))
         result[-1].records.append(record)
     return result
 
@@ -239,8 +256,9 @@ def align_sections(
     manual = manual_groups(resolution.entries, left, right)
     declared = {key for entry in resolution.entries if not entry.is_pair for key in entry.uuids()}
     taken = {(side, section.uuid) for group in manual for side in SIDES for section in getattr(group, side)} | declared
-    auto_left = [section for section in left if ("left", section.uuid) not in taken]
-    auto_right = [section for section in right if ("right", section.uuid) not in taken]
+    # Une suite sans rubrique (sans uuid) n'est jamais alignée automatiquement : voir la docstring du module.
+    auto_left = [section for section in left if section.uuid and ("left", section.uuid) not in taken]
+    auto_right = [section for section in right if section.uuid and ("right", section.uuid) not in taken]
     auto_pairs = []
     if auto_left and auto_right:
         similarity = cdist(

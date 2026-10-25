@@ -169,6 +169,28 @@ class LinesCurationTests(unittest.TestCase):
         self.export(DOCUMENT, capture=False)  # depuis le seul patch
         self.assertEqual([row["markdown"] for row in self.rows()], [row["markdown"] for row in rows])
 
+    def test_lines_added_before_the_first_line_stay_at_the_top(self):
+        """Titre restitué en tête de plage : il reprend la page de la première
+        ligne, mais ni son annotation ni ses scores (ce n'est pas une ligne lue)."""
+
+        def change(rows):
+            title = {**rows[0], "cle": "", "uid": "", "markdown": "## LIBRAIRES.", "classe": "B-TITLE"}
+            return [title, {**title, "markdown": "(suite)", "classe": "I-TITLE"}, *rows]
+
+        self.edit(change)
+        self.export(DOCUMENT)
+        rows = self.rows()
+        self.assertEqual([(row["cle"], row["markdown"]) for row in rows[:2]], [("debut+1", "## LIBRAIRES."), ("debut+2", "(suite)")])
+        self.assertEqual(rows[2]["markdown"], "## PAPETIERS.")
+        self.assertEqual((rows[0]["page_index"], rows[0]["provenance"], rows[0]["probability"]), ("6", "", ""))
+        self.assertEqual((rows[2]["provenance"], rows[2]["probability"]), ("model", "0.9"))
+        self.assertEqual([row["apres"] for row in read_csv(self.patch)[1]], ["", "debut+1"])
+        first_patch = self.patch.read_text()
+        self.export(DOCUMENT)  # capture idempotente
+        self.assertEqual(self.patch.read_text(), first_patch)
+        self.export(DOCUMENT, capture=False)  # depuis le seul patch
+        self.assertEqual([row["markdown"] for row in self.rows()], [row["markdown"] for row in rows])
+
     def test_erased_line_panics_deleted_class_does_not(self):
         self.edit(lambda rows: [row for row in rows if row["uid"] != "7.1.1"])
         with self.assertRaisesRegex(CurationConflict, "problème"):
@@ -217,6 +239,27 @@ class LinesCurationTests(unittest.TestCase):
         self.assertEqual(len(curation.report.dropped), 1)
         self.assertEqual(read_csv(self.patch)[1], [])
 
+    def test_unknown_or_empty_class_panics(self):
+        """Une faute de frappe dans `classe` ferait de l'entrée une ligne hors champ à l'étape 4."""
+
+        def change(rows):
+            rows[2].update(classe="b-entry", corrige="oui")
+            added = {**rows[1], "cle": "", "markdown": "Auzou fils, rue d'Anjou, 21.", "classe": ""}
+            return [*rows[:2], added, *rows[2:]]
+
+        self.edit(change)
+        before = self.csv.read_text()
+        with self.assertRaises(CurationConflict) as raised:
+            self.export(DOCUMENT)
+        self.assertEqual(len(raised.exception.problems), 2)
+        self.assertIn("classe vide", raised.exception.problems[0])
+        self.assertIn("classe inconnue 'b-entry'", raised.exception.problems[1])
+        self.assertEqual(self.csv.read_text(), before)
+        curation = self.export(DOCUMENT, force=True)  # corrections abandonnées : sortie machine
+        self.assertEqual(len(curation.report.dropped), 2)
+        self.assertEqual([row["classe"] for row in self.rows()][:3], ["B-TITLE", "B-ENTRY", "B-ENTRY"])
+        self.assertEqual(len(self.rows()), 7)
+
     def test_old_format_file_panics(self):
         write_csv(self.csv, ["uid", "markdown", "prediction"], [{"uid": "1", "markdown": "x", "prediction": "B-ENTRY"}])
         with self.assertRaisesRegex(CurationConflict, "problème"):
@@ -244,10 +287,6 @@ class CheckTests(unittest.TestCase):
                 curation.apply([{"uuid": "u1", "tagged_text": ""}], check=lambda correction, row: "texte modifié")
             rows = Curation(step, Path(tmp) / "absent.csv", patch).apply([{"uuid": "u1", "tagged_text": ""}])
         self.assertEqual(rows[0]["tagged_text"], "<SUBJ>A</SUBJ>")
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class NerCurationTests(unittest.TestCase):
@@ -315,3 +354,7 @@ class NerCurationTests(unittest.TestCase):
             with self.assertRaisesRegex(CurationConflict, "problème") as raised:
                 self.run_ner(directory, without_t1)
         self.assertIn("titre parent", raised.exception.problems[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

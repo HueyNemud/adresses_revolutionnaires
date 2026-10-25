@@ -179,7 +179,10 @@ def load_session_state(session_path: Path, document_hash: str) -> tuple[list[str
         return None
     session = json.loads(session_path.read_text(encoding="utf-8"))
     if session.get("document_hash") != document_hash:
-        raise ValueError("La session concerne une autre version du document source.")
+        raise ValueError(
+            "elle porte sur une autre version du fichier de lignes (contenu du .lines.json modifié depuis) ; "
+            "--reset-session recommence l'annotation, sans les annotations de cette session."
+        )
     labels = session.get("labels")
     if not isinstance(labels, list):
         raise ValueError("La session ne contient pas de liste de labels valide.")
@@ -305,9 +308,6 @@ def annotate_interactively(crf: ActiveCRF, session_path: Path, document_hash: st
         target_idx, block_indices = selection
 
         display_dashboard(crf, target_idx, block_indices)
-        if len(block_indices) == 1:
-            console.print("\n[dim]Dernière ligne non annotée : bloc réduit à une ligne.[/dim]")
-
         outcome = _collect_block_labels(crf, block_indices)
 
         if outcome is _Control.STOP:

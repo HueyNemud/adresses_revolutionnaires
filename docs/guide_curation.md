@@ -14,6 +14,7 @@ résultats à la main.
 Mais les machines s'améliorent : un meilleur CRF, un nouveau modèle NER…
 On veut alors **relancer la chaîne** pour profiter des progrès sur tout ce
 qu'on n'a pas encore relu, **sans perdre une seule correction** déjà faite.
+(Refaire l'OCR est un cas à part : voir [Après un nouvel OCR](#après-un-nouvel-ocr).)
 
 Le principe tient en une phrase :
 
@@ -27,7 +28,7 @@ colonnes spéciales :
 
 | Colonne | À quoi elle sert | Faut-il y toucher ? |
 |---|---|---|
-| la **clé** (`cle` pour les lignes, `uuid` pour les entrées) | Le « numéro de sécurité sociale » de la ligne : il ne change jamais d'une relance à l'autre, même si on ajoute des pages au PDF. | **Non**, jamais. |
+| la **clé** (`cle` pour les lignes, `uuid` pour les entrées) | Le « numéro de sécurité sociale » de la ligne. Elle vient du texte lu par l'OCR, pas de la page ni de la position : elle ne change pas d'une relance à l'autre, tant que l'OCR n'est pas refait. | **Non**, jamais. |
 | `corrige` | Votre signature : `oui` veut dire « un humain a vérifié cette ligne, ne pas y toucher ». | **Oui** : c'est la seule chose à ne pas oublier. |
 | `empreinte` | Le « sceau » posé par la machine sur ses propres valeurs. Il sert à repérer une ligne modifiée qu'on aurait oublié de signer. | **Non**, jamais. |
 
@@ -64,8 +65,14 @@ elle s'arrête et vous explique pourquoi (voir
 **Patch :** `data/curation/<volume>.<plage>.lines.patch.csv`
 
 On y corrige deux colonnes : `classe` (le type de ligne : `B-ENTRY`,
-`I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`, `OUT OF SCOPE`) et
-`markdown` (le texte, y compris les `#` qui donnent le niveau d'un titre).
+`I-ENTRY`, `SUB-ENTRY`, `B-TITLE`, `I-TITLE`, `OUT OF SCOPE`, ou
+`SUPPRIMÉE`) et `markdown` (le texte, y compris les `#` qui donnent le niveau
+d'un titre). Quand utiliser chaque classe, et quel niveau donner à un titre :
+[guide d'annotation des lignes](guide_annotation_lignes.md). Les lignes que
+l'annotateur a laissées incertaines (`¯\_(ツ)_/¯`) sont à trancher ici.
+
+La classe s'écrit exactement comme ci-dessus (majuscules, tirets, accent) :
+une classe vide ou mal écrite sur une ligne corrigée arrête la commande.
 
 **Par où commencer :** filtrez la colonne `douteuse` sur `oui`. Elle signale les
 lignes dont au moins un mot a été lu avec une confiance OCR faible (le plus
@@ -115,7 +122,12 @@ C'est ainsi qu'on retire, par exemple, des pages scannées deux fois.
 
 On insère une ligne à l'endroit voulu et on **laisse sa clé vide**. Au
 prochain lancement, la commande lui donne une clé dérivée de la ligne
-précédente (`a1f…+1`) et retiendra sa place.
+précédente (`a1f…+1`) et retiendra sa place. Tout en haut du fichier, avant
+la première ligne, elle reçoit la clé `debut+1` : c'est ainsi qu'on restitue
+le titre d'une rubrique commencée avant la plage (voir le
+[guide d'annotation des lignes](guide_annotation_lignes.md#une-plage-qui-commence-au-milieu-dune-rubrique)).
+Une ligne ajoutée n'a ni `confiance` ni `douteuse` : elle n'a pas été lue par
+l'OCR.
 
 | cle | markdown | classe | corrige |
 |---|---|---|---|
@@ -175,7 +187,11 @@ deux colonnes :
 | `7c1…` | `Badet, *et cartier*, rue Helvétius, 37.` | ~~`<SUBJ>Badet, *et cartier*</SUBJ>, <ADDR>rue Helvétius, 37</ADDR>.`~~ → **`<SUBJ>Badet</SUBJ>, <DESC>*et cartier*</DESC>, <ADDR>rue Helvétius, 37</ADDR>.`** | **`oui`** |
 
 Seules les balises changent : le texte entre les balises doit rester
-exactement celui de la colonne `markdown`.
+exactement celui de la colonne `markdown`. Une faute dans le texte se corrige
+dans la table des lignes (étape 3), puis on relance `numrev assemble` et
+`numrev tag`. C'est pourquoi on termine la curation des lignes d'une plage
+avant d'en relire le NER : corriger ensuite le texte d'une entrée oblige à
+refaire sa correction NER.
 
 ### Rattacher une entrée à une autre rubrique
 
@@ -210,13 +226,31 @@ n'ont été modifiés.
 | Message | Ce qui s'est passé | Que faire |
 |---|---|---|
 | `modifiée sans « corrige = oui »` | Vous avez changé une ligne sans la signer, ou le tableur l'a modifiée tout seul (une date, un nombre reformaté). | Si c'est votre correction : mettez `corrige = oui` et relancez. Si c'est une erreur : relancez avec `--force`. |
-| `absente du fichier édité` | Une ligne a été effacée du fichier. | Remettez-la et donnez-lui la classe `SUPPRIMÉE`, ou relancez avec `--force` pour qu'elle revienne. |
+| `absente du fichier édité` | Une ligne de la nouvelle sortie n'est pas dans votre fichier : vous l'avez effacée, ou elle est nouvelle (OCR refait, voir [Après un nouvel OCR](#après-un-nouvel-ocr)). | Remettez-la et donnez-lui la classe `SUPPRIMÉE`, ou relancez avec `--force` pour qu'elle revienne. |
 | `ligne déplacée` | Une ligne de la machine a changé de place (coupé-collé, ou **tri** du tableau). | Annulez le tri ou le coupé-collé ; pour un vrai déplacement, voir [Déplacer une ligne](#déplacer-une-ligne-ordre-de-lecture). |
+| `classe inconnue` ou `classe vide` | (lignes) Une ligne corrigée porte une classe mal écrite (`b-entry`, `B-ENTRY.`) ou pas de classe. | Écrivez la classe exactement comme dans la liste affichée, puis relancez. |
 | `introuvable dans la nouvelle sortie` | La ligne corrigée n'existe plus : l'OCR a changé son texte, ou l'entrée a été redécoupée en amont. | Refaites la correction sur la nouvelle ligne, puis relancez avec `--force` pour abandonner l'ancienne. |
 | `texte de l'entité modifié en amont` | (NER) Le texte de l'entrée a changé depuis votre correction, qui ne colle plus. | Relancez avec `--force`, puis recorrigez l'entrée. |
 | `titre parent … introuvable` | (NER) La rubrique choisie a disparu. | Choisissez une autre rubrique, ou `--force`. |
 | `colonne(s) absente(s)` | Le fichier a été enregistré dans un autre format (souvent le séparateur `;` au lieu de `,`). | Réenregistrez en CSV avec des virgules, en UTF-8. |
 | `ligne orpheline du patch` | (alignement) Une entrée du patch n'existe plus dans les volumes. | Corrigez la ligne du patch à la main, ou `--force` pour l'ignorer. |
+
+## Après un nouvel OCR
+
+Les clés des lignes viennent du texte lu par l'OCR. Refaire l'OCR d'une
+plage (nouveau modèle, PDF remplacé) change le texte de nombreuses lignes,
+donc leurs clés : les corrections de ces lignes ne s'appliquent plus, et les
+entrées concernées changent d'`uuid`.
+
+1. Relancez `numrev tabulate` **sans** `--apply` : la commande s'arrête et
+   liste les corrections `introuvable dans la nouvelle sortie` et les lignes
+   nouvelles (`absente du fichier édité`).
+2. Relancez avec `--force --apply` : les corrections dont la ligne a gardé
+   son texte sont réappliquées, les autres sont abandonnées et listées
+   (l'ancien patch reste dans l'historique git, pour s'en inspirer).
+3. Refaites les corrections perdues, puis faites de même aux étapes
+   suivantes (`numrev tag`, puis les patchs d'alignement, dont les lignes
+   sont réancrées par leur texte quand c'est possible).
 
 ## Les trois options à connaître
 

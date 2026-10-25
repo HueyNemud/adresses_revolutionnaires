@@ -10,12 +10,12 @@ FIELDS = ["uuid", "parent_uuid", "entity", "markdown", "tagged_text", "page_inde
 ROOT = "00000000-0000-0000-0000-000000000000"
 
 
-def write_range(volume: Path, pages: str, rows: list[tuple[str, ...]]) -> None:
+def write_range(volume: Path, pages: str, rows: list[tuple[str, ...]], fields: list[str] = FIELDS) -> None:
     directory = volume / pages
     directory.mkdir(parents=True)
     with (directory / f"{volume.name}.{pages}{NER}").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(FIELDS)
+        writer.writerow(fields)
         writer.writerows(rows)
 
 
@@ -92,6 +92,27 @@ class LoadVolumeTests(unittest.TestCase):
         (self.volume / "30-40").mkdir()
         with self.assertRaises(FileNotFoundError):
             ner_csv(self.volume / "30-40")
+
+
+class ContinuedSectionTests(unittest.TestCase):
+    def test_only_a_title_added_by_hand_continues_the_previous_section(self):
+        """Titre recopié en tête de plage (clé `debut+1`) : même rubrique que la
+        fin de la plage précédente. Un titre imprimé (plage 30-39) ou d'une autre
+        clé (plage 40-49) ouvre une autre rubrique."""
+        fields = ["uuid", "parent_uuid", "cle", "entity", "markdown", "page_index"]
+        ranges = {
+            "10-19": [("t1", ROOT, "a1", "TITLE", "## BOUCHERS.", "10"), ("e1", "t1", "a2", "ENTRY", "Adam, rue A.", "10")],
+            "20-29": [("t2", ROOT, "debut+1", "TITLE", "## Bouchers", "20"), ("e2", "t2", "b1", "ENTRY", "Bert, rue B.", "20")],
+            "30-39": [("t3", ROOT, "c1", "TITLE", "## BOUCHERS.", "30"), ("e3", "t3", "c2", "ENTRY", "Caron, rue C.", "30")],
+            "40-49": [("t4", ROOT, "debut+1,d0", "TITLE", "## BOULANGERS.", "40"), ("e4", "t4", "d1", "ENTRY", "Dumas, rue D.", "40")],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            volume = Path(tmp) / "1807_TEST"
+            for pages, rows in ranges.items():
+                write_range(volume, pages, rows, fields)
+            records = load_volume(volume)
+        self.assertEqual([record.section_inserted for record in records], [False, True, False, True])
+        self.assertEqual([record.section_uuid for record in records], ["t1", "t1", "t3", "t4"])
 
 
 if __name__ == "__main__":

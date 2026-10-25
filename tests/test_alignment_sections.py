@@ -102,6 +102,19 @@ class AlignSectionsTests(unittest.TestCase):
         self.assertEqual(alignment.declared, {("left", "g:jardiniers fleuristes")})
         self.assertEqual([section.key for section in alignment.unmatched_left], ["jardiniers fleuristes"])
 
+    def test_runs_without_section_are_never_paired_automatically(self):
+        """Deux plages successives ne sont souvent pas contiguës : une suite sans
+        rubrique (début de plage) ne continue pas forcément la rubrique d'avant."""
+        left = records("g", ["", "vins"], {"": ""})
+        right = records("d", ["", "vins"], {"": ""})
+        for record in left + right:
+            record.document, record.page = f"{record.document[0]}.13-24.ner.csv", "13"
+        alignment = align_sections(left, right)
+        self.assertEqual([keys_of(group) for group in alignment.groups], [(["vins"], ["vins"])])
+        self.assertEqual([section.title for section in alignment.unmatched_left], ["(sans rubrique : g.13-24, à partir de la p. 13)"])
+        self.assertEqual(len(alignment.unmatched_right), 1)
+        self.assertNotIn(("", ""), corresponding(alignment))
+
     def test_lost_uuid_reanchored_by_title(self):
         patch = [SectionPatchEntry(left_uuid="ancien", right_uuid="d:marchands d arbres", left_title="Jardiniers - Fleuristes.")]
         alignment = align_sections(records("g", LEFT), records("d", RIGHT), patch)
