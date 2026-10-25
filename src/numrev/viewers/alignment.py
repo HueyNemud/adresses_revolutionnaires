@@ -591,7 +591,7 @@ def main() -> None:
     if alignment.reanchored:
         st.info(
             f"↻ {alignment.reanchored} ligne(s) du patch réancrée(s) par le texte ; "
-            "`numrev align dedupe --patch-only --apply` réécrira le patch."
+            "`numrev align nw --apply` (ou `numrev align dedupe --apply`) réécrira le patch."
         )
     if alignment.orphans:
         with st.expander(f"⚠ {len(alignment.orphans)} ligne(s) orpheline(s) du patch, non appliquée(s)"):

@@ -10,13 +10,15 @@ commandes se lancent depuis la racine du dépôt (installation : voir le
 
 | Terme | Sens |
 |---|---|
+| **OCR** | La lecture automatique du texte des pages scannées, faite ici par le modèle latynna. |
 | **volume** | Un annuaire : un dossier `annuaires/<volume>/` qui contient son PDF complet, `<volume>.pdf`. |
 | **plage** | Une suite de pages du PDF traitées ensemble, dans un sous-dossier `<première page>-<dernière page>` (pages du PDF, comptées à partir de 1). Chaque plage est un **document** : ses fichiers s'appellent `<volume>.<plage>.<étape>`. |
 | **ligne** | Une ligne imprimée, telle que l'OCR l'a lue. |
 | **entrée** | Une personne ou une maison de commerce de l'annuaire, sur une ou plusieurs lignes. |
-| **titre**, **rubrique** | Les titres forment un arbre (`#` partie, `##` rubrique, `###` sous-rubrique) ; la rubrique d'une entrée est son titre de niveau `##`. |
-| **empan** | Un morceau du texte d'une entrée : `SUBJ` (qui ?), `DESC` (quoi ?), `ADDR` (où ?). |
-| **patch** | Le fichier versionné (dans `data/`) qui garde les corrections humaines d'une étape et les réapplique à chaque relance. |
+| **titre**, **rubrique** | Les titres forment un arbre (`#` partie, `##` rubrique, `###` sous-rubrique) ; la rubrique d'une entrée est son titre de niveau `##` (à défaut `#`). |
+| **empan** | Un morceau du texte d'une entrée : `SUBJ` (qui ?), `DESC` (quoi ?), `ADDR` (où ?). Le modèle qui les repère est le modèle **NER** (reconnaissance d'entités nommées). |
+| **uuid** | L'identifiant d'une entrée ou d'un titre (`2aa4…`, 36 caractères) : il sert à les désigner dans les corrections et à relier les fichiers entre eux. |
+| **patch** | Le fichier (dans `data/`, suivi par git, qui en garde toutes les versions) où sont recopiées les corrections humaines d'une étape, pour être réappliquées à chaque relance. |
 | **simulation** | Le mode par défaut des commandes qui écrivent : elles calculent et vérifient tout, montrent ce qu'elles écriraient, et n'écrivent qu'avec `--apply`. |
 
 À tout moment, `uv run numrev status` montre, pour chaque plage, les étapes
@@ -175,15 +177,22 @@ uv run numrev align nw annuaires/<A> annuaires/<B> --apply
 uv run numrev view alignment
 ```
 
+La commande compare les entrées des deux éditions rubrique par rubrique, en
+suivant l'ordre des listes ; le viewer sert à relire le résultat. Le
+[guide de relecture de l'alignement](guide_relecture_alignement.md#dans-le-viewer)
+détaille ces deux temps :
+
 1. **Les rubriques d'abord.** La console de `align nw` et l'encart
    *Rubriques* du viewer listent les rubriques restées sans correspondance :
    leurs entrées ne sont jamais appariées. Lier celles qui ont un équivalent
-   dans `data/alignment/<A>__<B>.sections.csv`, puis relancer.
+   dans `data/alignment/<A>__<B>.sections.csv`, puis relancer `align nw`.
 2. **Les paires ensuite.** Dans le viewer, filtrer *Incertitude* sur
-   moyenne et forte, et trancher selon le
-   [guide de relecture de l'alignement](guide_relecture_alignement.md). Les
-   décisions se collent dans `data/alignment/<A>__<B>.patch.csv` grâce aux
-   boutons « copier » du viewer.
+   moyenne et forte et trancher chaque ligne. Les décisions se collent dans
+   `data/alignment/<A>__<B>.patch.csv` grâce aux boutons « copier » du
+   viewer ; recharger la page en montre l'effet.
+
+`numrev align dedupe` est une autre méthode, qui apprend à partir de paires
+qu'on étiquette en console ; voir [`pipeline.md`](pipeline.md#méthode-dedupe--numrev-align-dedupe).
 
 ## Étape 7 · Jointure pour les utilisateurs des données
 
@@ -214,7 +223,7 @@ git commit -m "données: curation des lignes de 1808, pages 100 à 120"
 | Nouvelle annotation ou nouveau CRF (étapes 2-3) | gardées | gardées, sauf pour une entrée redécoupée (lignes rattachées autrement) | gardés |
 | Nouveau modèle NER (étape 5) | — | gardées | gardés |
 | Correction du texte d'une entrée (étape 3) | — | celle de l'entrée est à refaire | gardés |
-| **Nouvel OCR** (étape 0) | **perdues** pour toute ligne dont le texte lu change | perdues avec elles | réancrées par le texte si possible, sinon orphelines |
+| **Nouvel OCR** (étape 0) | **perdues** pour toute ligne dont le texte lu change | perdues avec elles | gardées si l'entrée est retrouvée par son texte ; sinon la commande s'arrête et les liste |
 
 Les clés des lignes viennent du texte lu par l'OCR : refaire l'OCR (nouveau
 modèle, PDF remplacé) change le texte de nombreuses lignes, donc leurs clés,

@@ -188,6 +188,15 @@ def select_entries(rows: list[dict[str, str]]) -> tuple[list[int], list[str], li
 # --------------------------------------------------------------------------
 
 
+DESCRIPTION = """Étape 5 · découpage des entrées en SUBJ (qui ?), DESC (quoi ?) et ADDR (où ?) par le modèle NER
+(<document>.entities.csv → <document>.ner.csv ; sur le processeur, sans GPU).
+
+La colonne ner_suspect signale les entrées à relire en priorité. On corrige tagged_text (ou parent_uuid)
+en mettant corrige = oui ; à chaque relance, la commande garde ces corrections dans
+data/curation/<document>.ner.patch.csv et les réapplique. Guides : docs/guide_annotation_ner.md,
+docs/guide_curation.md."""
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     add_folder_argument(parser)
     parser.add_argument(

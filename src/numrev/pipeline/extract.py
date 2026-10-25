@@ -286,6 +286,12 @@ def process_json_to_json(json_path: str | Path, output_path: str | Path, writes:
     return len(output_pages), block_count, line_count
 
 
+DESCRIPTION = """Étape 1 · découpage de la sortie OCR en lignes (<document>.ocr.json → <document>.lines.json).
+
+Chaque ligne lue par l'OCR devient une ligne, avec sa clé stable (colonne cle des tables suivantes)
+et, si l'OCR les donne, la confiance de ses mots. Rien à faire à la main."""
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     add_folder_argument(parser)
     add_apply_argument(parser)

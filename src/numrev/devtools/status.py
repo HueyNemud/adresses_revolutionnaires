@@ -147,9 +147,9 @@ def print_volume(volume_dir: Path, ranges: list[Path]) -> None:
     for status in statuses:
         counts = []
         if status.corrected_lines is not None:
-            counts += [f"{status.corrected_lines} lignes corrigées", f"{status.doubtful_lines} douteuses à relire"]
+            counts += [f"{status.corrected_lines} ligne(s) corrigée(s)", f"{status.doubtful_lines} douteuse(s) à relire"]
         if status.corrected_entries is not None:
-            counts.append(f"{status.corrected_entries} entrées NER corrigées")
+            counts.append(f"{status.corrected_entries} entrée(s) NER corrigée(s)")
         console.print(f"[bold]{status.range_dir.name}[/bold]" + (f" : {', '.join(counts)}." if counts else ""))
         console.print("  " + (f"Ensuite : {status.next_command}" if status.next_command else "[green]À jour.[/green]"), soft_wrap=True)
     console.print()

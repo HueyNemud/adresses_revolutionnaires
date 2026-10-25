@@ -19,57 +19,68 @@ from numrev.curation import CurationConflict, print_conflict
 class Command:
     module: str
     summary: str
+    files: str = ""  # entrée → sortie, pour la liste des commandes
+
+    @property
+    def description(self) -> str:
+        """Aide d'une commande dont le module n'a pas de `DESCRIPTION`."""
+        return f"{self.summary} ({self.files})" if self.files else self.summary
 
 
 PIPELINE: dict[str, Command | dict[str, Command]] = {
-    "ocr": Command("numrev.pipeline.ocr", "0 · OCR latynna d'une plage de pages      <vol>.pdf → <doc>.ocr.json"),
-    "extract": Command("numrev.pipeline.extract", "1 · lignes de la sortie OCR (1 <span> = 1 ligne) <doc>.ocr.json → <doc>.lines.json"),
-    "label": Command("numrev.pipeline.label", "2 · annotation interactive des lignes (CRF) → <doc>.labeled.json"),
-    "tabulate": Command("numrev.pipeline.tabulate", "3 · table des lignes, corrigée à la main   → <doc>.lines.csv"),
-    "assemble": Command("numrev.pipeline.assemble", "4 · entités et arbre des titres            → <doc>.entities.csv"),
-    "tag": Command("numrev.pipeline.tag", "5 · empans SUBJ / DESC / ADDR (GLiNER)     → <doc>.ner.csv"),
+    "ocr": Command("numrev.pipeline.ocr", "0 · OCR d'une plage de pages (latynna)", "<vol>.pdf → <doc>.ocr.json"),
+    "extract": Command("numrev.pipeline.extract", "1 · découpage de la sortie OCR en lignes", "→ <doc>.lines.json"),
+    "label": Command("numrev.pipeline.label", "2 · annotation interactive des lignes", "→ <doc>.labeled.json"),
+    "tabulate": Command("numrev.pipeline.tabulate", "3 · table des lignes, à corriger à la main", "→ <doc>.lines.csv"),
+    "assemble": Command("numrev.pipeline.assemble", "4 · entrées et arbre des titres", "→ <doc>.entities.csv"),
+    "tag": Command("numrev.pipeline.tag", "5 · découpage des entrées en SUBJ / DESC / ADDR", "→ <doc>.ner.csv"),
     "align": {
-        "nw": Command(
-            "numrev.pipeline.align_nw", "6 · alignement ordonné (Needleman-Wunsch + pair-HMM) → annuaires/alignments/<paire>.nw.csv"
-        ),
-        "dedupe": Command("numrev.pipeline.align_dedupe", "6 · alignement par Dedupe (+ patch) → annuaires/alignments/<paire>.csv"),
+        "nw": Command("numrev.pipeline.align_nw", "6 · alignement de deux éditions, par l'ordre des entrées", "→ <A>__<B>.nw.csv"),
+        "dedupe": Command("numrev.pipeline.align_dedupe", "6 · alignement de deux éditions, par Dedupe", "→ <A>__<B>.csv"),
     },
-    "join": Command("numrev.pipeline.join", "7 · jointure lisible de deux annuaires alignés → <alignement>.join.csv"),
+    "join": Command("numrev.pipeline.join", "7 · jointure lisible de deux éditions alignées", "→ <alignement>.join.csv"),
 }
 TOOLS: dict[str, Command | dict[str, Command]] = {
-    "status": Command("numrev.devtools.status", "état de la chaîne par plage et prochaine commande à lancer"),
-    "view": Command("numrev.viewers", "viewer Streamlit : directory (un annuaire, NER) | alignment (relecture d'un alignement)"),
+    "status": Command("numrev.devtools.status", "état de chaque plage et prochaine commande à lancer"),
+    "view": Command("numrev.viewers", "viewer : directory (un annuaire) ou alignment (relecture d'un alignement)"),
     "gold": {
-        "ner": Command("numrev.devtools.ner_gold", "tire le gold NER à relire (data/ner/gold.ls.json)"),
-        "alignment": Command("numrev.devtools.alignment_gold", "tire le gold d'inversions à étiqueter (data/alignment/)"),
+        "ner": Command("numrev.devtools.ner_gold", "tire l'échantillon NER à relire, pour l'évaluation", "→ data/ner/gold.ls.json"),
+        "alignment": Command("numrev.devtools.alignment_gold", "tire les paires d'inversions à étiqueter", "→ data/alignment/"),
     },
-    "train-set": Command("numrev.devtools.ner_dataset", "construit le jeu d'entraînement NER (data/ner/train.ls.json)"),
-    "train": Command("numrev.devtools.ner_train", "entraîne un modèle GLiNER (machine GPU)"),
+    "train-set": Command("numrev.devtools.ner_dataset", "construit le jeu d'entraînement NER", "→ data/ner/train.ls.json"),
+    "train": Command("numrev.devtools.ner_train", "entraîne un modèle NER GLiNER (machine GPU)", "→ models/"),
     "audit": {
-        "crf": Command("numrev.devtools.crf_audit", "audit du CRF de lignes → reports/crf/"),
-        "ner": Command("numrev.devtools.ner_audit", "audit de la NER sur le gold → reports/ner/"),
-        "alignment": Command("numrev.devtools.alignment_audit", "audit de la relecture d'alignement sur le gold → reports/alignment/"),
+        "crf": Command("numrev.devtools.crf_audit", "audit du modèle d'annotation des lignes (CRF)", "→ reports/crf/"),
+        "ner": Command("numrev.devtools.ner_audit", "audit du modèle NER sur l'échantillon relu", "→ reports/ner/"),
+        "alignment": Command(
+            "numrev.devtools.alignment_audit", "audit de l'alignement sur les inversions étiquetées", "→ reports/alignment/"
+        ),
     },
 }
 COMMANDS = PIPELINE | TOOLS
 
 
 def usage() -> str:
-    def lines(table: dict) -> list[str]:
+    def entries(table: dict) -> list[tuple[str, Command]]:
         result = []
         for name, entry in table.items():
             if isinstance(entry, Command):
-                result.append(f"  {name:<20} {entry.summary}")
+                result.append((name, entry))
             else:
-                result += [f"  {name + ' ' + sub:<20} {command.summary}" for sub, command in entry.items()]
+                result += [(f"{name} {sub}", command) for sub, command in entry.items()]
         return result
+
+    width = max(len(command.summary) for _, command in entries(COMMANDS) if command.files)
+
+    def lines(table: dict) -> list[str]:
+        return [f"  {name:<16} {command.summary:<{width}}  {command.files}".rstrip() for name, command in entries(table)]
 
     return "\n".join(
         [
             "usage : numrev <commande> [<sous-commande>] [options]   (numrev <commande> --help pour le détail)",
             "",
             "Chaîne de traitement : étapes 0-5 sur une plage annuaires/<volume>/<plage> ou un volume annuaires/<volume>,"
-            "\nétapes 6-7 sur une paire d'annuaires :",
+            "\nétapes 6-7 sur une paire d'annuaires (sorties dans annuaires/alignments/) :",
             *lines(PIPELINE),
             "",
             "Consultation, modèles et évaluation :",
@@ -99,16 +110,31 @@ def resolve(argv: list[str]) -> tuple[str, Command, list[str]]:
     return f"{argv[0]} {argv[1]}", entry[argv[1]], argv[2:]
 
 
+class HelpFormatter(argparse.RawDescriptionHelpFormatter):
+    def add_usage(self, usage, actions, groups, prefix=None):
+        super().add_usage(usage, actions, groups, "usage : " if prefix is None else prefix)
+
+
+def build_parser(name: str, command: Command, module) -> argparse.ArgumentParser:
+    """Analyseur d'une commande, avec une aide en français (argparse écrit
+    sinon « usage: », « positional arguments », « show this help message »)."""
+    parser = argparse.ArgumentParser(
+        prog=f"numrev {name}",
+        description=getattr(module, "DESCRIPTION", command.description),
+        formatter_class=HelpFormatter,
+        add_help=False,
+    )
+    parser._positionals.title = "arguments"  # titres des groupes par défaut, sans autre accès public
+    parser._optionals.title = "options"
+    parser.add_argument("-h", "--help", action="help", help="Affiche cette aide.")
+    module.add_arguments(parser)
+    return parser
+
+
 def main(argv: list[str] | None = None) -> None:
     name, command, rest = resolve(sys.argv[1:] if argv is None else argv)
     module = importlib.import_module(command.module)
-    parser = argparse.ArgumentParser(
-        prog=f"numrev {name}",
-        description=getattr(module, "DESCRIPTION", command.summary),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    module.add_arguments(parser)
-    args = parser.parse_args(rest)
+    args = build_parser(name, command, module).parse_args(rest)
     try:
         module.run(args)
     except CommandError as error:

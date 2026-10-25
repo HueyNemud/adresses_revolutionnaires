@@ -34,7 +34,7 @@ numéro de page…).
 | `page_index` | Page(s) du PDF du volume, comptées à partir de 1 ; plusieurs valeurs séparées par des virgules quand l'élément court sur plusieurs lignes. |
 | `uid` | Position de chacune de ses lignes : `page.bloc.ligne`. |
 | `confiance`, `douteuse` | Lecture de l'OCR : la plus faible confiance d'un mot de l'élément (`0,44`), et `oui` si elle est sous le seuil de doute (0,9). Vides si l'OCR n'a pas donné de scores, et pour une ligne ajoutée à la main. |
-| `classe`, `provenance`, `probability`, `timestamp` | Classe de chaque ligne et son origine (`human` : annotée à la main ; `model` : prédite, avec sa probabilité). |
+| `classe`, `provenance`, `probability`, `timestamp` | Classe de chaque ligne et son origine : `human` (annotée à la main), `model` (prédite par le modèle, avec sa probabilité), `unclassified` (ni l'un ni l'autre) ; vides pour une ligne ajoutée à la main. La classe a pu être corrigée ensuite dans la table des lignes. |
 | `cle` | Clés des lignes de l'élément. Une clé qui contient `+` est celle d'une ligne ajoutée à la main, absente de l'OCR : ligne oubliée par l'OCR, ou titre restitué en tête de plage (`debut+1`, voir [Limites connues](#limites-connues)). |
 | `chunk_index`, `data_block_index`, `line_index`, `data_block_bbox`, `data_block_label`, `empreinte` | Colonnes techniques (blocs de l'OCR, contrôle des corrections). |
 
@@ -69,7 +69,7 @@ seule, dans l'ordre des listes de l'édition de gauche.
 | `certitude` | Pour une paire : `relue` (décidée par un humain), `incertaine` (un humain l'a jugée plausible sans pouvoir trancher) ou `automatique`. |
 | `niveau_incertitude` | Pour une paire automatique ou une candidate : `faible`, `moyenne` ou `forte`. C'est un ordre de relecture, pas une probabilité. |
 | `motifs_relecture` | Pourquoi l'incertitude n'est pas faible : `déduite des voisines (p < 0,9)`, `homonyme proche`, `candidate non appariée` (séparés par « \| »). |
-| `score`, `methode` | Score et méthode de la mise en correspondance (`nw`, `nw-contexte`, `nw-residuel` pour l'alignement ordonné, `dedupe`, `manuel`, `manuel-incertain`). Le score n'est comparable qu'au sein d'une même méthode. |
+| `score`, `methode` | Score et méthode de la mise en correspondance. Alignement par l'ordre des listes : `nw` (paire très semblable, à sa place dans les deux listes), `nw-contexte` (paire moins semblable, retenue parce que ses voisines sont appariées ; le score est alors une probabilité), `nw-residuel` (paire très semblable mais déplacée dans la liste). Autres : `dedupe` (méthode Dedupe), `manuel` et `manuel-incertain` (décidée par un relecteur). Le score n'est comparable qu'au sein d'une même méthode. |
 | `gauche_…`, `droite_…` | Pour chaque édition : `volume`, `page`, `rubrique` (titre lisible), `texte` (sans mise en forme), `sujet`, `description`, `adresse` (texte des empans ; plusieurs empans d'une sorte séparés par « \| »), `texte_balise`, `uuid`. |
 
 **Lire les entrées seules.** `gauche seulement` ne veut pas dire que la

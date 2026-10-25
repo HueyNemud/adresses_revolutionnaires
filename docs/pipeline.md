@@ -602,7 +602,7 @@ personne ou le même commerce. Deux méthodes produisent des correspondances
 |---|---|---|
 | Principe | [Dedupe](https://github.com/dedupeio/dedupe) `RecordLink` : ressemblance apprise sur des paires étiquetées | ordre des entrées : Needleman-Wunsch par rubrique, puis pair-HMM entre ancres |
 | Étiquetage | oui, en console | aucun |
-| Corrections manuelles des entrées | appliquées (patch) | non appliquées à la sortie (appliquées en mémoire par le viewer et `numrev join`) |
+| Corrections manuelles des entrées | appliquées (patch) | non appliquées à la sortie (appliquées en mémoire par le viewer et `numrev join`) ; patch vérifié et réancré |
 | Sortie | `<gauche>__<droite>.dedupe.csv` (brut) et `<gauche>__<droite>.csv` (final) | `<gauche>__<droite>.nw.csv` |
 | Durée (1807/1808) | quelques minutes | ~12 s |
 
@@ -761,9 +761,11 @@ seul sans SUBJ, `--subj-weight`, défaut 0,5). Les seuils se règlent par
 
 Sortie : `annuaires/alignments/<gauche>__<droite>.nw.csv`, avec `source` =
 `nw` (ancre), `nw-contexte` (paire du pair-HMM, score = probabilité a
-posteriori) ou `nw-residuel`. Le patch des entrées n'est pas appliqué. La
-console affiche les transitions estimées et l'accord avec le `.dedupe.csv`
-s'il existe.
+posteriori) ou `nw-residuel`. Le patch des entrées n'est pas appliqué à
+cette sortie, mais il est lu comme par `numrev align dedupe` : une ligne
+orpheline arrête la commande (sauf `--force`), des lignes réancrées le font
+réécrire. La console affiche les transitions estimées et l'accord avec le
+`.dedupe.csv` s'il existe.
 
 ### Format des correspondances
 
@@ -801,7 +803,9 @@ réappliqué après chaque exécution de Dedupe.
   Valider une paire correcte la protège des relances (son score est gardé).
 - **Réancrage :** si une entrée est re-segmentée en amont, son uuid change ;
   on cherche alors l'entrée unique de même texte normalisé dans la même
-  rubrique (d'où l'instantané texte + rubrique) et le patch est réécrit.
+  rubrique (d'où l'instantané texte + rubrique), et le patch est réécrit par
+  `numrev align nw` ou `numrev align dedupe` (`alignment/pair.load_entry_patch` ;
+  le viewer et `numrev join` réancrent en mémoire sans le réécrire).
   Sans candidat unique, la ligne est **orpheline** : signalée, conservée,
   non appliquée.
 - Un uuid présent dans deux lignes, ou une ligne sans uuid, est une erreur.
@@ -858,8 +862,10 @@ final.
 Les patchs s'éditent à la main (tableur ou éditeur de texte) : coller une
 ligne copiée valide une paire ou confirme une absence de correspondance ;
 pour apparier deux entrées, coller la ligne de l'une et y reporter l'`uuid`
-(et le fichier) de l'autre. `numrev align dedupe --patch-only --apply` régénère
-ensuite le CSV final en quelques secondes.
+(et le fichier) de l'autre. Le viewer et `numrev join` appliquent le patch
+eux-mêmes : avec `numrev align nw`, rien à relancer ; avec Dedupe,
+`numrev align dedupe --patch-only --apply` régénère le CSV final en quelques
+secondes.
 
 Pour tester le viewer, utiliser un wrapper qui redéfinit
 `numrev.paths.ALIGNMENTS_DIR`, `ALIGNMENT_DATA_DIR` et `ANNUAIRES_DIR`
@@ -1018,7 +1024,7 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 
 | Module | Rôle |
 |---|---|
-| `cli.py` | Point d'entrée : table des commandes (nom, module, résumé) ; un module n'est importé que pour la commande lancée |
+| `cli.py` | Point d'entrée : table des commandes (nom, module, résumé, fichiers) ; un module n'est importé que pour la commande lancée ; aide en français (`build_parser`) |
 | `command.py` | Conventions communes : `Writes` et `--apply`, `CommandError`, options partagées, entrée d'une étape (`require_input`) |
 | `paths.py` | Noms et emplacements des fichiers : suffixes des étapes, nom de document, découverte des plages, fichiers d'une paire (`Pair`) |
 | `pipeline/` | Une commande par étape : `ocr`, `extract`, `label`, `tabulate`, `assemble`, `tag`, `align_nw`, `align_dedupe`, `join` |
@@ -1030,7 +1036,7 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 | `crf/` | Cœur du CRF : `labels.py`, `features.py` (groupes de features), `model.py` (entraînement, marginales), `active_learning.py` (moteur de l'annotateur), `silver.py` et `evaluation.py` (audit) |
 | `ner/` | `spans.py` (empans, `tagged_text`, Label Studio, normalisation Markdown), `html.py` (rendu des empans pour les viewers), `shapes.py` (formes typographiques), `corpus.py` (lecture des CSV NER), `metrics.py`, `suspicion.py` (motifs de relecture), `gliner.py` (chargement et prédiction) |
 | `alignment/records.py` | Chargement des volumes, champs comparés, similarité, lecture et écriture des correspondances |
-| `alignment/pair.py` | Chargement d'une paire (volumes + correspondance des rubriques), bilans en console |
+| `alignment/pair.py` | Chargement d'une paire (volumes + correspondance des rubriques, patch des entrées), bilans en console |
 | `alignment/sections.py` | Correspondance des rubriques et son patch, segments à aligner |
 | `alignment/nw.py` | Méthode ordonnée : Needleman-Wunsch, passe résiduelle, pair-HMM entre les ancres |
 | `alignment/sequence.py`, `alignment/pair_hmm.py` | Needleman-Wunsch ; pair-HMM |

@@ -34,19 +34,17 @@ Sortie par défaut : `<entrée sans .csv>.join.csv` à côté de l'entrée.
 """
 
 import argparse
-import csv
 from collections import Counter
 from pathlib import Path
 
 from numrev.alignment.export import STATUS_LABELS, export_csv, export_encoding, natural_rows
 from numrev.alignment.nw import Params
-from numrev.alignment.pair import load_pair, pair_of_file
-from numrev.alignment.patch import apply_patch, declared_unmatched, load_patch, orphan_descriptions
+from numrev.alignment.pair import load_entry_patch, load_pair, pair_of_file
+from numrev.alignment.patch import apply_patch, declared_unmatched
 from numrev.alignment.records import read_links
 from numrev.alignment.review import DEFAULT_MARGIN, review
 from numrev.alignment.sections import restrict_to_corresponding
-from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
-from numrev.curation import refuse_orphans
+from numrev.command import Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.paths import join_output
 
 DESCRIPTION = "Exporte en CSV la jointure lisible de deux annuaires alignés (une ligne par paire ou entrée seule)."
@@ -77,16 +75,15 @@ def run(args: argparse.Namespace) -> None:
 
     declared: set[str] = set()
     if not args.no_patch:
-        try:
-            entries, resolution = load_patch(pair.entry_patch, left, right)
-        except (OSError, csv.Error, ValueError) as error:
-            raise CommandError(f"patch {pair.entry_patch} : {error}") from error
-        refuse_orphans(orphan_descriptions(resolution), args.force, "ligne orpheline du patch")
+        entries, resolution = load_entry_patch(loaded, force=args.force)
         links, stats = apply_patch(links, resolution.entries)
         declared = declared_unmatched(resolution)
         console.print(f"Patch [yellow]{pair.entry_patch}[/yellow] : {len(entries)} ligne(s), {stats.manual_pairs} paire(s) manuelle(s).")
         if resolution.reanchored:
-            console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) réancrée(s) par le texte (patch non réécrit).[/yellow]")
+            console.print(
+                f"[yellow]↻ {len(resolution.reanchored)} ligne(s) du patch réancrée(s) par le texte ; "
+                "numrev align nw (ou align dedupe) --apply réécrira le patch.[/yellow]"
+            )
 
     links, dropped = restrict_to_corresponding(links, left, right, loaded.sections)
     if dropped:

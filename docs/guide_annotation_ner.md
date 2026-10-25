@@ -1,10 +1,12 @@
 # Guide d'annotation NER des entrées d'annuaire (SUBJ / DESC / ADDR)
 
-Source unique des conventions : la relecture dans Label Studio, le jeu gold (`data/ner/gold.ls.json`) et les jeux d'entraînement les suivent.
+L'étape 5 découpe le texte de chaque entrée en **empans** : des morceaux de texte, chacun d'une classe `SUBJ`, `DESC` ou `ADDR`. Ce guide fixe les conventions de ce découpage. Elles valent partout où l'on annote : quand on corrige la colonne `tagged_text` d'un `….ner.csv` (voir le [guide de la curation](guide_curation.md#corriger-le-ner-et-les-rubriques-étape-5)), quand on relit l'échantillon d'évaluation dans Label Studio (`data/ner/gold.ls.json`), et dans les jeux d'entraînement : le modèle réapprend les écarts de convention de ce qu'on lui montre.
+
+Dans `tagged_text`, un empan s'écrit entre deux balises : `<SUBJ>Dupont</SUBJ>, <DESC>boulanger</DESC>, <ADDR>rue de la Paix, 12.</ADDR>`. On ne change que les balises, jamais le texte entre elles.
 
 ## Principe
 
-Chaque ENTRY est découpée en empans **contigus**, dans l'ordre du texte, selon **la question à laquelle le segment répond** :
+Chaque entrée est découpée en empans **contigus**, dans l'ordre du texte, selon **la question à laquelle le segment répond** :
 
 | Classe | Question | Contenu |
 |---|---|---|
@@ -17,7 +19,7 @@ Test de décision : *si on retire le segment, perd-on l'identité du sujet (SUBJ
 ## Règles générales
 
 1. **Ponctuation de liaison hors empans** : la virgule, le point, le point-virgule ou le tiret qui *séparent* deux empans ne sont annotés dans aucun des deux. La ponctuation *interne* à un empan (`R. S. Denis, 25.`) en fait partie, **y compris le point final** de l'adresse. L'évaluation ignore la ponctuation en bord d'empan.
-2. **Emphase Markdown ignorée** : `*`, `**` ne sont que de la typographie OCR. Le texte est annoté, évalué et donné au modèle sans elle (`normalize_markdown`) ; aucune frontière ne tombe donc à l'intérieur d'une paire de marqueurs.
+2. **Italique et gras ignorés** : `*…*` (italique) et `**…**` (gras) ne sont que de la typographie relevée par l'OCR. Le modèle reçoit le texte sans eux et l'évaluation les ignore ; aucune frontière d'empan ne tombe donc entre les deux marqueurs d'une même paire.
 3. **Pas de texte orphelin** : tout mot (hors ponctuation de liaison) appartient à un empan.
 4. **Un SUBJ par entrée, en tête**, sauf entrée qui en fusionne réellement deux (erreur de fusion de lignes : chaque sujet reçoit son SUBJ).
 
@@ -60,4 +62,4 @@ Inclure dans le SUBJ tout ce qui **distingue cette personne ou raison sociale d'
 
 - **Entrée tronquée ou sans adresse** : on n'invente rien. `<SUBJ>Pajot</SUBJ>` seul est valide.
 - **Césure OCR** (`har-nois`, `Impéra- trice`) : le mot coupé reste dans un seul empan.
-- **Erreur de fusion** (deux entrées dans une ligne) : annoter chacune (`SUBJ,ADDR,SUBJ,ADDR`) ; ces cas sont aussi à signaler pour l'étape de fusion.
+- **Erreur de fusion** (deux entrées dans une ligne) : annoter chacune (`SUBJ,ADDR,SUBJ,ADDR`) ; la ligne est aussi à couper en deux dans la table des lignes (étape 3, [guide de la curation](guide_curation.md#couper-une-ligne-en-deux-dupliquer)).

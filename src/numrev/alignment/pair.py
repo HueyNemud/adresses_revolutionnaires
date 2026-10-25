@@ -3,9 +3,9 @@ la lisent (`numrev align`, `numrev join`, `numrev gold alignment`,
 `numrev audit alignment`) : les deux volumes en entier, puis la
 correspondance des rubriques avec son patch (`numrev/alignment/sections.py`).
 
-Une ligne orpheline du patch des rubriques fait paniquer, sauf `--force`
-(`numrev/curation.py`) ; ce patch n'est réécrit (lignes réancrées) que si
-la commande passe ses `writes`.
+Une ligne orpheline du patch des rubriques ou du patch des entrées fait
+paniquer, sauf `--force` (`numrev/curation.py`) ; un patch n'est réécrit
+(lignes réancrées) que si la commande passe ses `writes`.
 """
 
 import csv
@@ -14,6 +14,7 @@ from pathlib import Path
 
 from rich.table import Table
 
+from numrev.alignment.patch import PatchEntry, Resolution, load_patch, orphan_descriptions, updated_patch, write_patch
 from numrev.alignment.records import Record, load_volume
 from numrev.alignment.sections import DEFAULT_THRESHOLD, SOURCE_AUTO, SectionAlignment, load_section_alignment, section_orphans
 from numrev.command import CommandError, Writes, console, require_dir, require_file
@@ -79,6 +80,21 @@ def load_pair(
     if refuse:
         refuse_orphans(section_orphans(sections), force, "ligne orpheline du patch des rubriques")
     return LoadedPair(pair, left, right, sections)
+
+
+def load_entry_patch(loaded: LoadedPair, *, force: bool = False, writes: Writes | None = None) -> tuple[list[PatchEntry], Resolution]:
+    """Patch des entrées de la paire, résolu sur ses volumes : une ligne
+    orpheline fait paniquer, sauf `force` ; des lignes réancrées réécrivent le
+    patch via `writes` (sans `writes`, jamais : `numrev join`)."""
+    path = loaded.pair.entry_patch
+    try:
+        entries, resolution = load_patch(path, loaded.left, loaded.right)
+    except (OSError, csv.Error, ValueError) as error:
+        raise CommandError(f"patch {path} : {error}") from error
+    refuse_orphans(orphan_descriptions(resolution), force, "ligne orpheline du patch")
+    if writes is not None and resolution.reanchored:
+        writes.add(path, lambda: write_patch(path, updated_patch(entries, resolution)))
+    return entries, resolution
 
 
 # ----------------------------------------------------------------------

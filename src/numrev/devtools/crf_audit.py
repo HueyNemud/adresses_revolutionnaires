@@ -79,7 +79,7 @@ from numrev.paths import REPORTS_DIR
 from numrev.reporting import fmt, fmt_ci, fmt_delta, md_code, md_table, write_table
 from numrev.stats import bootstrap_weights, calibration_table, expected_calibration_error, interval, resample, review_capture, roc_auc
 
-DESCRIPTION = "Audit du CRF de lignes et de ses features sur les silver datasets."
+DESCRIPTION = "Audit du CRF de l'étape 2 et de ses features, contre les tables de lignes corrigées à la main (*.lines.csv)."
 
 INTRA = "intra-document"
 INTER = "inter-volumes"

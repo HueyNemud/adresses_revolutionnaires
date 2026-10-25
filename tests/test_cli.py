@@ -4,7 +4,7 @@ import importlib
 import io
 import unittest
 
-from numrev.cli import COMMANDS, Command, resolve
+from numrev.cli import COMMANDS, Command, build_parser, resolve
 
 
 def every_command() -> list[tuple[str, Command]]:
@@ -22,8 +22,8 @@ class CliTests(unittest.TestCase):
         for name, command in every_command():
             with self.subTest(command=name):
                 module = importlib.import_module(command.module)
-                parser = argparse.ArgumentParser(prog=f"numrev {name}")
-                module.add_arguments(parser)
+                parser = build_parser(name, command, module)
+                self.assertIn("usage : ", parser.format_help())
                 self.assertTrue(callable(module.run))
 
     def test_removed_options_are_gone(self):

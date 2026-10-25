@@ -51,13 +51,11 @@ def require_dir(path: Path) -> Path:
     return path
 
 
-def add_folder_argument(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "folder",
-        type=Path,
-        metavar="dossier",
-        help="Une plage, annuaires/<volume>/<première page>-<dernière page>, ou un volume, annuaires/<volume> (toutes ses plages).",
-    )
+FOLDER_HELP = "Une plage, annuaires/<volume>/<première page>-<dernière page>, ou un volume, annuaires/<volume> (toutes ses plages)."
+
+
+def add_folder_argument(parser: argparse.ArgumentParser, help: str = FOLDER_HELP) -> None:
+    parser.add_argument("folder", type=Path, metavar="dossier", help=help)
 
 
 def require_ranges(folder: Path) -> list[Path]:

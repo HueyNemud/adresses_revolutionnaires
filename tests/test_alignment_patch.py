@@ -1,7 +1,12 @@
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from rich.console import Console
+
+from numrev.alignment.pair import LoadedPair, load_entry_patch
 from numrev.alignment.patch import (
     PatchEntry,
     anchor_key,
@@ -14,6 +19,9 @@ from numrev.alignment.patch import (
     write_patch,
 )
 from numrev.alignment.records import SOURCE_DEDUPE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title
+from numrev.command import Writes
+from numrev.curation import CurationConflict
+from numrev.paths import Pair
 from numrev.titles import title_text
 
 
@@ -121,6 +129,27 @@ class ResolveTests(unittest.TestCase):
     def test_anchor_key_matches_record_fields(self):
         r = record("a", "**Dupont**, rue A.", title="##\xa0**BOIS. ( MARCHANDS DE )**")
         self.assertEqual(anchor_key(r.section_title, r.tagged_text), (r.section, clean_text("Dupont, rue A.")))
+
+
+class EntryPatchOfPairTests(unittest.TestCase):
+    def test_reanchored_lines_are_rewritten_and_orphans_panic(self):
+        """Partagé par `numrev align nw`, `align dedupe` (qui réécrivent le
+        patch) et `numrev join` (qui ne le réécrit jamais)."""
+        left, right = [record("a", "Dupont, rue A."), record("b", "Durand, rue B.", order=1)], [record("x", "Dupont, rue C.")]
+        stale = PatchEntry(left_uuid="ancien", right_uuid="x", left_section="AGENS DE CHANGE", left_tagged_text="Durand, rue B.")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch("numrev.paths.ALIGNMENT_DATA_DIR", Path(tmp)):
+            loaded = LoadedPair(Pair("G", "D"), left, right, sections=None)
+            write_patch(loaded.pair.entry_patch, [stale])
+            load_entry_patch(loaded)  # sans writes : patch inchangé
+            self.assertEqual(read_patch(loaded.pair.entry_patch), [stale])
+            writes = Writes(True)
+            load_entry_patch(loaded, writes=writes)
+            writes.finish(Console(file=io.StringIO()))
+            self.assertEqual(read_patch(loaded.pair.entry_patch)[0].left_uuid, "b")
+            write_patch(loaded.pair.entry_patch, [PatchEntry(left_uuid="perdu", left_tagged_text="Inconnu")])
+            with self.assertRaises(CurationConflict):
+                load_entry_patch(loaded)
+            self.assertEqual(len(load_entry_patch(loaded, force=True)[1].orphans), 1)
 
 
 class EditingTests(unittest.TestCase):

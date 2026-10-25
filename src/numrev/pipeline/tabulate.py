@@ -169,6 +169,14 @@ def process_json_to_csv(
     return curation
 
 
+DESCRIPTION = """Étape 3 · table des lignes, à corriger dans un tableur (<document>.labeled.json → <document>.lines.csv ;
+sur une plage pas encore annotée, <document>.lines.json, pour inspecter l'extraction).
+
+On corrige les colonnes classe et markdown en mettant corrige = oui ; à chaque relance, la commande garde
+ces corrections dans data/curation/<document>.lines.patch.csv et les réapplique. Elle s'arrête sans rien
+écrire si une correction ne s'applique plus. Guide : docs/guide_curation.md."""
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     add_folder_argument(parser)
     add_capture_arguments(parser, fine_tuning(parser))

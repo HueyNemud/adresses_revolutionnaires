@@ -230,6 +230,8 @@ n'ont été modifiés.
 | `ligne déplacée` | Une ligne de la machine a changé de place (coupé-collé, ou **tri** du tableau). | Annulez le tri ou le coupé-collé ; pour un vrai déplacement, voir [Déplacer une ligne](#déplacer-une-ligne-ordre-de-lecture). |
 | `classe inconnue` ou `classe vide` | (lignes) Une ligne corrigée porte une classe mal écrite (`b-entry`, `B-ENTRY.`) ou pas de classe. | Écrivez la classe exactement comme dans la liste affichée, puis relancez. |
 | `introuvable dans la nouvelle sortie` | La ligne corrigée n'existe plus : l'OCR a changé son texte, ou l'entrée a été redécoupée en amont. | Refaites la correction sur la nouvelle ligne, puis relancez avec `--force` pour abandonner l'ancienne. |
+| `ligne ajoutée après …, introuvable` | (lignes) La ligne qui précédait une ligne que vous avez ajoutée n'existe plus (OCR refait). | Relancez avec `--force` (la ligne ajoutée est abandonnée), puis ajoutez-la de nouveau à sa place. |
+| `balisage invalide` | (NER) Une balise de `tagged_text` est mal écrite ou mal fermée (`<SUBJ>Dupont</SUB>`). | Corrigez les balises, puis relancez. |
 | `texte de l'entité modifié en amont` | (NER) Le texte de l'entrée a changé depuis votre correction, qui ne colle plus. | Relancez avec `--force`, puis recorrigez l'entrée. |
 | `titre parent … introuvable` | (NER) La rubrique choisie a disparu. | Choisissez une autre rubrique, ou `--force`. |
 | `colonne(s) absente(s)` | Le fichier a été enregistré dans un autre format (souvent le séparateur `;` au lieu de `,`). | Réenregistrez en CSV avec des virgules, en UTF-8. |
@@ -250,14 +252,15 @@ entrées concernées changent d'`uuid`.
    (l'ancien patch reste dans l'historique git, pour s'en inspirer).
 3. Refaites les corrections perdues, puis faites de même aux étapes
    suivantes (`numrev tag`, puis les patchs d'alignement, dont les lignes
-   sont réancrées par leur texte quand c'est possible).
+   sont rattachées de nouveau à leur entrée, retrouvée par son texte, quand
+   c'est possible).
 
 ## Les trois options à connaître
 
 - **`--force`** : « en cas de doute, prends la machine ». Les lignes
   problématiques reprennent la nouvelle sortie machine, et les corrections
   qui ne s'appliquent plus sont retirées du patch. La commande liste tout ce
-  qu'il a abandonné.
+  qu'elle a abandonné.
 - **Annuler une correction** : videz `corrige` sur la ligne, puis relancez
   avec `--force` ; la machine reprend la main sur cette ligne.
 - **`--no-capture`** : « ignore mon fichier, repars du patch ». Utile

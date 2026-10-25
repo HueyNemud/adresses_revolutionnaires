@@ -3,17 +3,20 @@
 Chaîne de traitement qui transforme des annuaires parisiens numérisés du
 début du XIXᵉ siècle en données structurées :
 
-1. des **entrées** (ENTRY) rangées dans la **hiérarchie des titres** de
-   l'annuaire (TITLE), obtenues par une annotation ligne par ligne assistée
-   par un CRF en apprentissage actif ;
-2. chaque entrée **segmentée en empans** `SUBJ` (qui ?) / `DESC` (quoi ?) /
-   `ADDR` (où ?) par un modèle GLiNER, avec les entrées à relire en priorité
-   signalées ;
+1. des **entrées** (une personne, une maison de commerce) rangées sous les
+   **titres** de l'annuaire (parties, rubriques) : un humain classe les
+   lignes lues par l'OCR, aidé d'un modèle qui apprend de ses réponses (CRF) ;
+2. chaque entrée **découpée** en sujet `SUBJ` (qui ?), description `DESC`
+   (quoi ?) et adresse `ADDR` (où ?) par un modèle de reconnaissance
+   d'entités (GLiNER), qui signale les entrées à relire en priorité ;
 3. les **correspondances** entre les entrées de deux éditions d'un annuaire,
-   par un alignement fondé sur l'ordre des entrées ou par Dedupe, toujours
-   entre rubriques appariées d'une édition à l'autre, avec pour chaque paire
-   une incertitude (faible, moyenne, forte) et ses motifs, qui orientent la
-   relecture humaine.
+   trouvées rubrique par rubrique en suivant l'ordre des listes (ou par
+   Dedupe), avec pour chaque paire une incertitude (faible, moyenne, forte)
+   qui oriente la relecture humaine.
+
+Pour traiter un annuaire, commencer par
+[`docs/guide_traitement.md`](docs/guide_traitement.md) ; pour utiliser les
+données produites, lire [`docs/donnees.md`](docs/donnees.md).
 
 ## Prérequis
 

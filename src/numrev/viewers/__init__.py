@@ -16,6 +16,11 @@ from pathlib import Path
 VIEWERS = ("directory", "alignment")
 
 
+DESCRIPTION = """Ouvre un viewer dans le navigateur (lecture seule) :
+  directory  un annuaire : entrées dans leurs rubriques, empans SUBJ / DESC / ADDR, entrées à relire ;
+  alignment  un alignement de deux éditions : paires, entrées seules, incertitudes, boutons pour les patchs."""
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("viewer", choices=VIEWERS, help="directory : un annuaire (NER) ; alignment : un alignement entre deux annuaires.")
 

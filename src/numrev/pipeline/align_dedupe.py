@@ -57,19 +57,17 @@ entrées absentes du CSV final n'ont pas de correspondance.
 """
 
 import argparse
-import csv
 import io
 from pathlib import Path
 
 import dedupe
 from rich.table import Table
 
-from numrev.alignment.pair import load_pair, pair_of_dirs, print_matched, print_sections
-from numrev.alignment.patch import PatchStats, Resolution, apply_patch, load_patch, orphan_descriptions, updated_patch, write_patch
+from numrev.alignment.pair import load_entry_patch, load_pair, pair_of_dirs, print_matched, print_sections
+from numrev.alignment.patch import PatchStats, Resolution, apply_patch, orphan_descriptions
 from numrev.alignment.records import Link, Record, dedupe_records, read_links, write_links
 from numrev.alignment.sections import SectionAlignment, canonical_keys, canonical_training_text, restrict_to_corresponding
 from numrev.command import APPLY_FLAG, CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
-from numrev.curation import refuse_orphans
 from numrev.paths import DEDUPE_SUFFIX
 
 DESCRIPTION = (
@@ -225,11 +223,7 @@ def run(args: argparse.Namespace) -> None:
 
     loaded = load_pair(pair, force=args.force, writes=writes)
     left_records, right_records, sections = loaded.left, loaded.right, loaded.sections
-    try:
-        entries, resolution = load_patch(pair.entry_patch, left_records, right_records)
-    except (OSError, csv.Error, ValueError) as error:
-        raise CommandError(f"patch {pair.entry_patch} : {error}") from error
-    refuse_orphans(orphan_descriptions(resolution), args.force, "ligne orpheline du patch")
+    entries, resolution = load_entry_patch(loaded, force=args.force, writes=writes)
 
     if args.patch_only:
         links, dropped = restrict_to_corresponding(
@@ -243,8 +237,6 @@ def run(args: argparse.Namespace) -> None:
         raw_links = links
         writes.add(raw_path, lambda: write_links(raw_path, raw_links, left_records, right_records))
 
-    if resolution.reanchored:
-        writes.add(pair.entry_patch, lambda: write_patch(pair.entry_patch, updated_patch(entries, resolution)))
     links, stats = apply_patch(links, resolution.entries)
     links, manual_dropped = restrict_to_corresponding(links, left_records, right_records, sections)
     final_links = links

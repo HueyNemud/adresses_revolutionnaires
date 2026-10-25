@@ -166,8 +166,19 @@ def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int])
 # ----------------------------------------------------------------------
 # 2. Point d'entrée CLI
 # ----------------------------------------------------------------------
+DESCRIPTION = """Étape 2 · annotation interactive des lignes d'une plage (<document>.lines.json → <document>.labeled.json).
+
+L'annotateur propose les lignes une à une ; on répond par une touche : 1 B-ENTRY, 2 I-ENTRY,
+3 SUB-ENTRY, 4 B-TITLE, 5 I-TITLE, 0 OUT OF SCOPE, 6 incertain, u annuler, p toute la page en
+OUT OF SCOPE, q arrêter. Un modèle (CRF) réapprend après chaque réponse et classe les autres lignes.
+La session est enregistrée après chaque réponse et reprend où on s'est arrêté ; le fichier annoté est
+écrit à chaque arrêt (pas d'option --apply). Conventions : docs/guide_annotation_lignes.md."""
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    add_folder_argument(parser)
+    add_folder_argument(
+        parser, "La plage à annoter, annuaires/<volume>/<première page>-<dernière page> (ou un volume qui n'a qu'une plage)."
+    )
     parser.add_argument("--reset-session", action="store_true", help="Ignore une session existante et démarre une nouvelle annotation.")
     fine_tuning(parser).add_argument(
         "--seed-size", type=int, default=12, help="Nombre d'annotations diversifiées avant l'échantillonnage par incertitude (défaut : 12)."

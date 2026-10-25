@@ -7,8 +7,9 @@ repère mesuré sur latynna-v1, pas sur v4 (en production depuis le 2026-10-24).
 
 1. **Budget retenu : environ 100 lignes à relire par volume.** Pour 1808
    (environ 16 400 lignes), cela fait environ 0,6 % des lignes. À ce niveau,
-   le val (une vingtaine de pages, quelques milliers de lignes) ne contient
-   que quelques dizaines de lignes signalées : l'intervalle du bootstrap sera
+   les pages de validation (« val », une vingtaine de pages, quelques
+   milliers de lignes) ne contiennent que quelques dizaines de lignes
+   signalées : l'intervalle du bootstrap sera
    large. Une variante sans seuil : trier sur `confiance` et relire les 100
    premières lignes. Le script
    propose le seuil qui signale cette part sur le val et donne le rappel
@@ -23,7 +24,8 @@ repère mesuré sur latynna-v1, pas sur v4 (en production depuis le 2026-10-24).
    - apparier lignes et mots prédits avec la cible relue ;
    - pour chaque seuil de 0,50 à 0,99, donner la part des lignes signalées, le
      rappel et la précision, avec un bootstrap par page ;
-   - proposer le seuil selon la règle (option du type `--budget 0.10`) ;
+   - proposer le seuil selon la règle (option du type `--budget 0.006`,
+     la part des lignes à signaler) ;
    - montrer quelques appariements à vérifier ;
    - compter à part les lignes sans scores.
 3. **Lancer** le script, serveur démarré :

@@ -49,7 +49,11 @@ from numrev.alignment.sequence import needleman_wunsch
 from numrev.command import CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.curation import write_csv
 
-DESCRIPTION = "Tire un échantillon stratifié de paires candidates « inversion » à étiqueter."
+DESCRIPTION = (
+    "Tire, pour évaluer l'alignement, un échantillon de paires d'entrées laissées seules parce qu'elles ne sont pas "
+    "dans le même ordre d'une édition à l'autre (« inversions ») ; on les étiquette à la main dans la colonne "
+    "meme_entree (OUI, NON ou INCERTAIN, docs/guide_relecture_alignement.md)."
+)
 DISPLACEMENT_BOUNDS = (1, 2, 3, 5, 10, 50)  # bornes hautes des classes de déplacement ; au-delà : dernière classe
 SIMILARITY_BOUNDS = (0.75, 0.85, 0.9)  # bornes basses des classes de similarité au-dessus du minimum
 CURRENT_RULE_THRESHOLD = 0.85

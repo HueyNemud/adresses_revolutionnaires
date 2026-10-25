@@ -231,6 +231,12 @@ def _merge_into(
             group[col] = f"{left}{sep}{right}"
 
 
+DESCRIPTION = """Étape 4 · entrées et arbre des titres (<document>.lines.csv → <document>.entities.csv).
+
+Regroupe les lignes en entrées et en titres, range chaque entrée sous son titre, et écrit un rapport,
+<document>.entities.report.txt : l'arbre des titres et les cas à corriger dans la table des lignes."""
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     add_folder_argument(parser)
     add_apply_argument(parser)
