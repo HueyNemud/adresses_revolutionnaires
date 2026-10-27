@@ -67,9 +67,9 @@ uv run numrev ocr annuaires/<volume>/<première>-<dernière> --apply
 Sans `--apply`, la commande vérifie seulement la plage et le PDF. Un OCR
 existant n'est remplacé qu'avec `--force`.
 
-**Contrôle :** ouvrir `src/numrev/viewers/ocr.html` dans un navigateur et y
-déposer le `<document>.ocr.json` et le PDF : le texte lu est posé sur le
-scan, avec les mots de faible confiance surlignés.
+**Contrôle :** `uv run numrev view ocr annuaires/<volume>/<première>-<dernière>`
+ouvre la plage dans le navigateur : le texte lu est posé sur le scan, avec
+les mots de faible confiance surlignés (Ctrl+C dans le terminal pour fermer).
 
 ## Étape 1 · Extraction des lignes
 

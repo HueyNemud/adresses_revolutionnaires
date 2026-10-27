@@ -96,7 +96,7 @@ uv run numrev join annuaires/alignments/<A>__<B>.nw.csv --excel --apply   # join
 # Consultation
 uv run numrev view directory     # un annuaire, empans et entrées suspectes
 uv run numrev view alignment     # un alignement, aide à la relecture
-# src/numrev/viewers/ocr.html : ouvrir dans un navigateur, y déposer un .ocr.json (+ le PDF)
+uv run numrev view ocr annuaires/<volume>/<plage>   # l'OCR d'une plage posé sur le PDF
 
 # Modèles et évaluation
 uv run numrev gold ner --apply                    # tire le gold NER (une fois)
@@ -152,7 +152,7 @@ uv run black src tests && uv run ruff check src tests
 |---|---|
 | `src/numrev/cli.py` | Point d'entrée `numrev` : la liste des commandes |
 | `src/numrev/pipeline/` | Une commande par étape (0 à 7) |
-| `src/numrev/viewers/` | Viewers Streamlit (`numrev view`) ; `ocr.html`, page autonome pour voir une sortie OCR sur son PDF |
+| `src/numrev/viewers/` | Viewers (`numrev view`) : Streamlit pour `directory` et `alignment` ; `ocr.html`, page autonome qui pose une sortie OCR sur son PDF |
 | `src/numrev/devtools/` | Gold, jeu d'entraînement, entraînement, audits |
 | `src/numrev/crf/`, `ner/`, `alignment/` | Code partagé de chaque domaine |
 | `src/numrev/paths.py` | Noms et emplacements des fichiers |

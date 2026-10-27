@@ -42,7 +42,9 @@ PIPELINE: dict[str, Command | dict[str, Command]] = {
 }
 TOOLS: dict[str, Command | dict[str, Command]] = {
     "status": Command("numrev.devtools.status", "état de chaque plage et prochaine commande à lancer"),
-    "view": Command("numrev.viewers", "viewer : directory (un annuaire) ou alignment (relecture d'un alignement)"),
+    "view": Command(
+        "numrev.viewers", "viewer : directory (un annuaire), alignment (relecture d'un alignement) ou ocr (OCR d'une plage sur le PDF)"
+    ),
     "gold": {
         "ner": Command("numrev.devtools.ner_gold", "tire l'échantillon NER à relire, pour l'évaluation", "→ data/ner/gold.ls.json"),
         "alignment": Command("numrev.devtools.alignment_gold", "tire les paires d'inversions à étiqueter", "→ data/alignment/"),

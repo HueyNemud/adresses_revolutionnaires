@@ -241,9 +241,12 @@ uv run numrev ocr annuaires/<volume>/<plage> --apply
 - Sans `--apply`, la commande vérifie la plage et le PDF mais ne lance pas
   l'OCR (plusieurs minutes de GPU). Un OCR existant n'est remplacé qu'avec
   `--force`.
-- **Voir l'OCR :** `src/numrev/viewers/ocr.html`, une page HTML autonome
-  (sans serveur ni installation) : l'ouvrir dans un navigateur et y déposer le
-  `<document>.ocr.json` et le PDF du volume. Blocs, lignes (boîtes estimées) et
+- **Voir l'OCR :** `uv run numrev view ocr annuaires/<volume>/<plage>` ouvre
+  `src/numrev/viewers/ocr.html` dans le navigateur sur la première page de la
+  plage ; la commande sert la page, le `<document>.ocr.json` et le PDF du
+  volume (et rien d'autre) sur un serveur local, arrêté par Ctrl+C. La page
+  elle-même est autonome (sans installation) : on peut aussi l'ouvrir
+  directement et y déposer le JSON et le PDF. Blocs, lignes (boîtes estimées) et
   mots sous un seuil de confiance réglable sont posés sur le scan, la
   transcription en regard ; survol et clic relient les deux vues, recherche
   dans tout le document. Pour la partager : envoyer le fichier avec le JSON et
@@ -1028,7 +1031,7 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 | `command.py` | Conventions communes : `Writes` et `--apply`, `CommandError`, options partagées, entrée d'une étape (`require_input`) |
 | `paths.py` | Noms et emplacements des fichiers : suffixes des étapes, nom de document, découverte des plages, fichiers d'une paire (`Pair`) |
 | `pipeline/` | Une commande par étape : `ocr`, `extract`, `label`, `tabulate`, `assemble`, `tag`, `align_nw`, `align_dedupe`, `join` |
-| `viewers/` | Viewers Streamlit `directory` et `alignment` (`numrev view`), code commun (`common.py`) ; `ocr.html`, page autonome qui pose une sortie OCR sur son PDF |
+| `viewers/` | Viewers `numrev view` : Streamlit `directory` et `alignment`, code commun (`common.py`) ; `ocr.html`, page autonome qui pose une sortie OCR sur son PDF (`numrev view ocr` la sert en local) |
 | `devtools/` | État de la chaîne (`status`), gold (`ner_gold`, `alignment_gold`), jeu d'entraînement et entraînement NER (`ner_dataset`, `ner_train`), audits (`crf_audit`, `ner_audit`, `alignment_audit`) |
 | `document.py` | Schéma pages → `data_blocks` → `lines`, validation et parcours (`iter_line_locations`) |
 | `curation.py` | Protocole des corrections humaines rejouables : clés de ligne, empreintes, capture, application, panique (`CurationConflict`), écriture atomique des CSV |
