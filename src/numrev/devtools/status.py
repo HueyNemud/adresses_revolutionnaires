@@ -1,5 +1,6 @@
 """État de la chaîne par plage : étapes faites, absentes ou périmées, corrections
-et lignes douteuses à relire, et la prochaine commande à lancer.
+et lignes douteuses à relire, et la prochaine commande à lancer ; puis l'état
+du livrable du volume (`numrev export`).
 
 Une sortie est **périmée** quand elle est plus ancienne que son entrée (date
 de modification) : l'entrée a changé depuis, l'étape est à relancer. Lecture
@@ -18,6 +19,7 @@ from numrev.curation import is_corrected, read_csv
 from numrev.paths import (
     ALIGNMENTS_DIR,
     ANNUAIRES_DIR,
+    DOCUMENT_JSON,
     ENTITIES,
     LABELED,
     LINES,
@@ -25,8 +27,10 @@ from numrev.paths import (
     NER,
     OCR,
     RANGE_PATTERN,
+    STRUCTURE_JSON,
     range_dirs,
     range_document,
+    volume_file,
     volume_pdf,
 )
 from numrev.pipeline.tabulate import DOUBTFUL_COLUMN
@@ -108,6 +112,20 @@ def range_status(range_dir: Path) -> RangeStatus:
     return status
 
 
+# Fichiers de chaque plage que lit `numrev export`.
+EXPORT_INPUTS = (LINES, LINES_CSV, NER)
+
+
+def export_state(volume_dir: Path, ranges: list[Path]) -> str:
+    """Livrable du volume : absent, à jour, ou périmé (plus ancien que l'un des fichiers de plage qu'il lit)."""
+    outputs = [volume_file(volume_dir, suffix) for suffix in (DOCUMENT_JSON, STRUCTURE_JSON)]
+    if not all(path.exists() for path in outputs):
+        return MISSING
+    oldest = min(path.stat().st_mtime for path in outputs)
+    inputs = (range_document(range_dir, suffix) for range_dir in ranges for suffix in EXPORT_INPUTS)
+    return STALE if any(path.exists() and path.stat().st_mtime > oldest for path in inputs) else DONE
+
+
 def volume_dirs(root: Path) -> list[Path]:
     """Dossiers de volumes : ceux qui ont des plages ou leur PDF (`<volume>/<volume>.pdf`)."""
     return sorted(
@@ -128,9 +146,10 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def print_volume(volume_dir: Path, ranges: list[Path]) -> None:
+def print_volume(volume_dir: Path, ranges: list[Path], whole: bool = True) -> None:
     """Tableau des étapes par plage, puis pour chaque plage ses comptes et sa
-    prochaine commande, hors du tableau pour pouvoir la copier entière."""
+    prochaine commande, hors du tableau pour pouvoir la copier entière ;
+    enfin, pour un volume entier (`whole`), l'état de son livrable."""
     table = Table(title=str(volume_dir), title_justify="left", box=box.SIMPLE_HEAD)
     table.add_column("plage")
     for step in STEPS:
@@ -152,13 +171,18 @@ def print_volume(volume_dir: Path, ranges: list[Path]) -> None:
             counts.append(f"{status.corrected_entries} entrée(s) NER corrigée(s)")
         console.print(f"[bold]{status.range_dir.name}[/bold]" + (f" : {', '.join(counts)}." if counts else ""))
         console.print("  " + (f"Ensuite : {status.next_command}" if status.next_command else "[green]À jour.[/green]"), soft_wrap=True)
+    if whole and ranges:
+        state = export_state(volume_dir, ranges)
+        console.print(f"[bold]Livrable du volume[/bold] (numrev export) : {state}")
+        if state != DONE and not any(status.next_command for status in statuses):
+            console.print(f"  Ensuite : uv run numrev export {volume_dir} {APPLY_FLAG}", soft_wrap=True)
     console.print()
 
 
 def run(args: argparse.Namespace) -> None:
     folder = require_dir(args.folder)
     if RANGE_PATTERN.match(folder.name):
-        print_volume(folder.parent, [folder])
+        print_volume(folder.parent, [folder], whole=False)
     elif range_dirs(folder) or volume_pdf(folder).exists():
         print_volume(folder, range_dirs(folder))
     else:

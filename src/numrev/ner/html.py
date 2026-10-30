@@ -1,5 +1,5 @@
-"""Rendu HTML des empans NER (fonctions pures, sans Streamlit), partagé par
-les visualiseurs `numrev view directory` et `numrev view alignment`."""
+"""Rendu HTML des empans NER (fonctions pures, sans Streamlit), pour le
+visualiseur `numrev view alignment`."""
 
 import html
 

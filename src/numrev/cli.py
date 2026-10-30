@@ -34,16 +34,18 @@ PIPELINE: dict[str, Command | dict[str, Command]] = {
     "tabulate": Command("numrev.pipeline.tabulate", "3 · table des lignes, à corriger à la main", "→ <doc>.lines.csv"),
     "assemble": Command("numrev.pipeline.assemble", "4 · entrées et arbre des titres", "→ <doc>.entities.csv"),
     "tag": Command("numrev.pipeline.tag", "5 · découpage des entrées en SUBJ / DESC / ADDR", "→ <doc>.ner.csv"),
+    "export": Command("numrev.pipeline.export", "6 · livrable final d'un volume (deux JSON)", "→ <vol>.document.json, .structure.json"),
     "align": {
-        "nw": Command("numrev.pipeline.align_nw", "6 · alignement de deux éditions, par l'ordre des entrées", "→ <A>__<B>.nw.csv"),
-        "dedupe": Command("numrev.pipeline.align_dedupe", "6 · alignement de deux éditions, par Dedupe", "→ <A>__<B>.csv"),
+        "nw": Command("numrev.pipeline.align_nw", "7 · alignement de deux éditions, par l'ordre des entrées", "→ <A>__<B>.nw.csv"),
+        "dedupe": Command("numrev.pipeline.align_dedupe", "7 · alignement de deux éditions, par Dedupe", "→ <A>__<B>.csv"),
     },
-    "join": Command("numrev.pipeline.join", "7 · jointure lisible de deux éditions alignées", "→ <alignement>.join.csv"),
+    "join": Command("numrev.pipeline.join", "8 · jointure lisible de deux éditions alignées", "→ <alignement>.join.csv"),
 }
 TOOLS: dict[str, Command | dict[str, Command]] = {
     "status": Command("numrev.devtools.status", "état de chaque plage et prochaine commande à lancer"),
     "view": Command(
-        "numrev.viewers", "viewer : directory (un annuaire), alignment (relecture d'un alignement) ou ocr (OCR d'une plage sur le PDF)"
+        "numrev.viewers",
+        "viewer : directory (livrable d'un volume sur son PDF), alignment (relecture d'un alignement) ou ocr (OCR d'une plage sur le PDF)",
     ),
     "gold": {
         "ner": Command("numrev.devtools.ner_gold", "tire l'échantillon NER à relire, pour l'évaluation", "→ data/ner/gold.ls.json"),
@@ -82,7 +84,7 @@ def usage() -> str:
             "usage : numrev <commande> [<sous-commande>] [options]   (numrev <commande> --help pour le détail)",
             "",
             "Chaîne de traitement : étapes 0-5 sur une plage annuaires/<volume>/<plage> ou un volume annuaires/<volume>,"
-            "\nétapes 6-7 sur une paire d'annuaires (sorties dans annuaires/alignments/) :",
+            "\nétape 6 sur un volume, étapes 7-8 sur une paire d'annuaires (sorties dans annuaires/alignments/) :",
             *lines(PIPELINE),
             "",
             "Consultation, modèles et évaluation :",

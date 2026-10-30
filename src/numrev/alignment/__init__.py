@@ -1,1 +1,1 @@
-"""Alignement des entrées de deux éditions d'un annuaire (étapes 6 et 7)."""
+"""Alignement des entrées de deux éditions d'un annuaire (étapes 7 et 8)."""

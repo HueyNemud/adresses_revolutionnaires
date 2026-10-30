@@ -4,15 +4,19 @@ Ce document s'adresse aux utilisateurs des données (historiens) : ce que
 contiennent les fichiers livrés, comment les lire, et leurs limites. La
 façon de les produire est dans le [guide de traitement](guide_traitement.md).
 
-Deux livrables :
+Trois livrables :
 
 | Fichier | Contenu |
 |---|---|
-| `annuaires/<volume>/<plage>/<volume>.<plage>.ner.csv` | Un **annuaire structuré** : ses entrées, ses titres et le découpage de chaque entrée en sujet, description et adresse. Un fichier par plage de pages. |
+| `annuaires/<volume>/<volume>.document.json` et `<volume>.structure.json` | Le **livrable de référence d'un volume** : le document (pages, lignes, leur place sur la page, texte lu et texte corrigé) et sa structure (titres, entrées, sujets, descriptions, adresses, personnes d'un groupe à accolade), chaque information reliée aux lignes dont elle vient. Format détaillé dans [`format_export.md`](format_export.md). |
+| `annuaires/<volume>/<plage>/<volume>.<plage>.ner.csv` | Un **annuaire structuré** en tableau : ses entrées, ses titres et le découpage de chaque entrée en sujet, description et adresse. Un fichier par plage de pages ; c'est aussi le fichier de travail où l'on corrige le découpage. |
 | `annuaires/alignments/<A>__<B>.<méthode>.join.csv` | La **jointure de deux éditions** : pour chaque entrée, son équivalent dans l'autre édition s'il a été trouvé. |
 
-Ce sont des CSV en UTF-8. Une jointure produite avec `--excel` utilise le
-séparateur `;` et s'ouvre directement dans un tableur réglé en français.
+Les deux JSON sont décrits champ par champ dans
+[`format_export.md`](format_export.md), avec des exemples de lecture en
+Python. Les autres livrables sont des CSV en UTF-8. Une jointure produite
+avec `--excel` utilise le séparateur `;` et s'ouvre directement dans un
+tableur réglé en français.
 
 ## L'annuaire structuré (`….ner.csv`)
 
@@ -94,7 +98,8 @@ L'`uuid` d'un élément est calculé à partir du nom du document (volume et
 plage) et du texte lu par l'OCR sur sa première ligne. Il ne change pas
 quand on relance la chaîne (corrections, nouveaux modèles), ce qui permet
 de suivre une entrée d'une version des données à l'autre et de relier
-l'annuaire structuré à la jointure (`gauche_uuid`, `droite_uuid`). Il change
+l'annuaire structuré au livrable JSON du volume (même `uuid` d'entrée) et à
+la jointure (`gauche_uuid`, `droite_uuid`). Il change
 si l'OCR du volume est refait et que le texte lu de cette ligne change, ou
 si les plages du volume sont redécoupées.
 

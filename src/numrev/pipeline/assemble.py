@@ -65,8 +65,7 @@ etc., dans l'ordre du fichier.
 Titre parent (`parent_uuid`)
 ----------------------------
 Le niveau d'un TITLE est le nombre de `#` en tête de son texte ; un titre
-sans `#` est considéré comme du niveau le plus profond (comme dans
-`numrev view directory`). En parcourant les entités dans l'ordre du
+sans `#` est considéré comme du niveau le plus profond. En parcourant les entités dans l'ordre du
 document, le parent d'un TITLE est le dernier TITLE de niveau strictement
 inférieur, et le parent de toute autre entité (ENTRY, OUT OF SCOPE) est le
 dernier TITLE rencontré. Les titres de plus haut niveau, et les entités qui

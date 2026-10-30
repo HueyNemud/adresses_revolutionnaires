@@ -1,4 +1,4 @@
-"""Étape 6 · alignement ordonné de deux annuaires complets, sans
+"""Étape 7 · alignement ordonné de deux annuaires complets, sans
 apprentissage (méthode : `numrev/alignment/nw.py`, `docs/alignement_ordonne.md`).
 
     uv run numrev align nw annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply

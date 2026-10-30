@@ -118,7 +118,7 @@ corrigée ou validée, selon le [guide de la curation](guide_curation.md). Par
 ordre de priorité :
 
 1. les **niveaux de titres** (`#`, `##`, `###`) : ils décident de l'arbre des
-   titres et des rubriques comparées à l'étape 6 ;
+   titres et des rubriques comparées à l'étape 7 ;
 2. les **cas signalés par l'étape 4** (lancer `numrev assemble`, lire le
    rapport `….entities.report.txt`, voir ci-dessous) ;
 3. les **lignes douteuses** : filtrer `douteuse = oui` (un mot lu avec une
@@ -158,8 +158,11 @@ uv run numrev tag annuaires/<volume> --apply
 Le modèle NER découpe chaque entrée en empans. Il tourne sur le processeur,
 sans GPU (quelques minutes par volume). Pour relire :
 
-- `uv run numrev view directory` montre un volume avec ses empans colorés ;
-  le filtre « Uniquement les entrées suspectes » donne la file de relecture ;
+- le viewer du volume (voir l'[étape 6](#étape-6--livrable-du-volume)) montre
+  chaque entrée avec ses empans colorés, sur la page du PDF ; le filtre
+  « suspectes seulement » donne la file de relecture. Il affiche le livrable :
+  lancer `numrev export` avant de l'ouvrir, et le relancer après des
+  corrections pour les voir ;
 - dans `….ner.csv`, filtrer la colonne `ner_suspect` (non vide) ou trier sur
   `ner_confidence`.
 
@@ -168,7 +171,58 @@ autre rubrique) avec `corrige = oui`, selon le
 [guide d'annotation NER](guide_annotation_ner.md), sans toucher au texte
 entre les balises, puis on relance `numrev tag`.
 
-## Étape 6 · Alignement de deux éditions
+## Étape 6 · Livrable du volume
+
+Une fois toutes les plages d'un volume traitées jusqu'à l'étape 5 :
+
+```bash
+uv run numrev export annuaires/<volume> --apply
+```
+
+La commande rassemble les plages du volume en deux fichiers, le livrable de
+référence de l'annuaire. Le premier, `<volume>.document.json`, décrit le
+document : chaque page et chaque ligne, avec sa place sur la page, le texte
+lu par l'OCR et le texte corrigé. Le second, `<volume>.structure.json`,
+contient la structure : les titres, les entrées et leurs empans, chacun
+relié aux lignes dont il vient. Leur format est décrit dans
+[`format_export.md`](format_export.md).
+
+**Rien n'est à corriger dans ces fichiers.** Ils se recalculent à partir des
+tables des lignes et des CSV NER : pour corriger le livrable, on corrige ces
+fichiers comme aux étapes 3 et 5, on relance les étapes suivantes, puis
+l'export. La commande refuse de s'exécuter tant qu'une plage n'est pas à
+jour (`numrev status` dit quoi relancer). Elle accepte en revanche un volume
+dont seule une partie des pages est traitée.
+
+Le rapport `<volume>.export.report.txt` liste les **groupes à accolade** à
+vérifier. Une accolade imprimée relie plusieurs personnes à un texte commun
+(« Fieffé, Pastoret… } Membres du conseil ») ; l'export donne chaque
+personne avec le texte commun dont elle hérite, à condition que chaque
+ligne du groupe porte son signe `}` ou `{` et que le texte commun soit sur
+la première ligne (voir le
+[guide d'annotation des lignes](guide_annotation_lignes.md)). Le rapport
+nomme la page et la ligne de chaque cas ; on le corrige dans la table des
+lignes.
+
+Pour consulter le livrable :
+
+```bash
+uv run numrev view directory annuaires/<volume>
+```
+
+Le navigateur s'ouvre sur le volume : à gauche la page du PDF avec ses
+lignes, à droite les titres et les entrées de cette page, avec leurs empans
+`SUBJ` / `DESC` / `ADDR` en couleur. Cliquer une entrée la montre sur la
+page, et cliquer une ligne de la page ouvre la fiche de son entrée : sa
+rubrique, ses confiances, ses lignes telles que l'OCR les a lues. On
+y trouve aussi des filtres pour organiser la relecture (entrées suspectes,
+confiance basse, groupes à accolade…), l'arbre des rubriques, une vue en
+tableau des entrées filtrées (téléchargeable en CSV), des statistiques et le
+rapport d'export, dont chaque cas mène à sa ligne sur la page. L'export ne
+prend que quelques secondes : après une correction, on le relance pour voir
+le résultat. La commande s'arrête par Ctrl+C dans le terminal.
+
+## Étape 7 · Alignement de deux éditions
 
 Une fois deux volumes traités jusqu'à l'étape 5 :
 
@@ -194,7 +248,7 @@ détaille ces deux temps :
 `numrev align dedupe` est une autre méthode, qui apprend à partir de paires
 qu'on étiquette en console ; voir [`pipeline.md`](pipeline.md#méthode-dedupe--numrev-align-dedupe).
 
-## Étape 7 · Jointure pour les utilisateurs des données
+## Étape 8 · Jointure pour les utilisateurs des données
 
 ```bash
 uv run numrev join annuaires/alignments/<A>__<B>.nw.csv --excel --apply
@@ -222,6 +276,7 @@ git commit -m "données: curation des lignes de 1808, pages 100 à 120"
 |---|---|---|---|
 | Nouvelle annotation ou nouveau CRF (étapes 2-3) | gardées | gardées, sauf pour une entrée redécoupée (lignes rattachées autrement) | gardés |
 | Nouveau modèle NER (étape 5) | — | gardées | gardés |
+| Livrable du volume (étape 6) | — | — | — (il ne contient aucune correction propre : il se recalcule) |
 | Correction du texte d'une entrée (étape 3) | — | celle de l'entrée est à refaire | gardés |
 | **Nouvel OCR** (étape 0) | **perdues** pour toute ligne dont le texte lu change | perdues avec elles | gardées si l'entrée est retrouvée par son texte ; sinon la commande s'arrête et les liste |
 

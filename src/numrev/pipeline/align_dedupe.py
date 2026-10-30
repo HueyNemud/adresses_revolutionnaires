@@ -1,4 +1,4 @@
-"""Étape 6 · alignement de deux éditions d'un annuaire avec Dedupe.
+"""Étape 7 · alignement de deux éditions d'un annuaire avec Dedupe.
 
     uv run numrev align dedupe annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
 

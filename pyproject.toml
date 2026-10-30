@@ -24,6 +24,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=26.10.0",
+    "jsonschema>=4.26.0",
     "ruff>=0.16.9",
 ]
 ocr = [

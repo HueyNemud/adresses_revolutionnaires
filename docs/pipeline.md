@@ -10,6 +10,8 @@ Documents associés :
   PDF aux données, ce que fait l'humain à chaque étape ;
 - [`donnees.md`](donnees.md) — les données livrées, colonne par colonne, et
   leurs limites (pour les utilisateurs des données) ;
+- [`format_export.md`](format_export.md) — format des deux JSON du livrable
+  d'un volume (étape 6), règle des groupes à accolade, identifiants ;
 - [`guide_annotation_lignes.md`](guide_annotation_lignes.md) — classes des
   lignes et niveaux de titres (étapes 2 et 3) ;
 - [`guide_annotation_ner.md`](guide_annotation_ner.md) — conventions
@@ -19,7 +21,7 @@ Documents associés :
   avec exemples) ;
 - [`alignement_ordonne.md`](alignement_ordonne.md) — méthode et
   formalisation de l'alignement ordonné (Needleman-Wunsch + pair-HMM,
-  étape 6).
+  étape 7).
 
 ## Sommaire
 
@@ -31,7 +33,8 @@ Documents associés :
 - [Étape 3 — Table des lignes et curation](#étape-3--table-des-lignes-et-curation--numrev-tabulate)
 - [Étape 4 — Entités et arbre des titres](#étape-4--entités-et-arbre-des-titres--numrev-assemble)
 - [Étape 5 — Segmentation NER](#étape-5--segmentation-ner-subj--desc--addr)
-- [Étapes 6 et 7 — Alignement de deux éditions et jointure](#étapes-6-et-7--alignement-de-deux-éditions-et-jointure)
+- [Étape 6 — Livrable du volume](#étape-6--livrable-du-volume--numrev-export)
+- [Étapes 7 et 8 — Alignement de deux éditions et jointure](#étapes-7-et-8--alignement-de-deux-éditions-et-jointure)
 - [Audit du CRF](#audit-du-crf--numrev-audit-crf)
 - [Fichiers produits](#fichiers-produits)
 - [Organisation du code](#organisation-du-code)
@@ -60,8 +63,11 @@ annuaires/
 │   │   ├── ….entities.csv                    4 · assemble
 │   │   ├── ….entities.report.txt             4 · assemble
 │   │   └── ….ner.csv                         5 · tag (corrigé à la main)
-│   └── 188-194/
-└── alignments/                               sorties des étapes 6 et 7
+│   ├── 188-194/
+│   ├── 1808_AD75-PER292.document.json        6 · export (couche documentaire du volume)
+│   ├── 1808_AD75-PER292.structure.json       6 · export (couche structurée du volume)
+│   └── 1808_AD75-PER292.export.report.txt    6 · export
+└── alignments/                               sorties des étapes 7 et 8
 data/curation/                                corrections humaines (versionnées)
 ├── 1808_AD75-PER292.7-186.lines.patch.csv    étape 3
 └── 1808_AD75-PER292.7-186.ner.patch.csv      étape 5
@@ -92,7 +98,8 @@ un **dossier** : une plage, ou un volume entier (toutes ses plages) ; chaque
 périmées (sortie plus ancienne que son entrée), le nombre de lignes
 corrigées, de lignes douteuses restant à relire (`douteuse = oui` sans
 `corrige = oui`) et d'entrées NER corrigées, et la commande à lancer
-ensuite. Les étapes 0 à 4 sur un volume :
+ensuite ; puis l'état du livrable du volume (étape 6). Les étapes 0 à 4 sur
+un volume :
 
 ```bash
 V=annuaires/1808_AD75-PER292
@@ -116,11 +123,13 @@ flowchart TD
     D -->|"4 · numrev assemble"| F["Entités + titre parent<br/><code>….entities.csv</code><br/>+ <code>.entities.report.txt</code>"]
     F -->|"5 · numrev tag<br/>(modèle GLiNER)"| G["Empans NER<br/><code>….ner.csv</code>"]
     G -.->|"relecture des entrées suspectes<br/>(corrige = oui)"| G
-    G -->|"6 · numrev align nw (ordre)<br/>ou numrev align dedupe (Dedupe)<br/>deux volumes complets"| I["Correspondances<br/><code>annuaires/alignments/…</code>"]
-    I -->|"7 · numrev join"| J["Jointure lisible<br/><code>….join.csv</code>"]
+    G -->|"6 · numrev export<br/>toutes les plages d'un volume"| E["Livrable du volume<br/><code>&lt;volume&gt;.document.json</code><br/>+ <code>&lt;volume&gt;.structure.json</code>"]
+    G -->|"7 · numrev align nw (ordre)<br/>ou numrev align dedupe (Dedupe)<br/>deux volumes complets"| I["Correspondances<br/><code>annuaires/alignments/…</code>"]
+    I -->|"8 · numrev join"| J["Jointure lisible<br/><code>….join.csv</code>"]
 
     style F fill:#dfe,stroke:#393
     style G fill:#dfe,stroke:#393
+    style E fill:#dfe,stroke:#393
     style J fill:#dfe,stroke:#393
 ```
 
@@ -132,7 +141,7 @@ Version vulgarisée, avec exemples : [`guide_curation.md`](guide_curation.md).
 
 Trois étapes demandent une curation humaine : les classes et le texte des
 lignes (étape 3), les empans NER et le rattachement des entrées à leur
-rubrique (étape 5), les correspondances entre éditions (étape 6). Toutes
+rubrique (étape 5), les correspondances entre éditions (étape 7). Toutes
 suivent le même protocole, pour qu'on puisse relancer toute la chaîne à
 partir d'un même OCR (CRF amélioré, nouveau modèle NER…) sans perdre ce
 travail. Un nouvel OCR, lui, change les clés des lignes dont le texte lu
@@ -142,7 +151,7 @@ change : leurs corrections ne s'appliquent plus (voir plus bas).
 |---|---|---|---|
 | 3 · lignes | `cle` (hash du texte OCR) | `classe`, `markdown` (+ lignes ajoutées, `SUPPRIMÉE`) | `data/curation/<document>.lines.patch.csv` |
 | 5 · NER | `uuid` d'entité | `tagged_text`, `parent_uuid` | `data/curation/<document>.ner.patch.csv` |
-| 6 · alignement | uuid gauche / droit | paire, sans correspondance, `certitude` | `data/alignment/<g>__<d>.patch.csv`, `.sections.csv` |
+| 7 · alignement | uuid gauche / droit | paire, sans correspondance, `certitude` | `data/alignment/<g>__<d>.patch.csv`, `.sections.csv` |
 
 Pour les étapes 3 et 5, le CSV de sortie est **à la fois la sortie machine
 et le fichier qu'on corrige** (Excel, OpenRefine : la curation des lignes a
@@ -209,7 +218,7 @@ plus haut. L'`uuid` d'une entité (étape 4) dérive du nom du document et de
 la clé de sa ligne racine : stable lui aussi dans les mêmes limites, il
 change si les plages du volume sont redécoupées.
 
-Les patchs d'alignement (étape 6) ne sont pas capturés depuis un CSV : on
+Les patchs d'alignement (étape 7) ne sont pas capturés depuis un CSV : on
 les édite à la main depuis le viewer. Ils suivent sinon les mêmes règles :
 le patch gagne, une ligne orpheline (uuid disparu, sans réancrage possible)
 fait paniquer `numrev align dedupe`, `numrev align nw` et
@@ -524,26 +533,8 @@ uv run numrev tag annuaires/<volume> --model models/<autre>.gliner-model --apply
   dans `data/curation/<document>.ner.patch.csv` (avant le chargement du
   modèle) et réappliquées par `uuid` (voir
   [Corrections humaines rejouables](#corrections-humaines-rejouables--numrevcurationpy)).
-  Ce CSV est l'entrée de l'étape 6 et de la construction du jeu
-  d'entraînement.
-
-### Explorer un volume : `numrev view directory`
-
-```bash
-uv run numrev view directory
-```
-
-Visualiseur d'un CSV NER (`*.ner.csv`, choisi dans `annuaires/` ou
-téléversé) :
-
-- **Contexte :** empans colorés par classe ; chaque entrée est replacée dans
-  sa rubrique (chemin des titres), avec un bandeau à chaque changement de
-  rubrique.
-- **Filtres :** type de ligne, rubrique (sous-rubriques comprises), pages,
-  recherche (texte ou expression régulière), signature, motifs de relecture,
-  confiance maximale.
-- **Statistiques :** signatures, motifs, et rubriques classées par nombre
-  d'entrées suspectes, pour organiser la relecture.
+  Ce CSV est l'entrée des étapes 6 (livrable du volume) et 7 (alignement), et
+  de la construction du jeu d'entraînement.
 
 ### Entraînement
 
@@ -595,7 +586,98 @@ uv run numrev audit ner --split dev --predictions autre=sortie.ner.csv
 - Les CSV NER ne sont que partiellement relus (`corrige = oui`) : ce ne sont
   pas des vérités terrain.
 
-## Étapes 6 et 7 — Alignement de deux éditions et jointure
+## Étape 6 — Livrable du volume : `numrev export`
+
+```bash
+uv run numrev export annuaires/<volume> --apply
+# → <volume>.document.json, <volume>.structure.json, <volume>.export.report.txt
+```
+
+Rassemble toutes les plages d'un volume en deux fichiers JSON, le livrable de
+référence d'un annuaire (format complet, champ par champ :
+[`format_export.md`](format_export.md)) :
+
+- **couche documentaire** (`<volume>.document.json`) : pages → blocs →
+  lignes ; chaque ligne garde sa boîte estimée, son texte OCR, son texte
+  retenu après correction, sa classe, ses confiances et son origine (lue
+  par l'OCR ou ajoutée à la main) ; les lignes hors champ et supprimées y
+  restent ;
+- **couche structurée** (`<volume>.structure.json`) : titres et entrées
+  (les uuid de `numrev assemble`), empans `SUBJ` / `DESC` / `ADDR` avec un
+  identifiant stable, membres des groupes à accolade, indicateurs de qualité.
+
+Chaque titre, entrée et empan renvoie aux lignes de la couche documentaire
+(identifiant `<plage>:<cle>`) et à sa position en caractères dans le texte
+retenu de chacune. Les positions sont reconstituées comme les a jointes
+`numrev assemble` (espace devant une `I-ENTRY`, saut de ligne devant une
+`SUB-ENTRY`), puis vérifiées : un texte d'entité qui ne correspond plus à
+ses lignes, ou un `tagged_text` qui ne redonne plus son texte, arrête
+l'export sur un message qui nomme l'entrée.
+
+- **Étape dérivée.** Aucune correction propre : l'export se recalcule à
+  l'identique depuis `….lines.json`, `….lines.csv` et `….ner.csv` (date
+  d'export mise à part). Il refuse un volume dont une plage a une étape
+  absente ou périmée (`numrev status`), mais accepte un volume partiellement
+  traité : l'en-tête liste les plages exportées.
+- **Groupes à accolade.** Les membres sont dépliés par une règle
+  déterministe sur les signes `{` / `}` du texte des lignes
+  (`numrev/export/braces.py`) ; les cas qu'elle ne résout pas (signe
+  manquant, accolade à trois niveaux, empan à cheval sur un signe…) vont
+  dans `<volume>.export.report.txt`, à corriger dans la table des lignes ou
+  le CSV NER.
+- **Provenance** : commit de numrev, date d'export, empreinte sha256 du PDF
+  et de chaque fichier lu. Les noms des modèles OCR et NER n'y sont pas
+  encore : ni `….ocr.json` ni `….ner.csv` ne les enregistrent (à ajouter).
+- **Code** : `pipeline/export.py` (commande : vérifications, provenance,
+  écriture), `export/layers.py` (construction des deux couches, fonctions
+  pures), `export/braces.py`, `export/schemas/` (JSON Schema des deux
+  fichiers, validés par `tests/test_export.py`).
+
+### Explorer le livrable : `numrev view directory`
+
+```bash
+uv run numrev view directory annuaires/<volume>
+```
+
+Ouvre `src/numrev/viewers/directory.html` dans le navigateur. La commande
+sert la page, les deux JSON du livrable et, s'ils existent, le rapport
+d'export et le PDF du volume (et rien d'autre) sur un serveur local, arrêté
+par Ctrl+C. Le serveur répond aux requêtes partielles (`Range`) : pdf.js lit
+le PDF par morceaux au lieu de le télécharger en entier. Son port est choisi
+par le système, différent à chaque lancement, sauf avec `-p/--port <port>`
+(aussi pour `numrev view ocr` et `alignment`) : le navigateur range les
+réglages retenus par la page selon l'adresse, port compris, donc un port
+fixe les garde d'une session à l'autre. La commande refuse
+un volume sans livrable, et prévient si le livrable est périmé (une table
+des lignes ou un CSV NER a changé depuis l'export). Comme `ocr.html`, la
+page est autonome : on peut l'ouvrir directement et y déposer les fichiers.
+
+- **Deux vues reliées :** à gauche la page du PDF, avec la boîte de chaque
+  ligne (couleur selon la classe : entrée, titre, hors champ, supprimée) et
+  un trait sous chaque empan ; à droite les données de la page dans l'ordre
+  de lecture (titres, entrées avec empans colorés, membres des groupes à
+  accolade avec les empans dont ils héritent). Survoler ou cliquer une
+  ligne d'un côté la montre de l'autre. Le trait d'un empan est placé **en
+  proportion des caractères** de la ligne : une approximation, l'OCR ne
+  donnant pas la position des mots.
+- **Fiche d'une entrée :** identifiant (à copier), chemin des rubriques,
+  confiances, motifs, empans avec leurs lignes, et lignes avec le texte
+  retenu, la lecture OCR (mots douteux surlignés) et la marque de
+  correction.
+- **Filtres :** recherche (sans accents ni casse, uuid compris), forme
+  (simple ou groupe), suite d'empans, classe absente, corrections, motifs de
+  relecture de `numrev tag`, confiances NER et OCR maximales, cas signalés
+  par le rapport ; arbre des rubriques (un clic filtre sur une rubrique,
+  sous-rubriques comprises). Les entrées écartées sont pâlies sur la page.
+- **Onglets :** « Entrées » (vue base de données : une ligne par entrée ou
+  par personne, groupes dépliés ; tri par confiance ; export CSV de la
+  sélection), « Statistiques » (sur la sélection : suites d'empans, motifs,
+  confiances, rubriques classées par entrées suspectes), « Rapport » (le
+  rapport d'export, chaque cas menant à sa ligne).
+- **Lien :** l'adresse garde la page (`#p=<plage>:<page>`) ou l'entrée
+  (`#e=<uuid>`) affichée.
+
+## Étapes 7 et 8 — Alignement de deux éditions et jointure
 
 Retrouve, entre deux éditions d'un annuaire, les ENTRY qui décrivent la même
 personne ou le même commerce. Deux méthodes produisent des correspondances
@@ -874,7 +956,7 @@ Pour tester le viewer, utiliser un wrapper qui redéfinit
 `numrev.paths.ALIGNMENTS_DIR`, `ALIGNMENT_DATA_DIR` et `ANNUAIRES_DIR`
 (jamais les dossiers réels), ou `streamlit.testing.v1.AppTest`.
 
-### Étape 7 — Jointure lisible : `numrev join`
+### Étape 8 — Jointure lisible : `numrev join`
 
 ```bash
 uv run numrev join annuaires/alignments/<g>__<d>.nw.csv [--excel] --apply   # → <g>__<d>.nw.join.csv
@@ -1008,6 +1090,9 @@ Pour tester une feature, ajouter un groupe à `CANDIDATE_GROUPS` dans
 | `….entities.report.txt` | `numrev assemble` | Comptages, arbre des titres, cas à vérifier |
 | `….ner.csv` | `numrev tag` + relecture manuelle | Le CSV d'entités avec `tagged_text`, comptes d'empans, `ner_confidence`, `ner_suspect`, corrigé à la main (`corrige = oui`) |
 | `data/curation/<document>.lines.patch.csv`, `.ner.patch.csv` | capture automatique (étapes 3 et 5) | Corrections humaines des lignes et du NER (versionnées) |
+| `annuaires/<volume>/<volume>.document.json` | `numrev export` | Couche documentaire du volume : pages, blocs, lignes, boîtes, texte OCR et texte retenu ([format](format_export.md)) |
+| `annuaires/<volume>/<volume>.structure.json` | `numrev export` | Couche structurée du volume : titres, entrées, empans, membres des groupes à accolade ([format](format_export.md)) |
+| `annuaires/<volume>/<volume>.export.report.txt` | `numrev export` | Comptages, groupes à accolade à vérifier, lignes sans boîte |
 | `annuaires/alignments/<g>__<d>.dedupe.csv` | `numrev align dedupe` | Correspondances brutes de Dedupe |
 | `annuaires/alignments/<g>__<d>.csv` | `numrev align dedupe` | Correspondances finales (Dedupe + patch) |
 | `annuaires/alignments/<g>__<d>.nw.csv` | `numrev align nw` | Correspondances de la méthode ordonnée |
@@ -1029,9 +1114,10 @@ chemins `annuaires/`, `data/`, `reports/`, `models/` sont relatifs).
 |---|---|
 | `cli.py` | Point d'entrée : table des commandes (nom, module, résumé, fichiers) ; un module n'est importé que pour la commande lancée ; aide en français (`build_parser`) |
 | `command.py` | Conventions communes : `Writes` et `--apply`, `CommandError`, options partagées, entrée d'une étape (`require_input`) |
-| `paths.py` | Noms et emplacements des fichiers : suffixes des étapes, nom de document, découverte des plages, fichiers d'une paire (`Pair`) |
-| `pipeline/` | Une commande par étape : `ocr`, `extract`, `label`, `tabulate`, `assemble`, `tag`, `align_nw`, `align_dedupe`, `join` |
-| `viewers/` | Viewers `numrev view` : Streamlit `directory` et `alignment`, code commun (`common.py`) ; `ocr.html`, page autonome qui pose une sortie OCR sur son PDF (`numrev view ocr` la sert en local) |
+| `paths.py` | Noms et emplacements des fichiers : suffixes des étapes, nom de document, découverte des plages, livrables d'un volume (`volume_file`), fichiers d'une paire (`Pair`) |
+| `pipeline/` | Une commande par étape : `ocr`, `extract`, `label`, `tabulate`, `assemble`, `tag`, `export`, `align_nw`, `align_dedupe`, `join` |
+| `export/` | Livrable d'un volume : `layers.py` (couches documentaire et structurée), `braces.py` (membres des groupes à accolade), `schemas/` (JSON Schema) |
+| `viewers/` | Viewers `numrev view` : Streamlit `alignment` ; pages autonomes `directory.html` (livrable d'un volume sur son PDF) et `ocr.html` (sortie OCR d'une plage sur son PDF), que `numrev view directory` / `numrev view ocr` servent en local |
 | `devtools/` | État de la chaîne (`status`), gold (`ner_gold`, `alignment_gold`), jeu d'entraînement et entraînement NER (`ner_dataset`, `ner_train`), audits (`crf_audit`, `ner_audit`, `alignment_audit`) |
 | `document.py` | Schéma pages → `data_blocks` → `lines`, validation et parcours (`iter_line_locations`) |
 | `curation.py` | Protocole des corrections humaines rejouables : clés de ligne, empreintes, capture, application, panique (`CurationConflict`), écriture atomique des CSV |

@@ -206,7 +206,7 @@ On remplace son `parent_uuid` par l'`uuid` de la bonne ligne de titre
 Les nombres d'empans (`subject_count`…) sont recalculés automatiquement
 sur les lignes corrigées.
 
-## Corriger l'alignement entre éditions (étape 6)
+## Corriger l'alignement entre éditions (étape 7)
 
 Ici on ne corrige pas un gros fichier : on écrit directement les décisions
 dans les patchs `data/alignment/<A>__<B>.patch.csv` (entrées) et

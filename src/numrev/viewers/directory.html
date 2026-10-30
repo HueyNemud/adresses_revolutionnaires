@@ -1,0 +1,1237 @@
+<!doctype html>
+<!--
+  Visionneuse d'un annuaire : le livrable d'un volume (numrev export, docs/format_export.md) posé sur le
+  PDF du volume. Vue documentaire (la page et ses lignes) et vue base de données (titres, entrées, empans
+  SUBJ / DESC / ADDR, membres des groupes à accolade) reliées par les identifiants de lignes : un clic
+  d'un côté montre l'autre. Filtres de relecture, arbre des rubriques, statistiques, rapport d'export.
+
+  Un seul fichier, sans serveur : ouvrir dans un navigateur et y déposer <volume>.document.json,
+  <volume>.structure.json et, si on les a, <volume>.export.report.txt et le PDF. Seul pdf.js vient d'un
+  CDN, et seulement si un PDF est ouvert. `numrev view directory annuaires/<volume>` sert ces fichiers en
+  local et ouvre directory.html?document=…&structure=…&report=…&pdf=…  (#p=<plage>:<page> ou #e=<uuid>).
+  Repère des boîtes : 0–1000 de l'image de la page, origine en haut à gauche.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visionneuse d'annuaire</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --bg: #f1f3f5; --panel: #fff; --ink: #1f2328; --muted: #68717b; --line: #d9dee3; --soft: #f6f7f9;
+  --accent: #3b5bdb; --accent-ink: #fff; --low: #c92a2a; --lowbg: #ffe3e3; --hit: #ffe066; --warn: #e67700; --warnbg: #fff3bf;
+  --subj: #1d4ed8; --subj-bg: #dbeafe; --desc: #a16207; --desc-bg: #fef3c7; --addr: #15803d; --addr-bg: #dcfce7;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171a; --panel: #1e2125; --ink: #e4e6e9; --muted: #98a1ab; --line: #343a40; --soft: #24282d;
+    --accent: #748ffc; --accent-ink: #10131a; --low: #ff8787; --lowbg: #4c1d21; --hit: #7a6511; --warn: #ffa94d; --warnbg: #4a3410;
+    --subj: #93c5fd; --subj-bg: #1e3a8a66; --desc: #fcd34d; --desc-bg: #78350f66; --addr: #86efac; --addr-bg: #14532d66;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171a; --panel: #1e2125; --ink: #e4e6e9; --muted: #98a1ab; --line: #343a40; --soft: #24282d;
+  --accent: #748ffc; --accent-ink: #10131a; --low: #ff8787; --lowbg: #4c1d21; --hit: #7a6511; --warn: #ffa94d; --warnbg: #4a3410;
+  --subj: #93c5fd; --subj-bg: #1e3a8a66; --desc: #fcd34d; --desc-bg: #78350f66; --addr: #86efac; --addr-bg: #14532d66;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font: 14px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--ink); display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+button, select { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+input[type="search"], input[type="number"] { background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+.mono { font: 12px ui-monospace, monospace; color: var(--muted); }
+.muted { color: var(--muted); }
+a.lk, button.lk { all: unset; color: var(--accent); cursor: pointer; }
+a.lk:hover, button.lk:hover { text-decoration: underline; }
+
+/* barre du haut */
+#bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+#bar .files { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px; line-height: 1.2; }
+#bar .files b, #bar .files small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bar .files small { color: var(--muted); }
+#bar .group { display: flex; align-items: center; gap: 4px; }
+#bar label { display: flex; align-items: center; gap: 3px; cursor: pointer; user-select: none; }
+#pageno { width: 4.5em; text-align: right; }
+#rangeof { font-size: 12px; color: var(--muted); min-width: 5em; }
+
+/* trois colonnes : filtres et rubriques, page, données */
+main { flex: 1; display: grid; grid-template-columns: 270px minmax(0, 1fr) minmax(360px, 0.95fr); min-height: 0; }
+#side { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-right: 1px solid var(--line); }
+#filters { padding: 8px 10px; border-bottom: 1px solid var(--line); overflow: auto; max-height: 58%; display: flex; flex-direction: column; gap: 7px; }
+#filters h3, #tree-head h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+#filters .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#filters .row > span:first-child { min-width: 6.5em; color: var(--muted); font-size: 12px; }
+#filters select { max-width: 100%; flex: 1; min-width: 0; }
+#filters input[type="range"] { flex: 1; min-width: 60px; }
+#filters output { font-variant-numeric: tabular-nums; min-width: 2.6em; font-size: 12px; }
+#q { width: 100%; }
+#reasons { display: flex; flex-direction: column; gap: 1px; font-size: 13px; }
+#reasons label, #filters label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+#reasons .n { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+#chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 0 4px 0 8px; font-size: 12px; max-width: 100%; }
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip button { all: unset; cursor: pointer; padding: 0 3px; color: var(--muted); }
+#fcount { font-size: 12px; color: var(--muted); }
+#tree-head { padding: 8px 10px 4px; display: flex; flex-direction: column; gap: 5px; }
+#tree { list-style: none; margin: 0; padding: 0 0 10px; overflow: auto; flex: 1; font-size: 13px; }
+#tree ul { list-style: none; margin: 0; padding: 0; }
+#tree .node { display: flex; align-items: baseline; gap: 4px; padding: 1px 8px 1px calc(6px + var(--d) * 12px); cursor: pointer; }
+#tree .node:hover { background: var(--soft); }
+#tree .node.cur { background: var(--accent); color: var(--accent-ink); }
+#tree .node.cur .n { color: inherit; }
+#tree .tw { all: unset; width: 1em; text-align: center; color: var(--muted); cursor: pointer; flex: none; }
+#tree .h { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tree .n { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+#tree li.closed > ul { display: none; }
+#tree li.gone { display: none; }
+#tree .node.zero .h { opacity: .45; }
+
+/* page */
+#scan { overflow: auto; padding: 12px; min-height: 0; }
+#stage { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, .3); }
+#canvas, #svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#nopdf { position: absolute; inset: 40% 10% auto; text-align: center; color: #868e96; font-size: 13px; }
+.blk { fill: none; stroke: #adb5bd; stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.lb { fill: transparent; stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; }
+.lb.ent { stroke: rgba(59, 91, 219, .45); }
+.lb.tit { stroke: rgba(194, 37, 92, .7); fill: rgba(194, 37, 92, .06); }
+.lb.oos { stroke: rgba(134, 142, 150, .6); stroke-dasharray: 3 3; }
+.lb.del { stroke: rgba(224, 49, 49, .8); stroke-dasharray: 3 3; fill: rgba(224, 49, 49, .08); }
+.lb.low { fill: rgba(224, 49, 49, .12); }
+.lb.hit { fill: rgba(255, 212, 59, .38); }
+.lb.ho { fill: rgba(59, 91, 219, .16); stroke: #3b5bdb; }
+.lb.sel { fill: rgba(59, 91, 219, .26); stroke: #3b5bdb; stroke-width: 2.5; }
+.lb.flash { animation: boxflash 1.6s; }
+@keyframes boxflash { 0%, 50% { fill: rgba(250, 82, 82, .55); } }
+.sb { pointer-events: none; opacity: .85; }
+.sb.SUBJ { fill: #2563eb; } .sb.DESC { fill: #d97706; } .sb.ADDR { fill: #16a34a; }
+body.no-spans .sb, body.no-blocks .blk { display: none; }
+body.no-oos .lb.oos, body.no-oos .lb.del { display: none; }
+
+/* panneau de droite */
+#panel { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); }
+#tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); }
+#tabs button { border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; background: none; padding: 4px 10px; color: var(--muted); }
+#tabs button.on { background: var(--panel); border-color: var(--line); color: var(--ink); margin-bottom: -1px; font-weight: 600; }
+#tabs .cnt { font-weight: 400; font-size: 12px; color: var(--muted); }
+.view { flex: 1; overflow: auto; padding: 10px 14px 40px; min-height: 0; }
+.view[hidden] { display: none; }
+.summary { font-size: 12px; color: var(--muted); margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; margin-top: 4px; }
+
+.ttl { margin: 14px 0 6px; padding: 2px 6px; border-left: 3px solid #c2255c; cursor: pointer; font-weight: 600; border-radius: 0 4px 4px 0; }
+.ttl.l1 { font-size: 1.15em; } .ttl.l2 { font-size: 1.05em; } .ttl.lx { font-size: .95em; font-weight: 500; }
+.ttl .lvl { font: 11px ui-monospace, monospace; color: #c2255c; margin-right: 6px; }
+.ttl.sel { background: rgba(194, 37, 92, .1); }
+.ttl .path { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.ent { border: 1px solid transparent; border-left: 3px solid var(--line); border-radius: 0 5px 5px 0; padding: 3px 8px; margin: 0 0 3px; cursor: pointer; }
+.ent:hover, .ent.ho { background: var(--soft); }
+.ent.sel { border-color: var(--accent); border-left-color: var(--accent); background: var(--soft); cursor: default; }
+.ent.group { border-left-color: #9c36b5; }
+.ent.out { opacity: .4; }
+.ent.hit { border-left-color: var(--hit); }
+.ent .txt { font: 15px/1.5 Georgia, "Times New Roman", serif; overflow-wrap: anywhere; }
+.ent .meta { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.ent .meta:empty { display: none; }
+.oosl { font-size: 12px; color: var(--muted); padding: 1px 8px 1px 11px; margin: 0 0 3px; font-style: italic; }
+.oosl.del { text-decoration: line-through; }
+body.no-oos .oosl { display: none; }
+.badge { padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; border: 1px solid currentColor; display: inline-block; }
+.badge.warn { color: var(--warn); background: var(--warnbg); }
+.badge.low { color: var(--low); background: var(--lowbg); }
+.badge.grp { color: #9c36b5; }
+.badge.ok { color: var(--muted); font-weight: 500; }
+.ln { border-radius: 2px; }
+.ln.nobox { text-decoration: underline dotted var(--muted); }
+.ln.hl { background: rgba(116, 143, 252, .25); box-shadow: 0 0 0 1px var(--accent); }
+mark.s { color: inherit; padding: 0 2px; border-radius: 3px; border-bottom: 2px solid; }
+mark.s sub { font: 600 9px system-ui, sans-serif; margin-left: 2px; vertical-align: baseline; }
+mark.SUBJ { background: var(--subj-bg); border-color: var(--subj); } mark.SUBJ sub { color: var(--subj); }
+mark.DESC { background: var(--desc-bg); border-color: var(--desc); } mark.DESC sub { color: var(--desc); }
+mark.ADDR { background: var(--addr-bg); border-color: var(--addr); } mark.ADDR sub { color: var(--addr); }
+.ent mark.s.common { outline: 1px dashed var(--muted); outline-offset: 1px; }
+.pill { display: inline-block; padding: 0 6px; border-radius: 4px; border: 1px solid; font-size: 12px; margin: 1px 3px 1px 0; }
+.pill.SUBJ { background: var(--subj-bg); border-color: var(--subj); } .pill.DESC { background: var(--desc-bg); border-color: var(--desc); }
+.pill.ADDR { background: var(--addr-bg); border-color: var(--addr); }
+.pill.inh { border-style: dashed; opacity: .85; }
+.members { margin: 4px 0 2px; padding-left: 0; list-style: none; font-size: 13px; }
+.members li { padding: 1px 0; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.members li.selm { background: rgba(116, 143, 252, .15); border-radius: 3px; }
+.members .own { font-family: Georgia, "Times New Roman", serif; min-width: 8em; }
+
+/* fiche d'une entrée sélectionnée */
+.card { margin: 6px 0 4px; padding: 6px 0 2px; border-top: 1px dashed var(--line); font-size: 13px; cursor: auto; }
+.card h4 { margin: 8px 0 3px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.card dl { display: grid; grid-template-columns: max-content 1fr; gap: 1px 10px; margin: 0; }
+.card dt { color: var(--muted); } .card dd { margin: 0; overflow-wrap: anywhere; }
+table.t { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.t th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); padding: 3px 6px; position: sticky; top: 0; background: var(--panel); }
+table.t td { border-bottom: 1px solid var(--line); padding: 3px 6px; vertical-align: top; }
+table.t td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.card .words mark { background: var(--lowbg); color: var(--low); border-radius: 2px; }
+.copy { all: unset; cursor: pointer; color: var(--accent); font-size: 12px; margin-left: 4px; }
+
+/* entrées (vue base de données) */
+#list-tools { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+#list-tools label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+#rows tr { cursor: pointer; }
+#rows tr:hover td { background: var(--soft); }
+#rows tr.sel td { background: rgba(116, 143, 252, .18); }
+#rows tr.member td:first-child, #rows tr.member td:nth-child(2) { color: transparent; }
+#rows td.rub { max-width: 11em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+#rows .v { display: block; } #rows .v + .v { border-top: 1px dotted var(--line); }
+#rows .inh { color: var(--muted); font-style: italic; }
+#rows td:last-child { white-space: nowrap; }
+#more { margin: 10px auto; display: block; }
+
+/* statistiques */
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.kpi { border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
+.kpi b { display: block; font-size: 1.35em; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 12px; color: var(--muted); }
+.stat h4 { margin: 14px 0 4px; }
+.bar { position: relative; min-width: 70px; }
+.bar i { position: absolute; left: 0; top: 3px; bottom: 3px; background: var(--accent); opacity: .22; border-radius: 2px; }
+.bar span { position: relative; }
+.stat table.t { table-layout: fixed; }
+.stat table.t td:first-child { overflow-wrap: anywhere; }
+.stat tr.clk { cursor: pointer; } .stat tr.clk:hover td { background: var(--soft); }
+
+/* rapport */
+.rep pre { white-space: pre-wrap; font: 12px/1.5 ui-monospace, monospace; background: var(--soft); padding: 8px; border-radius: 5px; margin: 0 0 10px; }
+.rep details { margin: 0 0 10px; } .rep summary { cursor: pointer; font-weight: 600; }
+.rep li { margin: 2px 0; } .rep ul { padding-left: 18px; margin: 4px 0; }
+
+/* accueil, dépôt, messages */
+#welcome { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 4; }
+#welcome .box { max-width: 560px; padding: 24px 28px; background: var(--panel); border: 2px dashed var(--line); border-radius: 12px; }
+#welcome h1 { margin-top: 0; font-size: 20px; }
+body.ready #welcome { display: none; }
+main { position: relative; }
+#drop { position: fixed; inset: 0; display: none; place-items: center; background: rgba(59, 91, 219, .25); font-size: 22px; font-weight: 600; z-index: 9; pointer-events: none; }
+body.dragging #drop { display: grid; }
+#toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 6px 14px; border-radius: 6px; z-index: 10; max-width: 90vw; }
+#toast.error { background: var(--low); color: #fff; }
+dialog { max-width: 680px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+dialog td { padding: 2px 8px 2px 0; vertical-align: top; }
+@media (max-width: 1100px) { main { grid-template-columns: 220px minmax(0, 1fr) minmax(320px, 1fr); } }
+@media (max-width: 800px) { main { grid-template-columns: 1fr; grid-auto-rows: minmax(60vh, auto); overflow: auto; } #side { max-height: 60vh; } }
+</style>
+</head>
+<body>
+<header id="bar">
+  <div class="files"><b id="vname">Visionneuse d'annuaire</b><small id="vinfo">aucun livrable ouvert</small></div>
+  <span class="group">
+    <button id="prev" title="page précédente (←)" aria-label="page précédente">◀</button>
+    <label>p. <input id="pageno" type="number" min="1" aria-label="page du PDF"></label>
+    <button id="next" title="page suivante (→)" aria-label="page suivante">▶</button>
+    <span id="rangeof"></span>
+  </span>
+  <span class="group">
+    <button id="zoom-out" title="dézoomer (−)" aria-label="dézoomer">−</button>
+    <button id="zoom-fit" title="pleine largeur (0)">largeur</button>
+    <button id="zoom-in" title="zoomer (+)" aria-label="zoomer">+</button>
+  </span>
+  <span class="group">
+    <label title="empans sur la page, position approchée (E)"><input type="checkbox" id="show-spans" checked> empans</label>
+    <label title="lignes hors champ et supprimées (H)"><input type="checkbox" id="show-oos" checked> hors champ</label>
+    <label title="blocs de l'OCR (B)"><input type="checkbox" id="show-blocks"> blocs</label>
+  </span>
+  <span class="group">
+    <button id="open" title="ouvrir les fichiers du livrable (ou les déposer sur la page)">Ouvrir…</button>
+    <button id="help" title="aide (?)">?</button>
+  </span>
+  <input type="file" id="files" multiple accept=".json,.pdf,.txt,application/json,application/pdf,text/plain" hidden>
+</header>
+<main>
+  <section id="welcome">
+    <div class="box">
+      <h1>Visionneuse d'annuaire</h1>
+      <p>Déposez ici le livrable d'un volume, produit par <code>numrev export</code> : <code>&lt;volume&gt;.document.json</code> et <code>&lt;volume&gt;.structure.json</code>. Ajoutez si vous les avez le rapport <code>&lt;volume&gt;.export.report.txt</code> et le PDF du volume.</p>
+      <p>Les fichiers restent sur cet ordinateur : rien n'est envoyé. Sans PDF, les lignes s'affichent sur une page blanche.</p>
+      <button id="open2">Choisir les fichiers…</button>
+    </div>
+  </section>
+  <nav id="side" aria-label="filtres et rubriques">
+    <div id="filters">
+      <h3>Filtres des entrées</h3>
+      <input id="q" type="search" placeholder="Rechercher  (/)" aria-label="rechercher dans les entrées">
+      <div id="chips"></div>
+      <div class="row"><span>Forme</span><select id="f-kind"><option value="">toutes</option><option value="single">entrées simples</option><option value="group">groupes à accolade</option></select></div>
+      <div class="row"><span>Empans</span><select id="f-sig"></select></div>
+      <div class="row"><span>Sans</span><select id="f-missing"><option value="">—</option><option value="SUBJ">SUBJ (qui)</option><option value="DESC">DESC (quoi)</option><option value="ADDR">ADDR (où)</option></select></div>
+      <div class="row"><span>Corrections</span><select id="f-corr"><option value="">toutes</option><option value="lines">lignes corrigées</option><option value="ner">empans corrigés</option><option value="any">corrigées (l'un ou l'autre)</option><option value="none">aucune correction</option></select></div>
+      <label title="entrées que numrev tag signale pour une relecture prioritaire"><input type="checkbox" id="f-suspect"> suspectes seulement</label>
+      <div id="reasons"></div>
+      <div class="row"><span>Confiance NER ≤</span><input type="range" id="f-ner" min="0" max="1" step="0.01" value="1"><output id="f-ner-out">—</output></div>
+      <div class="row"><span>Confiance OCR ≤</span><input type="range" id="f-ocr" min="0" max="1" step="0.01" value="1"><output id="f-ocr-out">—</output></div>
+      <label><input type="checkbox" id="f-report"> signalées par le rapport d'export</label>
+      <div class="row"><span id="fcount"></span><button id="f-reset" class="lk" type="button">réinitialiser</button></div>
+    </div>
+    <div id="tree-head">
+      <h3>Rubriques</h3>
+      <input id="tq" type="search" placeholder="Chercher une rubrique" aria-label="chercher une rubrique">
+    </div>
+    <ul id="tree"></ul>
+  </nav>
+  <section id="scan">
+    <div id="stage">
+      <canvas id="canvas" hidden></canvas>
+      <div id="nopdf" hidden></div>
+      <svg id="svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+    </div>
+  </section>
+  <aside id="panel">
+    <div id="tabs" role="tablist">
+      <button data-tab="page" class="on">Page</button>
+      <button data-tab="list">Entrées <span class="cnt" id="cnt-list"></span></button>
+      <button data-tab="stats">Statistiques</button>
+      <button data-tab="report">Rapport <span class="cnt" id="cnt-report"></span></button>
+    </div>
+    <div class="view" id="v-page"></div>
+    <div class="view" id="v-list" hidden>
+      <div id="list-tools">
+        <span id="list-count"></span>
+        <label title="une ligne par membre d'un groupe à accolade, avec les empans dont il hérite"><input type="checkbox" id="unfold"> une ligne par personne</label>
+        <label>tri <select id="sort"><option value="doc">ordre du document</option><option value="ner">confiance NER croissante</option><option value="ocr">confiance OCR croissante</option></select></label>
+        <button id="csv" title="les entrées filtrées, dans l'ordre affiché">Télécharger (CSV)</button>
+      </div>
+      <table class="t"><thead><tr><th>p.</th><th>rubrique</th><th>SUBJ</th><th>DESC</th><th>ADDR</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+      <button id="more" hidden>Afficher plus</button>
+    </div>
+    <div class="view stat" id="v-stats" hidden></div>
+    <div class="view rep" id="v-report" hidden></div>
+  </aside>
+</main>
+<div id="drop">Déposer les fichiers du livrable</div>
+<div id="toast" hidden></div>
+<dialog id="dlg">
+  <h2>Visionneuse d'annuaire</h2>
+  <p>À gauche, la page du PDF et ses lignes ; à droite, les données structurées. Les deux vues sont reliées : survoler ou cliquer une ligne de la page sélectionne son entrée, et cliquer une entrée la montre sur la page.</p>
+  <p><b>Lignes sur la page</b> : <span style="color:#3b5bdb">entrée</span>, <span style="color:#c2255c">titre</span>, gris en pointillés : hors champ, rouge en pointillés : supprimée à la curation. Les boîtes de lignes sont <b>estimées</b> par l'OCR (elles peuvent tomber à côté d'un cran) ; une ligne soulignée en pointillés dans le texte n'a pas de boîte.</p>
+  <p><b>Empans</b> : <mark class="s SUBJ">SUBJ<sub>qui</sub></mark> <mark class="s DESC">DESC<sub>quoi</sub></mark> <mark class="s ADDR">ADDR<sub>où</sub></mark>. Sur la page, leur trait sous la ligne est placé <b>en proportion des caractères</b> : c'est une approximation, l'OCR ne donne pas la position des mots. Dans un groupe à accolade, le texte commun est encadré de pointillés, et chaque membre liste ses empans propres et, en pointillés, ceux dont il hérite.</p>
+  <p><b>Filtres</b> : ils choisissent les entrées de l'onglet « Entrées » et des statistiques ; sur la page, les entrées écartées sont pâlies. Cliquer une rubrique de l'arbre filtre sur elle (sous-rubriques comprises).</p>
+  <table>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>page précédente / suivante</td></tr>
+    <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>entrée filtrée suivante / précédente</td></tr>
+    <tr><td><kbd>Échap</kbd></td><td>désélectionner</td></tr>
+    <tr><td><kbd>+</kbd> <kbd>−</kbd> <kbd>0</kbd></td><td>zoomer, dézoomer, pleine largeur</td></tr>
+    <tr><td><kbd>E</kbd> <kbd>H</kbd> <kbd>B</kbd></td><td>empans, lignes hors champ, blocs sur la page</td></tr>
+    <tr><td><kbd>/</kbd></td><td>rechercher (sans tenir compte des accents ni de la casse)</td></tr>
+  </table>
+  <p><b>Lien.</b> L'adresse de la page garde la page (<code>#p=7-177:10</code>) ou l'entrée (<code>#e=&lt;uuid&gt;</code>) affichée.</p>
+  <p id="prov" class="mono"></p>
+  <p><button onclick="dlg.close()">Fermer</button></p>
+</dialog>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const LABELS = ['SUBJ', 'DESC', 'ADDR'];
+const NAMES = { SUBJ: 'qui', DESC: 'quoi', ADDR: 'où' };
+const WORD_LOW = 0.9;  // = OCR_DOUBTFUL_THRESHOLD de numrev tabulate : mot douteux
+const NER_LOW = 0.9;   // = DEFAULT_MIN_SCORE de numrev/ner/suspicion.py : « score bas »
+const ROWS_STEP = 200;
+const FAMILY = { 'B-ENTRY': 'ent', 'I-ENTRY': 'ent', 'SUB-ENTRY': 'ent', 'B-TITLE': 'tit', 'I-TITLE': 'tit', 'SUPPRIMÉE': 'del' };
+// marques d'emphase de numrev (EMPHASIS_PATTERN de numrev/crf/features.py), et dièses d'un titre
+const EMPHASIS = /\*{1,3}|(?<![\p{L}\p{N}_])_{1,3}|_{1,3}(?![\p{L}\p{N}_])/gu;
+const HEADING = /^\s*#+\s*/;
+
+const S = {
+  files: {}, pdf: null, pdfName: '', cur: -1, view: null, task: null, zoom: 1,
+  pages: [], line: new Map(), uid: new Map(), titles: [], title: new Map(), entries: [], entry: new Map(), root: '',
+  tab: 'page', sel: null, member: null, hoverO: null, matched: [], active: false, rows: [], shown: ROWS_STEP,
+  problems: [], reportText: null, rubric: null, reasons: new Set(), open: new Set(),
+};
+
+function recall(key, fallback) { try { const v = localStorage.getItem('directory-viewer.' + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } }
+function remember(key, value) { try { localStorage.setItem('directory-viewer.' + key, JSON.stringify(value)); } catch { /* stockage indisponible : réglage non retenu */ } }
+
+const fmt = (x) => x.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num = (n) => n.toLocaleString('fr-FR');
+const pct = (a, b) => (b ? (100 * a / b).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %' : '—');
+const fold = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const plural = (n, one, many) => `${num(n)} ${n > 1 ? many : one}`;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const plain = (s) => s.replace(EMPHASIS, '').replace(/\s+/g, ' ').trim();
+const sel = (attr, value) => `[${attr}="${CSS.escape(value)}"]`;
+
+let toastTimer;
+function toast(message, kind = '', ms = 4000) {
+  const t = $('toast'); t.textContent = message; t.className = kind; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, kind === 'error' ? 12000 : ms);
+}
+
+// ---------- chargement ----------
+function parseJson(text, name, schema) {
+  let data;
+  try { data = JSON.parse(text); } catch (e) { throw new Error(`${name} : JSON illisible (${e.message})`); }
+  if (typeof data?.schema !== 'string' || !data.schema.startsWith(schema + '/')) {
+    throw new Error(`${name} : le champ « schema » vaut ${JSON.stringify(data?.schema)}, « ${schema}/1 » était attendu`);
+  }
+  if (data.schema !== schema + '/1') throw new Error(`${name} : format ${data.schema}, cette page lit ${schema}/1`);
+  return data;
+}
+
+// Fichiers reconnus à leur fin de nom ; un JSON se reconnaît aussi à son champ « schema ».
+function kindOf(name) {
+  if (/\.document\.json$/i.test(name)) return 'document';
+  if (/\.structure\.json$/i.test(name)) return 'structure';
+  if (/\.txt$/i.test(name)) return 'report';
+  if (/\.pdf$/i.test(name)) return 'pdf';
+  return /\.json$/i.test(name) ? 'json' : null;
+}
+
+function accept(kind, text, name) {
+  if (kind === 'json') kind = /"schema"\s*:\s*"numrev-document\//.test(text.slice(0, 200)) ? 'document' : 'structure';
+  if (kind === 'report') { S.reportText = text; S.files.report = name; return; }
+  S.files[kind] = { name, data: parseJson(text, name, kind === 'document' ? 'numrev-document' : 'numrev-structure') };
+}
+
+function ready() {
+  const d = S.files.document?.data, s = S.files.structure?.data;
+  if (!d || !s) { if (d || s) toast(`${d ? 'couche documentaire' : 'couche structurée'} lue : déposez maintenant ${d ? '<volume>.structure.json' : '<volume>.document.json'}`); return; }
+  if (d.volume !== s.volume) throw new Error(`les deux JSON ne sont pas du même volume : ${d.volume} et ${s.volume}`);
+  index(d, s);
+  if (S.reportText !== null) readReport(S.reportText);
+  buildFilters(); buildTree(); applyFilters();
+  document.body.classList.add('ready');
+  $('vname').textContent = d.volume; document.title = d.volume;
+  const pdfNote = S.pdf ? `${S.pdfName} (${S.pdf.numPages} p.)` : 'sans PDF';
+  $('vinfo').textContent = `${plural(d.ranges.length, 'plage', 'plages')} · ${plural(S.pages.length, 'page', 'pages')} · ${plural(S.entries.length, 'entrée', 'entrées')} · ${pdfNote}`;
+  const p = d.provenance;
+  $('prov').textContent = `Export du ${p.exported_at}, numrev ${p.numrev.commit?.slice(0, 10) ?? '?'}${p.numrev.uncommitted_changes ? ' (code modifié non commité)' : ''}.`;
+  fromHash(true);
+}
+
+function index(d, s) {
+  S.sel = null; S.member = null; S.cur = -1; S.pos = null;
+  S.pages = d.pages; S.line.clear(); S.uid.clear(); S.title.clear(); S.entry.clear(); S.root = s.root;
+  d.pages.forEach((p, k) => {
+    p.k = k; p.owners = [];
+    for (const L of p.lines) {
+      L.k = k; L.fam = FAMILY[L.class] ?? 'oos'; L.owner = null;
+      S.line.set(L.id, L);
+      if (L.uid) S.uid.set(`${p.range}|${L.uid}`, L);
+    }
+  });
+  const twins = new Map();  // page du PDF → pages du document (une page partagée par deux plages y est deux fois)
+  for (const p of d.pages) twins.set(p.page, [...(twins.get(p.page) ?? []), p]);
+  for (const p of d.pages) p.twins = twins.get(p.page).filter((q) => q !== p);
+
+  S.titles = s.titles; S.entries = s.entries;
+  s.titles.forEach((T, i) => {
+    T.o = 't' + i; T.kind2 = 'title'; T.children = []; T.entries = 0; T.matched = 0;
+    S.title.set(T.id, T);
+  });
+  for (const T of s.titles) {
+    const parent = S.title.get(T.parent);
+    T.up = parent ?? null; if (parent) parent.children.push(T);
+    T.depth = parent ? parent.depth + 1 : 0;  // les parents précèdent leurs enfants dans la liste
+  }
+  s.entries.forEach((E, i) => {
+    E.o = 'e' + i; E.i = i; E.kind2 = 'entry';
+    E.up = S.title.get(E.parent) ?? null;
+    E.ancestors = []; for (let T = E.up; T; T = T.up) E.ancestors.push(T);
+    for (const T of E.ancestors) T.entries++;
+    E.span = new Map(E.spans.map((x) => [x.id, x]));
+    E.sig = E.spans.slice().sort((a, b) => a.start - b.start).map((x) => x.label).join(',') || '(aucun empan)';
+    E.has = new Set(E.spans.map((x) => x.label));
+    E.search = fold(plain(E.text) + ' ' + E.id + ' ' + (E.members ?? []).map((m) => m.id).join(' '));
+    E.problems = [];
+  });
+  for (const X of [...s.titles, ...s.entries]) {
+    X.firstK = Infinity;
+    for (const r of X.lines) {
+      const L = S.line.get(r.line);
+      if (!L) throw new Error(`${X.kind2 === 'title' ? 'titre' : 'entrée'} ${X.id} : ligne ${r.line} absente de la couche documentaire`);
+      L.owner = X; X.firstK = Math.min(X.firstK, L.k);
+    }
+  }
+  for (const p of d.pages) {
+    const seen = new Set();
+    for (const L of p.lines) if (L.owner && !seen.has(L.owner)) { seen.add(L.owner); p.owners.push(L.owner); }
+  }
+}
+
+function rubricPath(X) {
+  const chain = []; for (let T = X.up; T; T = T.up) chain.unshift(T.heading);
+  return chain.join(' › ');
+}
+
+// ---------- rapport d'export ----------
+// Lignes « - <plage> p. <page>, ligne <uid> : <message> — « <extrait> » » ; le reste est affiché tel quel.
+const ITEM = /^\s+- (\S+) p\. (\d+), ligne (\S+)(?: : (.+?))?(?: — « (.*) »)?$/;
+function readReport(text) {
+  S.report = []; S.problems = [];
+  let section = { title: '', items: [], text: [] }; S.report.push(section);
+  for (const raw of text.split('\n')) {
+    const m = raw.match(ITEM);
+    if (m) {
+      const L = S.uid.get(`${m[1]}|${m[3]}`) ?? null;
+      const item = { range: m[1], page: +m[2], uid: m[3], message: m[4] ?? '', excerpt: m[5] ?? '', L };
+      section.items.push(item);
+      if (item.message) {
+        S.problems.push(item);
+        if (L?.owner?.kind2 === 'entry') L.owner.problems.push(item);
+      }
+    } else if (/^\S.*:\s*$/.test(raw)) {
+      section = { title: raw.replace(/\s*:\s*$/, ''), items: [], text: [] }; S.report.push(section);
+    } else if (raw.trim()) section.text.push(raw);
+  }
+  $('cnt-report').textContent = S.problems.length ? `(${S.problems.length})` : '';
+}
+
+function renderReport() {
+  const box = $('v-report');
+  if (S.reportText === null) {
+    box.innerHTML = '<p class="muted">Pas de rapport ouvert : déposez <code>&lt;volume&gt;.export.report.txt</code> sur la page.</p>';
+    return;
+  }
+  const out = [`<p class="summary">${esc(S.files.report)} · cliquer une ligne la montre sur la page.</p>`];
+  for (const sec of S.report) {
+    const body = [];
+    if (sec.text.length) body.push(`<pre>${esc(sec.text.join('\n'))}</pre>`);
+    if (sec.items.length) {
+      body.push('<ul>' + sec.items.map((it, n) => {
+        const where = `${esc(it.range)} p. ${it.page}, ligne ${esc(it.uid)}`;
+        const what = it.message ? ` : ${esc(it.message)}` : '';
+        const quote = it.excerpt ? ` <span class="muted">— « ${esc(it.excerpt)} »</span>` : '';
+        return `<li>${it.L ? `<button class="lk" data-rep="${esc(sec.title)}|${n}">${where}</button>` : where}${what}${quote}</li>`;
+      }).join('') + '</ul>');
+    }
+    if (!sec.title) out.push(body.join(''));
+    else out.push(`<details${sec.items.length > 40 ? '' : ' open'}><summary>${esc(sec.title)}</summary>${body.join('')}</details>`);
+  }
+  box.innerHTML = out.join('');
+}
+$('v-report').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-rep]'); if (!b) return;
+  const [title, n] = [b.dataset.rep.slice(0, b.dataset.rep.lastIndexOf('|')), +b.dataset.rep.split('|').pop()];
+  const it = S.report.find((s) => s.title === title).items[n];
+  if (it.L.owner) select(it.L.owner, { scroll: true });
+  else go(it.L.k);
+  flashLine(it.L);
+});
+
+// ---------- filtres ----------
+function buildFilters() {
+  const sigs = new Map(); for (const E of S.entries) sigs.set(E.sig, (sigs.get(E.sig) ?? 0) + 1);
+  $('f-sig').innerHTML = '<option value="">toutes les suites</option>' + [...sigs].sort((a, b) => b[1] - a[1])
+    .map(([sig, n]) => `<option value="${esc(sig)}">${esc(sig)} (${num(n)})</option>`).join('');
+  const reasons = new Map(); for (const E of S.entries) for (const r of E.quality.ner_suspect) reasons.set(r, (reasons.get(r) ?? 0) + 1);
+  $('reasons').innerHTML = [...reasons].sort((a, b) => b[1] - a[1])
+    .map(([r, n]) => `<label><input type="checkbox" value="${esc(r)}"> ${esc(r)}<span class="n">${num(n)}</span></label>`).join('');
+  $('f-report').parentElement.hidden = !S.problems.length;
+}
+
+function filterState() {
+  return {
+    q: fold($('q').value.trim().replace(/\s+/g, ' ')), kind: $('f-kind').value, sig: $('f-sig').value, missing: $('f-missing').value,
+    corr: $('f-corr').value, suspect: $('f-suspect').checked, reasons: S.reasons, ner: +$('f-ner').value, ocr: +$('f-ocr').value,
+    report: $('f-report').checked, rubric: S.rubric,
+  };
+}
+
+function matches(E, F) {
+  const Q = E.quality;
+  if (F.q && !E.search.includes(F.q)) return false;
+  if (F.kind && E.kind !== F.kind) return false;
+  if (F.sig && E.sig !== F.sig) return false;
+  if (F.missing && E.has.has(F.missing)) return false;
+  if (F.corr === 'lines' && !Q.corrected_lines) return false;
+  if (F.corr === 'ner' && !Q.corrected_ner) return false;
+  if (F.corr === 'any' && !Q.corrected_lines && !Q.corrected_ner) return false;
+  if (F.corr === 'none' && (Q.corrected_lines || Q.corrected_ner)) return false;
+  if (F.suspect && !Q.ner_suspect.length) return false;
+  if (F.reasons.size && !Q.ner_suspect.some((r) => F.reasons.has(r))) return false;
+  if (F.ner < 1 && !(Q.ner_confidence !== null && Q.ner_confidence <= F.ner)) return false;
+  if (F.ocr < 1 && !(Q.ocr_confidence !== null && Q.ocr_confidence <= F.ocr)) return false;
+  if (F.report && !E.problems.length) return false;
+  if (F.rubric === S.root && E.up) return false;
+  if (F.rubric && F.rubric !== S.root && !E.ancestors.some((T) => T.id === F.rubric)) return false;
+  return true;
+}
+
+function applyFilters() {
+  const F = filterState();
+  S.active = !!(F.q || F.kind || F.sig || F.missing || F.corr || F.suspect || F.reasons.size || F.ner < 1 || F.ocr < 1 || F.report || F.rubric);
+  S.matched = S.active ? S.entries.filter((E) => matches(E, F)) : S.entries;
+  S.matchSet = new Set(S.matched);
+  $('f-ner-out').value = F.ner < 1 ? fmt(F.ner) : '—';
+  $('f-ocr-out').value = F.ocr < 1 ? fmt(F.ocr) : '—';
+  $('fcount').textContent = S.active ? `${plural(S.matched.length, 'entrée', 'entrées')} sur ${num(S.entries.length)}` : `${plural(S.entries.length, 'entrée', 'entrées')}`;
+  $('cnt-list').textContent = `(${num(S.matched.length)})`;
+  const chips = [];
+  if (F.rubric) {
+    const T = S.title.get(F.rubric);
+    chips.push(`<span class="chip" title="${esc(T ? rubricPath(T) + ' › ' + T.heading : '')}"><span>rubrique : ${esc(T ? T.heading : '(sans rubrique)')}</span><button data-clear="rubric" aria-label="retirer">✕</button></span>`);
+  }
+  $('chips').innerHTML = chips.join('');
+  for (const T of S.titles) T.matched = 0;
+  S.rootMatched = 0;
+  for (const E of S.matched) { for (const T of E.ancestors) T.matched++; if (!E.up) S.rootMatched++; }
+  updateTree();
+  sortRows(); S.shown = ROWS_STEP;
+  if (S.tab === 'list') renderList();
+  if (S.tab === 'stats') renderStats();
+  if (S.cur >= 0) refreshPage();
+}
+
+let filterTimer;
+const later = () => { clearTimeout(filterTimer); filterTimer = setTimeout(applyFilters, 150); };
+for (const id of ['q']) $(id).addEventListener('input', later);
+for (const id of ['f-ner', 'f-ocr']) $(id).addEventListener('input', () => { $(id + '-out').value = +$(id).value < 1 ? fmt(+$(id).value) : '—'; later(); });
+for (const id of ['f-kind', 'f-sig', 'f-missing', 'f-corr', 'f-suspect', 'f-report']) $(id).addEventListener('change', applyFilters);
+$('reasons').addEventListener('change', (ev) => { const v = ev.target.value; if (ev.target.checked) S.reasons.add(v); else S.reasons.delete(v); applyFilters(); });
+$('chips').addEventListener('click', (ev) => { if (ev.target.dataset.clear === 'rubric') { S.rubric = null; applyFilters(); } });
+$('f-reset').onclick = () => {
+  $('q').value = ''; for (const id of ['f-kind', 'f-sig', 'f-missing', 'f-corr']) $(id).value = '';
+  $('f-suspect').checked = $('f-report').checked = false; $('f-ner').value = $('f-ocr').value = 1;
+  S.reasons.clear(); for (const box of $('reasons').querySelectorAll('input')) box.checked = false;
+  S.rubric = null; applyFilters();
+};
+function setFilter(apply) { apply(); applyFilters(); }
+
+// ---------- arbre des rubriques ----------
+function buildTree() {
+  S.rootCount = null;
+  const node = (T) => {
+    const li = document.createElement('li'); li.dataset.t = T.id;
+    const open = T.depth < 1 || S.open.has(T.id);
+    if (T.children.length && !open) li.className = 'closed';
+    const lvl = T.level ?? '?';
+    li.innerHTML = `<div class="node" style="--d:${T.depth}" title="${esc((rubricPath(T) ? rubricPath(T) + ' › ' : '') + T.heading)} (niveau ${lvl}, p. ${T.pages.join(', ')})">`
+      + `<button class="tw" tabindex="-1">${T.children.length ? (open ? '▾' : '▸') : ''}</button><span class="h">${esc(T.heading || '(titre vide)')}</span><span class="n"></span></div>`;
+    T.li = li; T.count = li.querySelector('.n');
+    if (T.children.length) { const ul = document.createElement('ul'); ul.append(...T.children.map(node)); li.append(ul); }
+    return li;
+  };
+  const tops = S.titles.filter((T) => !T.up).map(node);
+  const orphan = S.entries.some((E) => !E.up);
+  if (orphan) {
+    const li = document.createElement('li'); li.dataset.t = S.root;
+    li.innerHTML = `<div class="node" style="--d:0" title="entrées placées avant le premier titre de leur plage"><button class="tw" tabindex="-1"></button><span class="h"><i>(sans rubrique)</i></span><span class="n"></span></div>`;
+    S.rootCount = li.querySelector('.n'); tops.push(li);
+  }
+  $('tree').replaceChildren(...tops);
+}
+function updateTree() {
+  for (const T of S.titles) {
+    if (!T.count) continue;
+    T.count.textContent = S.active ? `${num(T.matched)}/${num(T.entries)}` : num(T.entries);
+    T.li.firstChild.classList.toggle('zero', S.active && !T.matched);
+    T.li.firstChild.classList.toggle('cur', S.rubric === T.id);
+  }
+  if (S.rootCount) {
+    const n = S.entries.filter((E) => !E.up).length;
+    S.rootCount.textContent = S.active ? `${num(S.rootMatched)}/${num(n)}` : num(n);
+    S.rootCount.parentElement.classList.toggle('cur', S.rubric === S.root);
+  }
+}
+$('tree').addEventListener('click', (ev) => {
+  const li = ev.target.closest('li'); if (!li) return;
+  const T = S.title.get(li.dataset.t);
+  if (ev.target.classList.contains('tw')) {
+    if (!T?.children.length) return;
+    const closed = li.classList.toggle('closed'); ev.target.textContent = closed ? '▸' : '▾';
+    if (closed) S.open.delete(T.id); else S.open.add(T.id);
+    return;
+  }
+  S.rubric = S.rubric === li.dataset.t ? null : li.dataset.t;
+  applyFilters();
+  if (T && S.rubric) select(T, { scroll: true });
+  else if (S.rubric === S.root) { const E = S.matched[0]; if (E) select(E, { scroll: true }); }
+});
+let treeTimer;
+$('tq').addEventListener('input', () => {
+  clearTimeout(treeTimer);
+  treeTimer = setTimeout(() => {
+    const q = fold($('tq').value.trim());
+    const keep = new Set();
+    if (q) for (const T of S.titles) if (fold(T.heading).includes(q)) for (let U = T; U; U = U.up) keep.add(U);
+    for (const T of S.titles) {
+      T.li.classList.toggle('gone', !!q && !keep.has(T));
+      if (q && keep.has(T) && T.children.length) { T.li.classList.remove('closed'); T.li.querySelector('.tw').textContent = '▾'; }
+    }
+  }, 200);
+});
+
+// ---------- texte d'une entrée ou d'un titre ----------
+// Découpe le texte en morceaux homogènes (même ligne, même empan, même style) : les marques d'emphase et les
+// dièses d'un titre ne sont pas affichés mais gardent leur place, si bien que les positions des empans tiennent.
+function richText(X, { spans = [], common = [] } = {}) {
+  const t = X.text, n = t.length;
+  const lineAt = new Array(n).fill(null), spanAt = new Array(n).fill(null), style = new Uint8Array(n), hidden = new Uint8Array(n), shared = new Uint8Array(n);
+  for (const r of X.lines) {
+    let italic = false, bold = false;
+    const seg = t.slice(r.start, r.end);
+    if (X.kind2 === 'title') { const h = seg.match(HEADING); if (h) for (let i = 0; i < h[0].length; i++) hidden[r.start + i] = 1; }
+    const marks = [...seg.matchAll(EMPHASIS)];
+    let m = 0;
+    for (let i = r.start; i < r.end; i++) {
+      lineAt[i] = r.line;
+      if (m < marks.length && i === r.start + marks[m].index) {
+        const len = marks[m][0].length;
+        if (len !== 2) italic = !italic;
+        if (len >= 2) bold = !bold;
+        for (let j = 0; j < len; j++) hidden[i + j] = 1;
+        m++;
+      }
+      style[i] = (italic ? 1 : 0) | (bold ? 2 : 0);
+    }
+  }
+  for (const x of spans) for (let i = x.start; i < x.end; i++) spanAt[i] = x;
+  for (const z of common) for (let i = z.start; i < z.end; i++) shared[i] = 1;
+  const out = [];
+  let i = 0;
+  while (i < n) {
+    if (t[i] === '\n') { out.push('<br>'); i++; continue; }
+    const L = lineAt[i], x = spanAt[i];
+    let j = i; while (j < n && t[j] !== '\n' && lineAt[j] === L && spanAt[j] === x) j++;
+    let inner = '';
+    for (let a = i; a < j;) {
+      let b = a; while (b < j && style[b] === style[a] && hidden[b] === hidden[a]) b++;
+      if (!hidden[a]) { const s = esc(t.slice(a, b)); inner += style[a] === 3 ? `<b><i>${s}</i></b>` : style[a] === 2 ? `<b>${s}</b>` : style[a] === 1 ? `<i>${s}</i>` : s; }
+      a = b;
+    }
+    if (x) {
+      const last = j >= x.end || spanAt[j] !== x;
+      inner = `<mark class="s ${x.label}${shared[i] ? ' common' : ''}" title="${x.label} (${NAMES[x.label]}) : ${esc(x.normalized)}">${inner}${last ? `<sub>${x.label}</sub>` : ''}</mark>`;
+    }
+    const line = L ? S.line.get(L) : null;
+    out.push(line ? `<span class="ln${line.bbox_estimate ? '' : ' nobox'}" data-l="${esc(L)}">${inner}</span>` : inner);
+    i = j;
+  }
+  return out.join('');
+}
+
+// Position approchée d'un morceau de ligne sur sa boîte : en proportion des caractères affichés.
+function visibleIndex(text) {
+  const map = new Array(text.length + 1); let v = 0;
+  const hidden = new Uint8Array(text.length);
+  for (const m of text.matchAll(EMPHASIS)) for (let j = 0; j < m[0].length; j++) hidden[m.index + j] = 1;
+  for (let i = 0; i < text.length; i++) { map[i] = v; if (!hidden[i]) v++; }
+  map[text.length] = v;
+  return map;
+}
+
+// ---------- page ----------
+function go(k, { keepScroll = false } = {}) {
+  if (!S.pages.length) return;
+  k = Math.max(0, Math.min(S.pages.length - 1, k));
+  const changed = k !== S.cur;
+  S.cur = k; S.view = null;
+  const p = S.pages[k];
+  $('pageno').value = p.page;
+  $('rangeof').textContent = `plage ${p.range}` + (p.twins.length ? ' ⧉' : '');
+  $('rangeof').title = p.twins.length ? `page lue aussi dans la plage ${p.twins.map((q) => q.range).join(', ')}` : '';
+  layout(); renderOverlay(); renderPage(); renderPdf(k);
+  if (changed && !keepScroll) { $('scan').scrollTop = 0; $('v-page').scrollTop = 0; }
+  writeHash();
+}
+
+function refreshPage() { const top = $('v-page').scrollTop; renderOverlay(); renderPage(); $('v-page').scrollTop = top; }
+
+function renderPage() {
+  const p = S.pages[S.cur], box = $('v-page');
+  const counts = { ent: 0, tit: 0 };
+  for (const X of p.owners) counts[X.kind2 === 'entry' ? 'ent' : 'tit']++;
+  const doubtful = p.lines.filter((L) => L.ocr?.doubtful).length, nobox = p.lines.filter((L) => !L.bbox_estimate).length;
+  const bits = [`page ${p.page} du PDF`, `plage ${esc(p.range)}`, plural(p.lines.length, 'ligne', 'lignes'), plural(counts.ent, 'entrée', 'entrées'), plural(counts.tit, 'titre', 'titres')];
+  if (doubtful) bits.push(`${plural(doubtful, 'ligne douteuse', 'lignes douteuses')} (OCR)`);
+  if (nobox) bits.push(`${plural(nobox, 'ligne', 'lignes')} sans boîte`);
+  let head = bits.join(' · ');
+  for (const q of p.twins) head += `<br>Cette page est aussi lue dans la plage ${esc(q.range)} : <button class="lk" data-k="${q.k}">l'afficher</button>`;
+  const legend = LABELS.map((l) => `<span><mark class="s ${l}">${l}<sub>${NAMES[l]}</sub></mark></span>`).join('');
+  const out = [`<div class="summary">${head}<div class="legend">${legend}</div></div>`];
+  const done = new Set();
+  for (const L of p.lines) {
+    const X = L.owner;
+    if (!X) { out.push(`<div class="oosl${L.fam === 'del' ? ' del' : ''}" data-l="${esc(L.id)}" title="${esc(L.class)}${L.origin === 'added' ? ' · ligne ajoutée à la main' : ''}">${esc(plain(L.text)) || '&nbsp;'}</div>`); continue; }
+    if (done.has(X)) continue;
+    done.add(X);
+    out.push(X.kind2 === 'title' ? titleHtml(X) : entryHtml(X));
+  }
+  box.innerHTML = out.join('');
+}
+
+function titleHtml(T) {
+  const cls = T.level === 1 ? 'l1' : T.level === 2 ? 'l2' : 'lx';
+  const path = rubricPath(T);
+  return `<div class="ttl ${cls}${S.sel === T ? ' sel' : ''}" data-o="${T.o}" title="cliquer : filtrer les entrées sur cette rubrique">`
+    + `<span class="lvl">${T.level === null ? 'sans #' : '#'.repeat(T.level)}</span>${richText(T)}${path ? `<span class="path">${esc(path)}</span>` : ''}</div>`;
+}
+
+function entryHtml(E) {
+  const Q = E.quality, meta = [];
+  if (E.kind === 'group') meta.push(`<span class="badge grp">groupe · ${E.members.length} membres</span>`);
+  for (const r of Q.ner_suspect) meta.push(`<span class="badge warn" title="motif de relecture de numrev tag">${esc(r)}</span>`);
+  if (E.problems.length) meta.push(`<span class="badge low" title="${esc(E.problems.map((x) => x.message).join('\n'))}">accolade à vérifier</span>`);
+  if (Q.ner_confidence !== null && Q.ner_confidence < NER_LOW) meta.push(`<span class="badge low">NER ${fmt(Q.ner_confidence)}</span>`);
+  if (Q.ocr_doubtful) meta.push(`<span class="badge low" title="plus faible confiance d'un mot">OCR ${Q.ocr_confidence === null ? '?' : fmt(Q.ocr_confidence)}</span>`);
+  if (Q.corrected_lines || Q.corrected_ner) meta.push(`<span class="badge ok" title="corrigée ou validée à la main">✎ ${[Q.corrected_lines ? 'lignes' : '', Q.corrected_ner ? 'empans' : ''].filter(Boolean).join(', ')}</span>`);
+  const commons = E.kind === 'group' ? E.members.flatMap((m) => m.inherited) : [];
+  const cls = ['ent', E.kind === 'group' ? 'group' : '', S.sel === E ? 'sel' : '', S.active ? (S.matchSet.has(E) ? 'hit' : 'out') : ''].filter(Boolean).join(' ');
+  let html = `<div class="${cls}" data-o="${E.o}"><div class="txt">${richText(E, { spans: E.spans, common: commons })}</div><div class="meta">${meta.join('')}</div>`;
+  if (E.kind === 'group') html += membersHtml(E);
+  if (S.sel === E) html += cardHtml(E);
+  return html + '</div>';
+}
+
+const pill = (x, inherited = false) => `<span class="pill ${x.label}${inherited ? ' inh' : ''}" title="${x.label} (${NAMES[x.label]})${inherited ? ', hérité du texte commun' : ''}">${esc(x.normalized)}</span>`;
+
+function membersHtml(E) {
+  return '<ul class="members">' + E.members.map((m) => {
+    const own = plain(E.text.slice(m.own.start, m.own.end));
+    const spans = m.spans.map((id) => pill(E.span.get(id))).join('') + m.inherited_spans.map((id) => pill(E.span.get(id), true)).join('');
+    return `<li class="${S.member === m.id ? 'selm' : ''}" data-l="${esc(m.lines[0])}"><span class="own">${esc(own) || '<i class="muted">(sans texte propre)</i>'}</span>${spans}</li>`;
+  }).join('') + '</ul>';
+}
+
+function cardHtml(E) {
+  const Q = E.quality, path = rubricPath(E);
+  const rows = [
+    ['identifiant', `<span class="mono">${esc(E.id)}</span><button class="copy" data-copy="${esc(E.id)}">copier</button>`],
+    ['rubrique', E.up ? `<button class="lk" data-rubric="${esc(E.up.id)}">${esc(path)}</button>` : '<i>(sans rubrique : avant le premier titre de la plage)</i>'],
+    ['plage, pages', `${esc(E.range)} · p. ${E.pages.join(', ')}`],
+    ['empans', esc(E.sig)],
+    ['confiance', `NER ${Q.ner_confidence === null ? '—' : fmt(Q.ner_confidence)} · OCR ${Q.ocr_confidence === null ? '—' : fmt(Q.ocr_confidence)}${Q.ocr_doubtful ? ' (douteuse)' : ''}`],
+    ['corrections', [Q.corrected_lines ? 'lignes' : '', Q.corrected_ner ? 'empans ou rubrique' : ''].filter(Boolean).join(', ') || 'aucune'],
+  ];
+  if (Q.ner_suspect.length) rows.push(['motifs', esc(Q.ner_suspect.join(' · '))]);
+  for (const it of E.problems) rows.push(['rapport', esc(it.message)]);
+  let html = `<div class="card"><dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  html += '<h4>Empans</h4><table class="t"><tr><th>classe</th><th>texte</th><th>ligne(s)</th></tr>'
+    + E.spans.slice().sort((a, b) => a.start - b.start).map((x) => `<tr><td>${pill({ label: x.label, normalized: x.label })}</td><td>${esc(x.normalized)}</td>`
+      + `<td class="mono">${x.pieces.map((q) => esc(S.line.get(q.line)?.uid ?? q.line)).join(', ')}</td></tr>`).join('') + '</table>';
+  html += '<h4>Lignes</h4><table class="t"><tr><th>ligne</th><th>classe</th><th>texte retenu · lecture OCR</th><th>conf.</th></tr>';
+  for (const r of E.lines) {
+    const L = S.line.get(r.line);
+    const changed = L.ocr_text !== null && L.ocr_text !== L.text, low = L.ocr?.words?.some(([, s]) => s < WORD_LOW);
+    const words = L.ocr?.words?.map(([w, s]) => (s < WORD_LOW ? `<mark title="confiance ${fmt(s)}">${esc(w)}</mark>` : esc(w))).join(' ');
+    const read = L.origin === 'added' ? '<i class="muted">ligne ajoutée à la main</i>' : words ? `<span class="words">${words}</span>` : esc(L.ocr_text ?? '');
+    html += `<tr data-l="${esc(L.id)}"><td class="mono" title="${esc(L.id)}">${esc(L.uid ?? L.key)}${L.corrected ? ' ✎' : ''}</td><td class="mono">${esc(L.class)}</td>`
+      + `<td>${esc(L.text)}${changed || low ? `<br><span class="muted">OCR${changed ? ' (avant correction)' : ''} : </span>${read}` : ''}</td>`
+      + `<td class="num">${L.ocr ? fmt(L.ocr.confidence) : '—'}</td></tr>`;
+  }
+  return html + '</table></div>';
+}
+
+// ---------- surimpression de la page ----------
+const SVG = 'http://www.w3.org/2000/svg';
+function rect([x0, y0, x1, y1], cls) {
+  const r = document.createElementNS(SVG, 'rect');
+  r.setAttribute('x', x0); r.setAttribute('y', y0); r.setAttribute('width', Math.max(1, x1 - x0)); r.setAttribute('height', Math.max(1, y1 - y0));
+  r.setAttribute('class', cls); return r;
+}
+
+function renderOverlay() {
+  const p = S.pages[S.cur], svg = $('svg'); svg.replaceChildren();
+  for (const b of p.blocks) if (b.bbox) { const r = rect(b.bbox, 'blk'); r.append(Object.assign(document.createElementNS(SVG, 'title'), { textContent: `bloc ${b.id} · ${b.label}` })); svg.append(r); }
+  for (const L of p.lines) {
+    if (!L.bbox_estimate) continue;
+    const X = L.owner;
+    const hit = S.active && X?.kind2 === 'entry' && S.matchSet.has(X);
+    const r = rect(L.bbox_estimate, `lb ${L.fam}${L.ocr?.doubtful ? ' low' : ''}${hit ? ' hit' : ''}${X && X === S.sel ? ' sel' : ''}`);
+    r.dataset.l = L.id; if (X) r.dataset.o = X.o;
+    r.append(Object.assign(document.createElementNS(SVG, 'title'), { textContent: `${L.text}\n${L.uid ?? L.key} · ${L.class}${L.ocr ? ` · confiance OCR ${fmt(L.ocr.confidence)}` : ''}` }));
+    svg.append(r);
+  }
+  // empans : trait sous la ligne, en proportion des caractères (approché)
+  const visible = new Map();
+  for (const X of p.owners) {
+    if (X.kind2 !== 'entry') continue;
+    for (const x of X.spans) for (const q of x.pieces) {
+      const L = S.line.get(q.line);
+      if (!L?.bbox_estimate || L.k !== S.cur) continue;
+      if (!visible.has(L)) visible.set(L, visibleIndex(L.text));
+      const v = visible.get(L), total = v[L.text.length] || 1, [x0, y0, x1, y1] = L.bbox_estimate;
+      const a = x0 + (x1 - x0) * v[q.start] / total, b = x0 + (x1 - x0) * v[q.end] / total, h = Math.max(1.5, (y1 - y0) * 0.16);
+      const r = rect([a + 1, y1 - h, b - 1, y1], `sb ${x.label}`); svg.append(r);
+    }
+  }
+}
+
+function layout() {
+  const p = S.pages[S.cur]; if (!p) return;
+  const aspect = S.view ? S.view.height / S.view.width : p.size[1] / p.size[0];
+  const width = Math.max(240, ($('scan').clientWidth - 24) * S.zoom);
+  $('stage').style.width = width + 'px'; $('stage').style.height = width * aspect + 'px';
+}
+
+let pdfjsReady = null;
+function ensurePdfjs() {
+  pdfjsReady ??= new Promise((ok, ko) => {
+    const s = document.createElement('script'); s.src = PDFJS + 'pdf.min.js';
+    s.onload = ok; s.onerror = () => ko(new Error(`pdf.js n'a pas pu être chargé depuis ${s.src} : l'affichage du PDF demande une connexion`));
+    document.head.append(s);
+  }).then(async () => {
+    // worker d'une autre origine : passé par une URL blob (sinon pdf.js tourne sans worker, plus lentement)
+    try {
+      const r = await fetch(PDFJS + 'pdf.worker.min.js');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([await r.text()], { type: 'text/javascript' }));
+    } catch { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; }
+  }).catch((e) => { pdfjsReady = null; throw e; });
+  return pdfjsReady;
+}
+
+async function loadPdf(source, name) {
+  toast(`ouverture de ${name}…`, '', 120000);
+  await ensurePdfjs();
+  const pdf = await pdfjsLib.getDocument(source).promise.catch((e) => { throw new Error(`${name} : PDF illisible (${e.message})`); });
+  $('toast').hidden = true;
+  S.pdf?.destroy(); S.pdf = pdf; S.pdfName = name;
+  if (S.pages.length) {
+    $('vinfo').textContent = $('vinfo').textContent.replace(/ · [^·]*$/, ` · ${name} (${pdf.numPages} p.)`);
+    const outside = S.pages.filter((p) => p.page > pdf.numPages).length;
+    if (outside) toast(`${plural(outside, 'page', 'pages')} du livrable au-delà du PDF (${pdf.numPages} pages) : est-ce le PDF de ce volume ?`, 'error');
+  }
+  if (S.cur >= 0) renderPdf(S.cur);
+}
+
+async function renderPdf(k) {
+  const canvas = $('canvas'), note = $('nopdf'), n = S.pages[k].page;
+  S.task?.cancel(); S.task = null;
+  if (!S.pdf) { canvas.hidden = true; note.hidden = false; note.textContent = 'pas de PDF ouvert : lignes sur page blanche'; return; }
+  if (n > S.pdf.numPages) { canvas.hidden = true; note.hidden = false; note.textContent = `page ${n} hors du PDF (${S.pdf.numPages} pages)`; return; }
+  note.hidden = true;
+  const page = await S.pdf.getPage(n);
+  if (k !== S.cur) return;
+  const unit = page.getViewport({ scale: 1 });
+  if (!S.view || S.view.width !== unit.width || S.view.height !== unit.height) { S.view = { width: unit.width, height: unit.height }; layout(); }
+  const scale = Math.min(6000, $('stage').clientWidth * devicePixelRatio) / unit.width;
+  const viewport = page.getViewport({ scale });
+  const off = document.createElement('canvas'); off.width = Math.round(viewport.width); off.height = Math.round(viewport.height);
+  const task = page.render({ canvasContext: off.getContext('2d'), viewport }); S.task = task;
+  try { await task.promise; } catch (e) { if (e?.name === 'RenderingCancelledException') return; toast(`page ${n} du PDF : ${e.message}`, 'error'); return; }
+  if (k !== S.cur) return;
+  // rendu hors écran puis recopié : pas de page blanche pendant le rendu
+  canvas.width = off.width; canvas.height = off.height; canvas.getContext('2d').drawImage(off, 0, 0); canvas.hidden = false;
+  const next = S.pages[k + 1]?.page; if (next && next <= S.pdf.numPages) S.pdf.getPage(next);
+}
+
+let redrawTimer;
+function redraw() { layout(); clearTimeout(redrawTimer); redrawTimer = setTimeout(() => S.cur >= 0 && renderPdf(S.cur), 200); }
+function zoom(z) { S.zoom = Math.max(0.3, Math.min(6, z)); redraw(); }
+
+// ---------- sélection ----------
+function select(X, { scroll = false, member = null } = {}) {
+  S.sel = X; S.member = member;
+  if (!X) { if (S.cur >= 0) refreshPage(); markRows(); writeHash(); return; }
+  if (!S.pages[S.cur]?.owners.includes(X)) go(X.firstK, { keepScroll: true });
+  else refreshPage();
+  markRows(); writeHash();
+  if (scroll) scrollToSelection();
+}
+
+function scrollToSelection() {
+  const X = S.sel; if (!X) return;
+  const L = X.lines.map((r) => S.line.get(r.line)).find((L) => L.k === S.cur && L.bbox_estimate);
+  if (L) {
+    const stage = $('stage'), scan = $('scan'), h = stage.clientHeight, w = stage.clientWidth;
+    scan.scrollTo({ top: stage.offsetTop + (L.bbox_estimate[1] / 1000) * h - scan.clientHeight / 3, left: stage.offsetLeft + (L.bbox_estimate[0] / 1000) * w - 40, behavior: 'smooth' });
+  }
+  if (S.tab === 'page') $('v-page').querySelector(sel('data-o', X.o))?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function flashLine(L) {
+  const r = $('svg').querySelector(`rect${sel('data-l', L.id)}`);
+  if (!r) { toast('ligne sans boîte estimée : pas de place sur la page', '', 2500); return; }
+  r.classList.remove('flash'); void r.getBBox(); r.classList.add('flash');
+  const stage = $('stage'), scan = $('scan');
+  scan.scrollTo({ top: stage.offsetTop + (L.bbox_estimate[1] / 1000) * stage.clientHeight - scan.clientHeight / 3, behavior: 'smooth' });
+}
+
+// survol : une ligne (texte ↔ boîte) et son entrée
+function hover(lineId, o) {
+  for (const e of document.querySelectorAll('.hl, .ho')) e.classList.remove('hl', 'ho');
+  if (lineId) for (const e of document.querySelectorAll(`.ln${sel('data-l', lineId)}, rect${sel('data-l', lineId)}`)) e.classList.add('hl');
+  if (o) for (const e of document.querySelectorAll(`rect${sel('data-o', o)}, .ent${sel('data-o', o)}`)) e.classList.add('ho');
+}
+$('stage').addEventListener('mouseover', (ev) => { const r = ev.target.closest('rect[data-l]'); hover(r?.dataset.l, r?.dataset.o); });
+$('stage').addEventListener('mouseleave', () => hover(null, null));
+$('v-page').addEventListener('mouseover', (ev) => {
+  const l = ev.target.closest('[data-l]'), o = ev.target.closest('[data-o]');
+  hover(l?.dataset.l, o?.dataset.o);
+});
+$('v-page').addEventListener('mouseleave', () => hover(null, null));
+
+const ownerOf = (o) => (o[0] === 'e' ? S.entries[+o.slice(1)] : S.titles[+o.slice(1)]);
+$('stage').addEventListener('click', (ev) => {
+  const r = ev.target.closest('rect[data-l]'); if (!r) return;
+  if (!r.dataset.o) { const L = S.line.get(r.dataset.l); toast(`${L.class} : ${plain(L.text)}`, '', 3000); return; }
+  if (S.tab !== 'page') showTab('page');
+  const X = ownerOf(r.dataset.o);
+  const member = X.kind === 'group' ? X.members.find((m) => m.lines.includes(r.dataset.l))?.id ?? null : null;
+  select(X, { member });
+  $('v-page').querySelector(sel('data-o', X.o))?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+});
+$('v-page').addEventListener('click', (ev) => {
+  const t = ev.target;
+  if (t.dataset.copy) { navigator.clipboard?.writeText(t.dataset.copy).then(() => toast('copié', '', 1200), () => toast('copie refusée par le navigateur', 'error')); return; }
+  if (t.dataset.k) { go(+t.dataset.k); return; }
+  if (t.dataset.rubric) { setFilter(() => { S.rubric = t.dataset.rubric; }); return; }
+  if (t.closest('.card')) { const row = t.closest('tr[data-l]'); if (row) flashLine(S.line.get(row.dataset.l)); return; }
+  const oos = t.closest('.oosl'); if (oos) { flashLine(S.line.get(oos.dataset.l)); return; }
+  const o = t.closest('[data-o]'); if (!o) return;
+  const X = ownerOf(o.dataset.o);
+  if (X.kind2 === 'title') { setFilter(() => { S.rubric = S.rubric === X.id ? null : X.id; }); select(X); return; }
+  const li = t.closest('.members li');
+  const member = li ? X.members.find((m) => m.lines[0] === li.dataset.l)?.id ?? null : null;
+  if (X === S.sel && !member) { scrollToSelection(); return; }
+  select(X, { scroll: true, member });
+});
+
+// ---------- entrées (vue base de données) ----------
+function sortRows() {
+  const key = $('sort').value;
+  const value = (E) => (key === 'ner' ? E.quality.ner_confidence : key === 'ocr' ? E.quality.ocr_confidence : null);
+  const list = key === 'doc' ? S.matched : S.matched.slice().sort((a, b) => (value(a) ?? 2) - (value(b) ?? 2) || a.i - b.i);
+  S.rows = [];
+  for (const E of list) {
+    if ($('unfold').checked && E.kind === 'group') for (const m of E.members) S.rows.push({ E, m });
+    else S.rows.push({ E, m: null });
+  }
+}
+
+function cell(E, ids, inheritedIds, label) {
+  const own = ids.map((id) => E.span.get(id)).filter((x) => x.label === label).map((x) => `<span class="v">${esc(x.normalized)}</span>`);
+  const inh = inheritedIds.map((id) => E.span.get(id)).filter((x) => x.label === label).map((x) => `<span class="v inh" title="hérité du texte commun">${esc(x.normalized)}</span>`);
+  return own.concat(inh).join('');
+}
+
+function rowHtml({ E, m }, n) {
+  const ids = m ? m.spans : E.spans.slice().sort((a, b) => a.start - b.start).map((x) => x.id);
+  const inherited = m ? m.inherited_spans : [];
+  const flags = [];
+  if (E.kind === 'group' && !m) flags.push(`<span class="badge grp" title="groupe à accolade">${E.members.length}</span>`);
+  if (E.quality.ner_suspect.length) flags.push(`<span class="badge warn" title="${esc(E.quality.ner_suspect.join('\n'))}">${E.quality.ner_suspect.length}</span>`);
+  if (E.problems.length) flags.push('<span class="badge low" title="accolade à vérifier (rapport)">{ }</span>');
+  if (E.quality.corrected_lines || E.quality.corrected_ner) flags.push('<span class="badge ok" title="corrigée à la main">✎</span>');
+  const selected = S.sel === E && (!m || S.member === m.id || !S.member);
+  return `<tr data-n="${n}" class="${m && m.id !== E.members[0].id ? 'member' : ''}${selected ? ' sel' : ''}"><td class="num">${E.pages[0]}</td>`
+    + `<td class="rub" title="${esc(rubricPath(E))}">${esc(E.up?.heading ?? '')}</td>`
+    + LABELS.map((l) => `<td>${cell(E, ids, inherited, l)}</td>`).join('') + `<td>${flags.join('')}</td></tr>`;
+}
+
+function renderList() {
+  $('list-count').textContent = `${plural(S.rows.length, 'ligne', 'lignes')}` + ($('unfold').checked ? ` (${plural(S.matched.length, 'entrée', 'entrées')})` : '');
+  $('rows').innerHTML = S.rows.slice(0, S.shown).map(rowHtml).join('');
+  $('more').hidden = S.rows.length <= S.shown;
+  $('more').textContent = `Afficher ${num(Math.min(ROWS_STEP, S.rows.length - S.shown))} de plus (${num(S.rows.length - S.shown)} restantes)`;
+}
+function markRows() {
+  if (S.tab !== 'list') return;
+  for (const tr of $('rows').children) {
+    const { E, m } = S.rows[+tr.dataset.n];
+    tr.classList.toggle('sel', S.sel === E && (!m || !S.member || S.member === m.id));
+  }
+}
+$('more').onclick = () => { S.shown += ROWS_STEP; renderList(); };
+$('rows').addEventListener('click', (ev) => {
+  const tr = ev.target.closest('tr[data-n]'); if (!tr) return;
+  S.pos = +tr.dataset.n;
+  const { E, m } = S.rows[S.pos];
+  select(E, { scroll: true, member: m?.id ?? null });
+});
+for (const id of ['sort', 'unfold']) $(id).addEventListener('change', () => { sortRows(); S.shown = ROWS_STEP; renderList(); });
+
+// J / K : entrée suivante ou précédente de la liste filtrée
+function step(dir) {
+  if (!S.rows.length) return;
+  let n = S.pos ?? -1;
+  if (S.sel?.kind2 === 'entry' && S.rows[n]?.E !== S.sel) n = S.rows.findIndex((r) => r.E === S.sel);
+  n = Math.max(0, Math.min(S.rows.length - 1, n + dir));
+  S.pos = n;
+  if (n >= S.shown) { S.shown = n + ROWS_STEP; if (S.tab === 'list') renderList(); }
+  const { E, m } = S.rows[n];
+  select(E, { scroll: true, member: m?.id ?? null });
+  if (S.tab === 'list') $('rows').querySelector(`tr[data-n="${n}"]`)?.scrollIntoView({ block: 'nearest' });
+}
+
+function csv() {
+  const head = ['uuid', 'membre_uuid', 'plage', 'pages', 'rubrique', 'texte', 'sujet', 'description', 'adresse', 'forme', 'confiance_ner', 'confiance_ocr', 'motifs'];
+  const quote = (v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const lines = [head.join(',')];
+  for (const { E, m } of S.rows) {
+    const ids = m ? [...m.spans, ...m.inherited_spans] : E.spans.map((x) => x.id);
+    const by = (l) => ids.map((id) => E.span.get(id)).filter((x) => x.label === l).map((x) => x.normalized).join(' | ');
+    const text = m ? plain(E.text.slice(m.own.start, m.own.end)) : plain(E.text);
+    const Q = E.quality;
+    lines.push([E.id, m?.id ?? '', E.range, E.pages.join(' '), rubricPath(E), text, by('SUBJ'), by('DESC'), by('ADDR'), E.kind === 'group' ? 'groupe' : 'simple',
+      Q.ner_confidence ?? '', Q.ocr_confidence ?? '', Q.ner_suspect.join(' | ')].map((v) => quote(String(v))).join(','));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }));
+  a.download = `${S.files.structure.data.volume}.selection.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$('csv').onclick = csv;
+
+// ---------- statistiques ----------
+function table(title, rows, total, { key = null, label = 'entrées' } = {}) {
+  if (!rows.length) return '';
+  return `<h4>${title}</h4><table class="t"><colgroup><col><col style="width:5.5em"><col style="width:30%"></colgroup><tr><th></th><th class="num">${label}</th><th>part</th></tr>`
+    + rows.map(([name, n, extra]) => `<tr${key ? ` class="clk" data-${key}="${esc(extra ?? name)}"` : ''}><td>${esc(name)}</td><td class="num">${num(n)}</td>`
+      + `<td class="bar"><i style="width:${total ? (100 * n / total).toFixed(1) : 0}%"></i><span>${pct(n, total)}</span></td></tr>`).join('') + '</table>';
+}
+
+function renderStats() {
+  const E = S.matched, n = E.length;
+  const count = (f) => E.filter(f).length;
+  const people = E.reduce((a, x) => a + (x.kind === 'group' ? x.members.length : 1), 0);
+  const spans = { SUBJ: 0, DESC: 0, ADDR: 0 }; for (const x of E) for (const s of x.spans) spans[s.label]++;
+  const kpi = (v, l) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`;
+  const out = [`<p class="summary">${S.active ? `Sur les ${plural(n, 'entrée filtrée', 'entrées filtrées')} (${pct(n, S.entries.length)} du volume).` : 'Sur toutes les entrées du volume.'} Cliquer une ligne d'un tableau filtre sur elle.</p>`];
+  out.push('<div class="kpis">' + [
+    kpi(num(n), 'entrées'), kpi(num(people), 'personnes (groupes dépliés)'), kpi(num(count((x) => x.kind === 'group')), 'groupes à accolade'),
+    kpi(pct(count((x) => x.quality.ner_suspect.length), n), 'suspectes'), kpi(pct(count((x) => x.quality.ocr_doubtful), n), 'OCR douteuse'),
+    kpi(pct(count((x) => x.quality.corrected_lines || x.quality.corrected_ner), n), 'corrigées à la main'),
+    ...LABELS.map((l) => kpi(num(spans[l]), `empans ${l} (${NAMES[l]})`)),
+  ].join('') + '</div>');
+  const tally = (keys) => { const m = new Map(); for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => b[1] - a[1]); };
+  out.push(table('Suites d\'empans', tally(E.map((x) => x.sig)).slice(0, 20), n, { key: 'sig' }));
+  out.push(table('Motifs de relecture (numrev tag)', tally(E.flatMap((x) => x.quality.ner_suspect)), n, { key: 'reason' }));
+  const bins = ['< 0,5', '0,5 – 0,7', '0,7 – 0,9', '0,9 – 0,99', '≥ 0,99'];
+  const bin = (v) => (v < 0.5 ? 0 : v < 0.7 ? 1 : v < 0.9 ? 2 : v < 0.99 ? 3 : 4);
+  for (const [title, f] of [['Confiance NER (plus faible empan)', (x) => x.quality.ner_confidence], ['Confiance OCR (plus faible mot)', (x) => x.quality.ocr_confidence]]) {
+    const c = new Array(5).fill(0); let none = 0;
+    for (const x of E) { const v = f(x); if (v === null) none++; else c[bin(v)]++; }
+    out.push(table(title, [...bins.map((b, i) => [b, c[i]]), ...(none ? [['sans score', none]] : [])].filter((r) => r[1]), n));
+  }
+  const byRubric = new Map();
+  for (const x of E) {
+    const key = x.up?.id ?? S.root;
+    const r = byRubric.get(key) ?? { n: 0, suspect: 0 }; r.n++; if (x.quality.ner_suspect.length) r.suspect++; byRubric.set(key, r);
+  }
+  const rubrics = [...byRubric].filter(([, r]) => r.suspect).sort((a, b) => b[1].suspect - a[1].suspect || b[1].n - a[1].n).slice(0, 40);
+  if (rubrics.length) {
+    out.push('<h4>Rubriques, par nombre d\'entrées suspectes</h4><table class="t"><colgroup><col><col style="width:5.5em"><col style="width:6.5em"><col style="width:22%"></colgroup><tr><th>rubrique</th><th class="num">entrées</th><th class="num">suspectes</th><th>taux</th></tr>'
+      + rubrics.map(([id, r]) => { const T = S.title.get(id); return `<tr class="clk" data-rubric="${esc(id)}"><td title="${esc(T ? rubricPath(T) : '')}">${esc(T ? T.heading : '(sans rubrique)')}</td>`
+        + `<td class="num">${num(r.n)}</td><td class="num">${num(r.suspect)}</td><td class="bar"><i style="width:${(100 * r.suspect / r.n).toFixed(1)}%"></i><span>${pct(r.suspect, r.n)}</span></td></tr>`; }).join('') + '</table>');
+  }
+  const lines = S.pages.flatMap((p) => p.lines);
+  const classes = tally(lines.map((L) => L.class));
+  out.push(table('Lignes de la couche documentaire (tout le volume)', [...classes, ['ajoutées à la main', lines.filter((L) => L.origin === 'added').length],
+    ['sans boîte estimée', lines.filter((L) => L.origin === 'ocr' && !L.bbox_estimate).length], ['corrigées ou validées', lines.filter((L) => L.corrected).length]], lines.length, { label: 'lignes' }));
+  $('v-stats').innerHTML = out.join('');
+}
+$('v-stats').addEventListener('click', (ev) => {
+  const tr = ev.target.closest('tr.clk'); if (!tr) return;
+  if (tr.dataset.sig !== undefined) setFilter(() => { $('f-sig').value = tr.dataset.sig; });
+  else if (tr.dataset.reason !== undefined) setFilter(() => { S.reasons.add(tr.dataset.reason); for (const b of $('reasons').querySelectorAll('input')) b.checked = S.reasons.has(b.value); });
+  else if (tr.dataset.rubric !== undefined) setFilter(() => { S.rubric = tr.dataset.rubric; });
+});
+
+// ---------- onglets, adresse, commandes ----------
+function showTab(tab) {
+  S.tab = tab;
+  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === tab);
+  for (const v of ['page', 'list', 'stats', 'report']) $('v-' + v).hidden = v !== tab;
+  if (tab === 'list') renderList();
+  if (tab === 'stats') renderStats();
+  if (tab === 'report') renderReport();
+  if (tab === 'page' && S.sel) $('v-page').querySelector(sel('data-o', S.sel.o))?.scrollIntoView({ block: 'nearest' });
+}
+$('tabs').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-tab]'); if (b) showTab(b.dataset.tab); });
+
+function writeHash() {
+  const p = S.pages[S.cur]; if (!p) return;
+  const hash = S.sel?.kind2 === 'entry' ? `#e=${S.sel.id}` : `#p=${p.id}`;
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+}
+function fromHash(first = false) {
+  const m = location.hash.match(/^#([pe])=(.+)$/);
+  if (m?.[1] === 'e') { const E = S.entries.find((x) => x.id === decodeURIComponent(m[2])); if (E) { select(E, { scroll: true }); return; } }
+  if (m?.[1] === 'p') { const k = S.pages.findIndex((p) => p.id === decodeURIComponent(m[2])); if (k >= 0) { go(k); return; } }
+  if (first) go(0);
+}
+window.addEventListener('hashchange', () => fromHash());
+
+$('prev').onclick = () => go(S.cur - 1);
+$('next').onclick = () => go(S.cur + 1);
+$('pageno').onchange = () => {
+  const want = +$('pageno').value; let best = 0;
+  S.pages.forEach((p, k) => { if (Math.abs(p.page - want) < Math.abs(S.pages[best].page - want)) best = k; });
+  go(best);
+};
+for (const [id, cls, key] of [['show-spans', 'no-spans', 'spans'], ['show-oos', 'no-oos', 'oos'], ['show-blocks', 'no-blocks', 'blocks']]) {
+  const box = $(id); box.checked = recall(key, box.checked);
+  const apply = () => { document.body.classList.toggle(cls, !box.checked); remember(key, box.checked); };
+  box.onchange = apply; apply();
+}
+$('zoom-in').onclick = () => zoom(S.zoom * 1.25);
+$('zoom-out').onclick = () => zoom(S.zoom / 1.25);
+$('zoom-fit').onclick = () => zoom(1);
+window.addEventListener('resize', redraw);
+$('help').onclick = () => $('dlg').showModal();
+$('open').onclick = $('open2').onclick = () => $('files').click();
+$('files').onchange = () => { openFiles($('files').files); $('files').value = ''; };
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.closest('input, textarea, select, dialog') || ev.ctrlKey || ev.metaKey || ev.altKey || !S.pages.length) return;
+  const keys = {
+    ArrowLeft: () => go(S.cur - 1), ArrowRight: () => go(S.cur + 1), j: () => step(1), k: () => step(-1),
+    Escape: () => select(null), '+': () => zoom(S.zoom * 1.25), '=': () => zoom(S.zoom * 1.25), '-': () => zoom(S.zoom / 1.25), '0': () => zoom(1),
+    e: () => $('show-spans').click(), h: () => $('show-oos').click(), b: () => $('show-blocks').click(),
+    '/': () => $('q').focus(), '?': () => $('dlg').showModal(),
+  };
+  const act = keys[ev.key] ?? keys[ev.key.toLowerCase()];
+  if (act) { ev.preventDefault(); act(); }
+});
+
+// ---------- ouverture des fichiers ----------
+async function openFiles(files) {
+  const list = [...files], pdf = list.find((f) => kindOf(f.name) === 'pdf');
+  const other = list.filter((f) => !kindOf(f.name));
+  if (other.length) toast(`ignoré (ni .json, ni .txt, ni .pdf) : ${other.map((f) => f.name).join(', ')}`, 'error');
+  try {
+    const texts = list.filter((f) => kindOf(f.name) && kindOf(f.name) !== 'pdf');
+    for (const f of texts) {
+      toast(`lecture de ${f.name}…`, '', 60000);
+      accept(kindOf(f.name), await f.text(), f.name);
+    }
+    $('toast').hidden = true;
+    if (texts.length) ready();  // relit tout : un fichier déposé remplace le précédent
+    if (pdf) await loadPdf({ data: await pdf.arrayBuffer() }, pdf.name);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function openUrls() {
+  const params = new URLSearchParams(location.search);
+  const base = (url) => decodeURIComponent(url.split(/[?#]/)[0].split('/').pop());
+  try {
+    for (const kind of ['document', 'structure', 'report']) {
+      const url = params.get(kind); if (!url) continue;
+      toast(`téléchargement de ${base(url)}…`, '', 60000);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`${url} : HTTP ${r.status}`);
+      accept(kind, await r.text(), base(url));
+    }
+    $('toast').hidden = true;
+    if (S.files.document || S.files.structure) ready();
+    if (params.get('pdf')) await loadPdf({ url: params.get('pdf') }, base(params.get('pdf')));  // lu par morceaux quand le serveur le permet
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// dépôt de fichiers n'importe où sur la page
+let depth = 0;
+window.addEventListener('dragenter', (ev) => { if (ev.dataTransfer?.types.includes('Files')) { depth++; document.body.classList.add('dragging'); } });
+window.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; document.body.classList.remove('dragging'); } });
+window.addEventListener('dragover', (ev) => ev.preventDefault());
+window.addEventListener('drop', (ev) => { ev.preventDefault(); depth = 0; document.body.classList.remove('dragging'); if (ev.dataTransfer?.files.length) openFiles(ev.dataTransfer.files); });
+
+openUrls();
+</script>
+</body>
+</html>

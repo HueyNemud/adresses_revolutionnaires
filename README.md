@@ -9,7 +9,11 @@ début du XIXᵉ siècle en données structurées :
 2. chaque entrée **découpée** en sujet `SUBJ` (qui ?), description `DESC`
    (quoi ?) et adresse `ADDR` (où ?) par un modèle de reconnaissance
    d'entités (GLiNER), qui signale les entrées à relire en priorité ;
-3. les **correspondances** entre les entrées de deux éditions d'un annuaire,
+3. le **livrable d'un volume** : deux fichiers JSON, l'un pour le document
+   (pages, lignes, leur place sur la page), l'autre pour la structure
+   (titres, entrées, empans), où chaque information renvoie aux lignes dont
+   elle vient ;
+4. les **correspondances** entre les entrées de deux éditions d'un annuaire,
    trouvées rubrique par rubrique en suivant l'ordre des listes (ou par
    Dedupe), avec pour chaque paire une incertitude (faible, moyenne, forte)
    qui oriente la relecture humaine.
@@ -37,8 +41,8 @@ uv run numrev      # liste des commandes
 ## Vue d'ensemble
 
 Tout passe par une seule commande, `numrev`. Les étapes 0 à 5 traitent une
-**plage de pages** d'un volume (un *document*), les étapes 6 et 7 une
-**paire d'annuaires** complets. Chaque étape ajoute son suffixe au nom du
+**plage de pages** d'un volume (un *document*), l'étape 6 un **volume**
+entier, les étapes 7 et 8 une **paire d'annuaires** complets. Chaque étape ajoute son suffixe au nom du
 document :
 
 ```mermaid
@@ -52,11 +56,13 @@ flowchart TD
     D -->|"4 · numrev assemble"| E["Entités + arbre des titres<br/><code>.entities.csv</code>"]
     E -->|"5 · numrev tag<br/>(GLiNER)"| F["Empans SUBJ / DESC / ADDR<br/><code>.ner.csv</code>"]
     F -.->|"relecture"| F
-    F -->|"6 · numrev align nw<br/>ou numrev align dedupe"| G["Correspondances entre deux éditions<br/><code>annuaires/alignments/&lt;A&gt;__&lt;B&gt;.nw.csv</code>"]
-    G -->|"7 · numrev join"| H["Jointure lisible<br/><code>….join.csv</code>"]
+    F -->|"6 · numrev export<br/>(un volume)"| V["Livrable du volume<br/><code>&lt;volume&gt;.document.json</code><br/>+ <code>.structure.json</code>"]
+    F -->|"7 · numrev align nw<br/>ou numrev align dedupe"| G["Correspondances entre deux éditions<br/><code>annuaires/alignments/&lt;A&gt;__&lt;B&gt;.nw.csv</code>"]
+    G -->|"8 · numrev join"| H["Jointure lisible<br/><code>….join.csv</code>"]
 
     style E fill:#dfe,stroke:#393
     style F fill:#dfe,stroke:#393
+    style V fill:#dfe,stroke:#393
     style H fill:#dfe,stroke:#393
 ```
 
@@ -88,13 +94,16 @@ uv run numrev tabulate annuaires/1808_AD75-PER292 --apply         # table des li
 uv run numrev assemble annuaires/1808_AD75-PER292 --apply         # entités et arbre des titres
 uv run numrev tag      annuaires/1808_AD75-PER292 --apply         # empans NER, à relire
 
-# Étapes 6 et 7, sur une paire d'annuaires complets
+# Étape 6, sur un volume : livrable final (deux JSON reliés aux lignes de la page)
+uv run numrev export   annuaires/1808_AD75-PER292 --apply
+
+# Étapes 7 et 8, sur une paire d'annuaires complets
 uv run numrev align nw annuaires/<A> annuaires/<B> --apply       # alignement ordonné, sans apprentissage
 uv run numrev align dedupe annuaires/<A> annuaires/<B> --apply   # alternative : Dedupe (+ patch manuel)
 uv run numrev join annuaires/alignments/<A>__<B>.nw.csv --excel --apply   # jointure CSV pour les historiens
 
 # Consultation
-uv run numrev view directory     # un annuaire, empans et entrées suspectes
+uv run numrev view directory annuaires/<volume>   # le livrable d'un volume posé sur son PDF
 uv run numrev view alignment     # un alignement, aide à la relecture
 uv run numrev view ocr annuaires/<volume>/<plage>   # l'OCR d'une plage posé sur le PDF
 
@@ -133,7 +142,10 @@ uv run black src tests && uv run ruff check src tests
 **Utiliser les données**
 
 - [`docs/donnees.md`](docs/donnees.md) — l'annuaire structuré et la jointure
-  de deux éditions, colonne par colonne, et leurs limites.
+  de deux éditions, colonne par colonne, et leurs limites ;
+- [`docs/format_export.md`](docs/format_export.md) — le livrable d'un volume
+  (couche documentaire et couche structurée en JSON), champ par champ,
+  groupes à accolade et identifiants.
 
 **Comprendre et faire évoluer la chaîne**
 
@@ -151,10 +163,10 @@ uv run black src tests && uv run ruff check src tests
 | Chemin | Contenu |
 |---|---|
 | `src/numrev/cli.py` | Point d'entrée `numrev` : la liste des commandes |
-| `src/numrev/pipeline/` | Une commande par étape (0 à 7) |
-| `src/numrev/viewers/` | Viewers (`numrev view`) : Streamlit pour `directory` et `alignment` ; `ocr.html`, page autonome qui pose une sortie OCR sur son PDF |
+| `src/numrev/pipeline/` | Une commande par étape (0 à 8) |
+| `src/numrev/viewers/` | Viewers (`numrev view`) : Streamlit pour `alignment` ; pages autonomes `directory.html` (livrable d'un volume sur son PDF) et `ocr.html` (sortie OCR d'une plage sur son PDF) |
 | `src/numrev/devtools/` | Gold, jeu d'entraînement, entraînement, audits |
-| `src/numrev/crf/`, `ner/`, `alignment/` | Code partagé de chaque domaine |
+| `src/numrev/crf/`, `ner/`, `alignment/`, `export/` | Code partagé de chaque domaine (`export/schemas/` : JSON Schema du livrable d'un volume) |
 | `src/numrev/paths.py` | Noms et emplacements des fichiers |
 | `src/numrev/curation.py` | Protocole des corrections humaines rejouables |
 | `tests/` | Tests unitaires |

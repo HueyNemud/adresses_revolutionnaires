@@ -1,9 +1,8 @@
 """Titres Markdown (`#`, `##`, …) des lignes TITLE : niveau, texte lisible
 et racine de l'arbre des titres.
 
-Partagé par `numrev assemble` (arbre des titres), `numrev/alignment/records.py`
-(rubrique d'une entrée) et `numrev view directory` (bandeaux de
-rubrique).
+Partagé par `numrev assemble` (arbre des titres), `numrev tag`,
+`numrev export` et `numrev/alignment/records.py` (rubrique d'une entrée).
 """
 
 import re

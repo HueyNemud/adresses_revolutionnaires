@@ -5,7 +5,7 @@ Ce guide fixe les conventions de l'annotation des lignes (`numrev label`,
 étape 3, voir le [guide de la curation](guide_curation.md)). Chaque ligne
 de l'OCR reçoit une **classe** ; la chaîne s'en sert ensuite pour
 reconstituer les entrées et la hiérarchie des titres (étape 4), puis pour
-comparer les rubriques de deux éditions (étape 6). Les exemples sont tirés
+comparer les rubriques de deux éditions (étape 7). Les exemples sont tirés
 ou inspirés des corrections faites sur 1807 et 1808.
 
 ## Les classes
@@ -79,7 +79,7 @@ Pourquoi c'est important :
 - l'étape 4 range chaque entrée sous le dernier titre qui la précède, et
   chaque titre sous le dernier titre de niveau plus élevé : de mauvais
   niveaux donnent un mauvais arbre ;
-- l'alignement de deux éditions (étape 6) compare les entrées **rubrique par
+- l'alignement de deux éditions (étape 7) compare les entrées **rubrique par
   rubrique**, la rubrique d'une entrée étant son titre de niveau `##` (à
   défaut `#`). Une entrée dont la rubrique est mal rattachée n'est comparée
   qu'aux entrées d'une autre rubrique ;
@@ -143,10 +143,31 @@ Le titre restitué ne vient pas de l'OCR : sa clé est `debut+1` (`debut+2`…
 pour les lignes suivantes), il n'a ni `confiance` ni annotation du modèle,
 et il reste reconnaissable dans les données (colonne `cle` du `….ner.csv`).
 
+## Groupes à accolade
+
+Une accolade imprimée relie plusieurs lignes à un texte commun, écrit une
+seule fois (« Fieffé. } Membres du conseil… », puis « Pastoret. } »…).
+Depuis latynna-v4, l'OCR écrit le signe sur chaque ligne du groupe (`… }` en
+fin de ligne, `{ …` en début), et le texte commun sur la première ligne
+seulement. On annote le groupe comme **une seule entrée** :
+
+- la première ligne en `B-ENTRY`, les suivantes en `SUB-ENTRY` (une ligne qui
+  continue la précédente reste `I-ENTRY`) ;
+- **chaque ligne garde son signe**, et le texte commun reste sur la première
+  ligne du groupe, à droite de `}` ou à gauche de `{` ;
+- deux accolades emboîtées (un arrondissement `{` qui regroupe des quartiers,
+  eux-mêmes reliés par `}` à un juge) s'écrivent dans l'ordre de la page :
+  `I.er... { Tuileries..... } Cuynet, place des Italiens, 1.`
+
+Le livrable du volume (étape 6) donne alors chaque membre du groupe avec le
+texte commun dont il hérite. Son rapport, `<volume>.export.report.txt`,
+signale les groupes que la règle ne résout pas (une ligne sans signe, un
+texte commun absent de la première ligne, une accolade à trois niveaux) :
+on les corrige ici, dans la table des lignes. La règle complète est dans
+[`format_export.md`](format_export.md#groupes-à-accolade).
+
 ## Ce que la chaîne ne traite pas encore
 
-- **Accolades** (depuis latynna-v4) : une ligne groupée par une accolade
-  porte son signe (`… }` en fin de ligne, `{ …` en début), et le texte
-  commun au groupe n'est écrit que sur sa première ligne. La chaîne garde ces
-  lignes telles quelles et ne recopie pas ce texte commun sur les autres
-  lignes du groupe (voir `TODO.md`).
+- **Accolades dans les CSV** : le `….ner.csv` et l'alignement de deux
+  éditions traitent un groupe à accolade comme une seule entrée ; seul le
+  livrable du volume (étape 6) en déplie les membres.

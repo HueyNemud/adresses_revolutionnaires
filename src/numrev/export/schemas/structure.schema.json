@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "numrev-structure/1",
+  "title": "Couche structurée d'un volume (numrev export)",
+  "description": "Titres et entrées d'un volume, leurs empans SUBJ / DESC / ADDR et les membres des groupes à accolade, chacun renvoyant aux lignes de la couche documentaire. Voir docs/format_export.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "volume", "source", "ranges", "coordinates", "provenance", "root", "titles", "entries"],
+  "properties": {
+    "schema": {"const": "numrev-structure/1"},
+    "volume": {"type": "string"},
+    "source": {"$ref": "#/$defs/source"},
+    "ranges": {"type": "array", "items": {"$ref": "#/$defs/range"}},
+    "coordinates": {"$ref": "#/$defs/coordinates"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "root": {"$ref": "#/$defs/uuid"},
+    "titles": {"type": "array", "items": {"$ref": "#/$defs/title"}},
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pdf", "sha256"],
+      "properties": {
+        "pdf": {"type": "string"},
+        "sha256": {"type": ["string", "null"]}
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "first_page", "last_page"],
+      "properties": {
+        "name": {"type": "string"},
+        "first_page": {"type": "integer", "minimum": 1},
+        "last_page": {"type": "integer", "minimum": 1}
+      }
+    },
+    "coordinates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "origin"],
+      "properties": {
+        "width": {"const": 1000},
+        "height": {"const": 1000},
+        "origin": {"const": "top-left"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numrev", "exported_at", "inputs"],
+      "properties": {
+        "numrev": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "uncommitted_changes"],
+          "properties": {
+            "commit": {"type": ["string", "null"]},
+            "uncommitted_changes": {"type": ["boolean", "null"]}
+          }
+        },
+        "exported_at": {"type": "string"},
+        "inputs": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "zone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0}
+      }
+    },
+    "line_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "start", "end"],
+      "properties": {
+        "line": {"type": "string"},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0}
+      }
+    },
+    "pages": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+    "title": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parent", "range", "pages", "level", "heading", "text", "lines"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "parent": {"$ref": "#/$defs/uuid"},
+        "range": {"type": "string"},
+        "pages": {"$ref": "#/$defs/pages"},
+        "level": {"type": ["integer", "null"], "minimum": 1},
+        "heading": {"type": "string"},
+        "text": {"type": "string"},
+        "lines": {"type": "array", "items": {"$ref": "#/$defs/line_ref"}}
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "start", "end", "text", "normalized", "pieces"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "label": {"enum": ["SUBJ", "DESC", "ADDR"]},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0},
+        "text": {"type": "string"},
+        "normalized": {"type": "string"},
+        "pieces": {"type": "array", "items": {"$ref": "#/$defs/line_ref"}, "minItems": 1}
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "lines", "own", "inherited", "spans", "inherited_spans"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "lines": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "own": {"$ref": "#/$defs/zone"},
+        "inherited": {"type": "array", "items": {"$ref": "#/$defs/zone"}},
+        "spans": {"type": "array", "items": {"$ref": "#/$defs/uuid"}},
+        "inherited_spans": {"type": "array", "items": {"$ref": "#/$defs/uuid"}}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ocr_confidence", "ocr_doubtful", "ner_confidence", "ner_suspect", "corrected_lines", "corrected_ner"],
+      "properties": {
+        "ocr_confidence": {"type": ["number", "null"]},
+        "ocr_doubtful": {"type": "boolean"},
+        "ner_confidence": {"type": ["number", "null"]},
+        "ner_suspect": {"type": "array", "items": {"type": "string"}},
+        "corrected_lines": {"type": "boolean"},
+        "corrected_ner": {"type": "boolean"}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parent", "range", "pages", "kind", "text", "lines", "spans", "members", "quality"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "parent": {"$ref": "#/$defs/uuid"},
+        "range": {"type": "string"},
+        "pages": {"$ref": "#/$defs/pages"},
+        "kind": {"enum": ["single", "group"]},
+        "text": {"type": "string"},
+        "lines": {"type": "array", "items": {"$ref": "#/$defs/line_ref"}, "minItems": 1},
+        "spans": {"type": "array", "items": {"$ref": "#/$defs/span"}},
+        "members": {"oneOf": [{"type": "array", "items": {"$ref": "#/$defs/member"}, "minItems": 2}, {"type": "null"}]},
+        "quality": {"$ref": "#/$defs/quality"}
+      }
+    }
+  }
+}

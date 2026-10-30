@@ -79,8 +79,8 @@ from numrev.alignment.sections import (
 )
 from numrev.ner.html import LABEL_COLORS, SPAN_CSS, badge, render_tagged_html
 from numrev.paths import JOIN_SUFFIX, Pair
-from numrev.viewers.common import PAGE_SIZE_OPTIONS, text_mask
 
+PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
 NATURAL_ORDER = "ordre naturel"
 LEVEL_ORDER = "incertitude décroissante"
 ORDER_OPTIONS = [NATURAL_ORDER, "score croissant", "score décroissant", LEVEL_ORDER]
@@ -164,6 +164,14 @@ if (!window.__alignmentCopy) {
 # Données
 # ----------------------------------------------------------------------
 @st.cache_resource(show_spinner="Lecture de l'annuaire…")
+def text_mask(df: pd.DataFrame, query: str, columns: list[str], regex: bool = False) -> pd.Series:
+    """Lignes dont l'une des `columns` contient `query` (sans casse)."""
+    mask = pd.Series(False, index=df.index)
+    for column in columns:
+        mask |= df[column].astype(str).str.contains(query, case=False, na=False, regex=regex)
+    return mask
+
+
 def load_records(volume_dir: str) -> dict[str, Record]:
     return {record.uuid: record for record in load_volume(Path(volume_dir))}
 

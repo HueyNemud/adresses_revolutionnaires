@@ -12,6 +12,12 @@ sortie :
     <document>.entities.csv        4 · assemble (+ <document>.entities.report.txt)
     <document>.ner.csv             5 · tag (corrigé à la main)
 
+Un **volume** entier a ses livrables finaux dans son dossier,
+`annuaires/<volume>/<volume><suffixe>` :
+
+    <volume>.document.json         6 · export (couche documentaire)
+    <volume>.structure.json        6 · export (couche structurée, + <volume>.export.report.txt)
+
 Une **paire** d'annuaires `<gauche>__<droite>` (noms des dossiers de
 volumes) a ses sorties dans `annuaires/alignments/` et ses décisions
 humaines versionnées dans `data/alignment/`.
@@ -42,6 +48,9 @@ ENTITIES = ".entities.csv"
 ENTITIES_REPORT = ".entities.report.txt"
 NER = ".ner.csv"
 STEP_SUFFIXES = (OCR, LINES, LABELED, LABEL_SESSION, LINES_CSV, ENTITIES, ENTITIES_REPORT, NER)
+DOCUMENT_JSON = ".document.json"
+STRUCTURE_JSON = ".structure.json"
+EXPORT_REPORT = ".export.report.txt"
 
 RANGE_PATTERN = re.compile(r"^(\d+)-(\d+)$")
 
@@ -80,6 +89,11 @@ def page_range(range_dir: Path) -> tuple[int, int]:
 def volume_pdf(volume_dir: Path) -> Path:
     """PDF complet d'un volume, lu par `numrev ocr` : `annuaires/<volume>/<volume>.pdf`."""
     return volume_dir / f"{volume_dir.name}.pdf"
+
+
+def volume_file(volume_dir: Path, suffix: str) -> Path:
+    """Livrable d'un volume entier (`numrev export`) : `annuaires/<volume>/<volume><suffixe>`."""
+    return volume_dir / f"{volume_dir.name}{suffix}"
 
 
 def range_dirs(volume_dir: Path) -> list[Path]:

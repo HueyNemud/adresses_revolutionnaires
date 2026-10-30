@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "numrev-document/1",
+  "title": "Couche documentaire d'un volume (numrev export)",
+  "description": "Pages, blocs et lignes d'un volume, chaque ligne avec sa boîte, son texte OCR et son texte retenu. Voir docs/format_export.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "volume", "source", "ranges", "coordinates", "provenance", "pages"],
+  "properties": {
+    "schema": {"const": "numrev-document/1"},
+    "volume": {"type": "string"},
+    "source": {"$ref": "#/$defs/source"},
+    "ranges": {"type": "array", "items": {"$ref": "#/$defs/range"}},
+    "coordinates": {"$ref": "#/$defs/coordinates"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "pages": {"type": "array", "items": {"$ref": "#/$defs/page"}}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pdf", "sha256"],
+      "properties": {
+        "pdf": {"type": "string"},
+        "sha256": {"type": ["string", "null"]}
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "first_page", "last_page"],
+      "properties": {
+        "name": {"type": "string"},
+        "first_page": {"type": "integer", "minimum": 1},
+        "last_page": {"type": "integer", "minimum": 1}
+      }
+    },
+    "coordinates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "origin"],
+      "properties": {
+        "width": {"const": 1000},
+        "height": {"const": 1000},
+        "origin": {"const": "top-left"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numrev", "exported_at", "inputs"],
+      "properties": {
+        "numrev": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "uncommitted_changes"],
+          "properties": {
+            "commit": {"type": ["string", "null"]},
+            "uncommitted_changes": {"type": ["boolean", "null"]}
+          }
+        },
+        "exported_at": {"type": "string"},
+        "inputs": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "bbox": {
+      "type": "array",
+      "items": {"type": "number"},
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "page", "range", "size", "blocks", "lines"],
+      "properties": {
+        "id": {"type": "string"},
+        "page": {"type": "integer", "minimum": 1},
+        "range": {"type": "string"},
+        "size": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+        "blocks": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+        "lines": {"type": "array", "items": {"$ref": "#/$defs/line"}}
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "bbox"],
+      "properties": {
+        "id": {"type": "string"},
+        "label": {"type": ["string", "null"]},
+        "bbox": {"oneOf": [{"$ref": "#/$defs/bbox"}, {"type": "null"}]}
+      }
+    },
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "uid", "block", "origin", "class", "text", "ocr_text", "bbox_estimate", "ocr", "labeling", "corrected"],
+      "properties": {
+        "id": {"type": "string"},
+        "key": {"type": "string"},
+        "uid": {"type": ["string", "null"]},
+        "block": {"type": "string"},
+        "origin": {"enum": ["ocr", "added"]},
+        "class": {"type": "string"},
+        "text": {"type": "string"},
+        "ocr_text": {"type": ["string", "null"]},
+        "bbox_estimate": {"oneOf": [{"$ref": "#/$defs/bbox"}, {"type": "null"}]},
+        "ocr": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["confidence", "doubtful", "words"],
+              "properties": {
+                "confidence": {"type": "number"},
+                "doubtful": {"type": "boolean"},
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [{"type": "string"}, {"type": "number"}],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              }
+            },
+            {"type": "null"}
+          ]
+        },
+        "labeling": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["probability", "provenance"],
+              "properties": {
+                "probability": {"type": ["number", "null"]},
+                "provenance": {"type": ["string", "null"]}
+              }
+            },
+            {"type": "null"}
+          ]
+        },
+        "corrected": {"type": "boolean"}
+      }
+    }
+  }
+}

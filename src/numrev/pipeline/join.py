@@ -1,4 +1,4 @@
-"""Étape 7 · jointure lisible de deux annuaires alignés, en CSV, pour les
+"""Étape 8 · jointure lisible de deux annuaires alignés, en CSV, pour les
 utilisateurs des données (historiens).
 
     uv run numrev join annuaires/alignments/<gauche>__<droite>.nw.csv [--excel] --apply
