@@ -1,0 +1,43 @@
+cle,apres,uid,classe,markdown
+69e31fdcfddc,,178.3.1,B-TITLE,# ADMINISTRATION GÉNÉRALE DES POSTES IMPÉRIALES.
+b3cfbb34463f,,178.4.1,B-TITLE,## *Conseiller d'état directeur général des postes.*
+19d6f00e812d,,178.6.1,B-TITLE,## *Administrateurs généraux des postes.*
+5f9661522184,,178.14.1,B-TITLE,"## *Conseil d'administration des postes - relais, hôtel des Postes, rue Coq-Héron.*"
+e7ce636e140f,,178.16.1,B-ENTRY,"Boudin, rue du Bouloy, 10.  } *inspecteurs génér., membres du conseil.*"
+eade071d127a,,178.17.1,SUB-ENTRY,"Boulenger, rue Projettée-Choiseul, 6. }"
+ffeeb6e08070,,178.18.1,SUB-ENTRY,"D'Avrange, rue de l'Eperon, 9. }"
+17cd9cb20c03,,178.21.1,B-TITLE,## *Division du travail de l'administration des postes aux lettres.*
+74e1a8c713d8,,178.23.1,B-TITLE,## *Correspondance générale.*
+9917ac479780,,178.26.1,B-TITLE,"## *Parts, impressions et magasins.*"
+f7ed3b5c6e2c,,178.28.1,B-TITLE,## *Division du départ et tarif.*
+9ac7f66f1c08,,178.31.1,B-TITLE,## *Bureaux des affranchissemens pour les départemens et l'étranger.*
+19b040e29f7e,,178.35.1,B-TITLE,## *Bureaux des chargemens pour les départemens et l'étranger.*
+9290c3695325,,178.37.1,B-TITLE,## *Bureaux des abonnemens des ouvrages périodiques pour les départemens et l'étranger.*
+59599a08df0e,,179.3.1,B-TITLE,### *Division de l'arrivée.*
+5cded50aedee,,179.5.1,B-TITLE,### *Envois d'argent de et pour Paris.*
+72d3bf1277bb,,179.7.1,B-TITLE,### *Envois de départemens à départemens.*
+c8c457093c06,,179.9.1,B-TITLE,### *Division des déboursés et rebuts.*
+8abe0a6f4ed7,,179.11.1,B-TITLE,## *Service des Postes dans le département de la Seine.*
+d736717fb1f6,,179.12.1,B-TITLE,### DIVISION DE PARIS.
+7af7746a6e66,,179.16.1,B-TITLE,"#### *Bureau du chef de la division de Paris, hôtel des Postes.*"
+8dffc9c01070,,179.18.1,B-TITLE,#### *Bureaux de distribution.*
+7ebfa1183c7e,,179.21.1,B-TITLE,##### *Bureaux de distribution dans Paris.*
+6d135294b683,,180.3.1,B-TITLE,"###### *Bureau A, rue des Déchargeurs, 3.*"
+86ae9148a74f,,180.6.1,B-TITLE,"####### *Position des boîtes dans l'arrondissement dudit bureau, et numéros des timbres.*"
+2d84849bac76,,180.9.1,B-TITLE,"###### *Bureau B, rue des Ballets-Saint-Antoine, 1.*"
+914d0ad5b56c,,180.12.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+25c369cb5e29,,180.15.1,B-TITLE,"###### *Bureau C, rue du Grand-Chantier, 7.*"
+914d0ad5b56c~2,,180.18.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+a8837cf3b1cf,,181.5.1,B-TITLE,"###### *Bureau D, rue Poissonnière.*"
+914d0ad5b56c~3,,181.8.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+efc2a6a04e6d,,181.11.1,B-TITLE,"###### *Bureau E, rue Saint-Honoré, 368.*"
+914d0ad5b56c~4,,181.14.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+a37f5c36e8e4,,181.17.1,B-TITLE,"###### *Bureau F, rue de Verneuil, 20.*"
+914d0ad5b56c~5,,181.20.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+8ed26ed7ec54,,182.2.1,OUT OF SCOPE,## *Administration et départ*
+269a6204013d,,182.3.1,B-TITLE,"###### *Bureau G, rue de Condé, 8.*"
+0ccdcf81f091,,182.6.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+d98804654a8d,,182.9.1,B-TITLE,"###### *Bureau H, rue Contrescarpe-Saint-Marcel, 9.*"
+0ccdcf81f091~2,,182.12.1,B-TITLE,"####### *Position des boîtes, et numéros des timbres.*"
+c00630525c3c,,182.18.1,B-TITLE,"#### *Heures des levées des Boîtes de Paris, depuis le 1.er octobre jusqu'au 31 mars.*"
+8947688456d2,,182.21.1,B-TITLE,##### *Départ du jour pour les départemens.*

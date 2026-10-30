@@ -1,0 +1,301 @@
+cle,apres,uid,classe,markdown
+28a5c3a92bc2,,192.3.1,OUT OF SCOPE,Commission des recherches physiques.
+3a2d8d32cf64,,192.4.1,OUT OF SCOPE,"Chompré, *président*."
+75892f17e2cf,,192.4.2,OUT OF SCOPE,"Riffaut, *secrétaire*."
+ca02995c284a,,192.4.3,OUT OF SCOPE,Charpentier-Saintot.
+33be02573c2a,,192.4.4,OUT OF SCOPE,Izarn.
+4760073142e2,,192.4.5,OUT OF SCOPE,Lancelin.
+122a2bea490c,,192.5.1,OUT OF SCOPE,Ledru.
+8fd484a4904e,,192.5.2,OUT OF SCOPE,Legallois.
+240a6283d9d1,,192.5.3,OUT OF SCOPE,Le comte de Sorgo.
+82b8030e2b35,,192.5.4,OUT OF SCOPE,VEAU de Launay.
+e6647def208e,,192.6.1,OUT OF SCOPE,Commission des applications médicales.
+fa1c836bc8ee,,192.7.1,OUT OF SCOPE,"Guillotin, *président*."
+574f24dcb61e,,192.7.2,OUT OF SCOPE,"Forestier aîné, *secrétaire*."
+07b2ba4d9c08,,192.7.3,OUT OF SCOPE,Duran.
+6bb176514323,,192.7.4,OUT OF SCOPE,Gay.
+4961bc1b7769,,192.8.1,OUT OF SCOPE,GraterEAU.
+8fdb203467f1,,192.8.2,OUT OF SCOPE,Lafosse.
+4b3be94c9e5f,,192.8.3,OUT OF SCOPE,Tourlet.
+a89db172765b,,192.9.1,B-TITLE,"# PRÉFECTURE DU DÉPARTEMENT DE LA SEINE,"
+27d682b0279a,,192.10.1,I-TITLE,*Place de l'Hôtel-de-Ville.\**
+8c11a4962a70,,192.11.1,B-ENTRY,"M. FROCHOT, Conseiller d'état, *préfet*, hôtel de la Préfecture."
+12bc02877658,,192.12.1,B-TITLE,## Conseil de préfecture.
+be12e346a514,,192.14.1,B-TITLE,## *Conseil général de département faisant aussi les fonctions de conseil municipal de la ville de Paris.*
+9f43e86dd38a,,192.16.10,B-ENTRY,"Trudon des Ormes, rue Favart."
+d1960c59c76e,,192.18.1,B-TITLE,"## *Médecin du département et des prisons, chargé du traitement des maladies épidémiques.*"
+b0f02c0ca245,,192.20.1,B-TITLE,## BUREAUX DE LA PRÉFECTURE.
+bb639cd57c7a,,192.21.1,B-TITLE,### SECRETARIAT GÉNÉRAL.
+87309b41f5ec,,192.22.1,B-TITLE,"#### I.er BUREAU. *Ordre général, budgets, réparations et entretien de l'Hôtel-de-ville, fêtes publiques, archives.*"
+1f72d575768b,,193.2.1,OUT OF SCOPE,## Préfecture du département de la Seine.
+1be317b0dc1b,,193.3.1,B-TITLE,"##### Gardes des archives,"
+0572895e8191,,193.4.2,B-ENTRY,"*De l'état civil.* M. Marquis, au presbytère St.-Jean, derrière l'Hôtel-de-ville, pour les actes antérieurs à la formation des douze mairies."
+0cc87f4282bb,,193.6.1,B-TITLE,#### II.e BUREAU. *Comptabilité.*
+0cc87f4282bb+1,0cc87f4282bb,193.6.1,B-ENTRY,"M. Alexandre, chef, rue Neuve-Ste-Genèviève, 28."
+dd03b2b554a7,,193.7.1,B-TITLE,#### III.e BUREAU. *Statistique.*
+dd03b2b554a7+1,dd03b2b554a7,193.7.1,B-ENTRY,"M. Lavaux, rédacteur, rue des Tournelles, 50."
+6cf5fe7d6071,,193.8.1,B-TITLE,### Première division.
+d292f59aa681,,193.9.1,B-TITLE,#### Administration générale.
+b0c16b845fe0,,193.13.2,SUB-ENTRY,"{ *Garde de Paris.* M. Blandin, chef, rue du Faub.-St.-Jacques, en face du Val-de-Grâce."
+a66671516fc8,,193.14.1,B-TITLE,"#### Direction administrative de l'Instruction publique, secours, hôpitaux et prisons."
+b65e5c4a3df5,,193.19.1,B-TITLE,### Deuxième division.
+ee2447a7e541,,193.20.1,B-TITLE,#### Travaux publics.
+4bb75633acbe,,193.24.1,B-TITLE,#### Bureau général de vérification et règlement.
+e1934cda9ac0,,193.26.1,B-TITLE,#### Bureau spécial du canal de l'Ourcq.
+256f0cfa5df7,,193.28.1,B-TITLE,### Troisième division.
+96ba5a289f00,,193.29.1,B-TITLE,#### Contributions.
+20ab76496f7a,,193.31.1,B-TITLE,##### I.er BUREAU. *Administration générale des contributions directes.*
+b06ecbf0cce7,,193.32.1,B-TITLE,##### II.e BUREAU. *Recouvrement des contributions de Paris.*
+8379c630f5da,,193.33.1,B-TITLE,##### III.e BUREAU. *Contentieux des contributions directes.*
+a1b7701360c0,,193.34.1,B-TITLE,##### IV.e BUREAU. *Contributions indirectes.*
+b429318af9d7,,194.1.1,OUT OF SCOPE,*Préfecture du département de la Seine.*
+3c6d4de7c578,,194.3.1,B-TITLE,### *Quatrième division.*
+e1a9ffe59b0c,,194.4.1,B-TITLE,#### *Domaines nationaux et liquidation.*
+bcc205a53dbd,,194.7.1,B-TITLE,#### *Commissaire général aux successions.*
+02362738d9d0,,194.9.1,B-TITLE,#### *Commissaires aux scellés et inventaires.*
+4d3b4a986216,,194.11.1,B-TITLE,#### *Commissaires-priseurs-vendeurs attachés à la préfecture et à la régie des domaines.*
+a33638c20966,,194.13.1,B-TITLE,## CHAMBRE DE COMMERCE DE PARIS.
+36fb2b72bec3,,194.17.1,B-TITLE,### *Membres composant la chambre.*
+88300bed3307,,194.19.1,B-TITLE,"### *Secrétariat de la chambre, à la Préfecture.*"
+d38568a0633f,,195.3.1,B-TITLE,## ADMINISTRATION DES HOSPICES CIVILS DE PARIS.
+852286b90ef2,,195.7.1,B-TITLE,### *Conseil général d'administration.*
+52a3cd0509b4,,195.8.2,B-ENTRY,"Dubois, conseiller d'état, préfet de police."
+5deea1afe17e,,195.10.1,B-TITLE,"### *Commission administrative, composée de cinq membres.*"
+585c15651960,,195.12.1,B-TITLE,### *Direction des nourrices.*
+c7237ca574a2,,195.14.1,B-TITLE,## MONT-DE-PIÉTÉ.—*Rue des Blancs-Manteaux.*
+85fb338a2cfd,,195.15.1,B-TITLE,### *Conseil d'administration.*
+43a0785fd10e,,195.17.1,B-ENTRY,Fieffé. } *Membres du conseil d'administration des hospices et secours.*
+72a129bd75a0,,195.17.2,SUB-ENTRY,Pastoret. }
+2afccbd9ea96,,195.17.3,SUB-ENTRY,Richard d'Aubigny. }
+4d05d4a86769,,195.17.4,SUB-ENTRY,Thouret. }
+15fa8705eb43,,195.18.1,B-ENTRY,Doyen. } *Membres du conseil d'administration pour les actionnaires.*
+f2bd68ec8dee,,195.18.2,SUB-ENTRY,Fulchiron. }
+ca9a82ac74ab,,195.18.3,SUB-ENTRY,Michoud. }
+fb0abd1c4107,,195.20.1,B-TITLE,"## COMMISSION DES CONTRIBUTIONS,"
+b429318af9d7~3,,196.1.1,OUT OF SCOPE,*Préfecture du département de la Seine.*
+5623970b73d5,,196.5.1,B-TITLE,### *Commissaires.*
+8800f774f3b9,,196.12.1,B-TITLE,### *Première division.*
+2b2fa287d67f,,196.15.1,B-TITLE,### *Deuxième division.*
+2d18bbec7dda,,196.18.1,B-TITLE,## DIRECTION DES CONTRIBUTIONS DIRECTES
+006a714ff70d,,196.18.2,I-TITLE,"DU DÉPARTEMENT DE LA SEINE,"
+b7b0c20c36f1,,196.19.1,I-TITLE,"*Rue des Vieilles-Garnisons, maison du Saint-Esprit.*"
+8b3defa4f319,,196.22.1,B-TITLE,### *Bureaux de la direction.*
+cdea50f8945b,,196.26.1,OUT OF SCOPE,Cette division comprend les six premiers arrondissemens de la ville de Paris.
+a6d95820265e,,196.31.1,B-TITLE,### *Inspecteur.*
+20f5d0687869,,196.33.1,OUT OF SCOPE,"Les fonctions d'inspecteur des contributions sont de surveiller les contrôleurs du département, de faire les contre-vérifications et revisions des réclamations, les vérifications de caisse, et généralement toutes les opérations majeures qui exigent un déplacement, et qui peuvent être ordonnées par monsieur le Conseiller d'Etat préfet du département, et prescrites par le Directeur des Contributions."
+aeaa587edf8d,,196.34.1,B-TITLE,### *Contrôleurs des Contributions.*
+88520fd7063e,,197.4.1,OUT OF SCOPE,Arrondiss.
+e7e04200977f,,197.4.2,OUT OF SCOPE,Divisions.
+02b784f41f27,,197.4.3,OUT OF SCOPE,Noms et demeures.
+44b7bef68908,,197.4.4,SUPPRIMÉE,I.er...
+41f5a051a8bb,,197.4.5,B-ENTRY,"I.er... { Tuileries..... } Cuynet, place des Italiens, 1."
+b51cad72dd23,,197.4.6,SUPPRIMÉE,"} Cuynet, place des Italiens, 1."
+37a6276a8550,,197.4.7,SUB-ENTRY,{ Champs-Elysées..... }
+08070450f5aa,,197.4.8,SUB-ENTRY,"{ Place Vendôme..... } Besnard, rue des Lions-St.-Paul, 8."
+383258eb0b5e,,197.4.9,SUPPRIMÉE,"} Besnard, rue des Lions-St.-Paul, 8."
+454d81db72f2,,197.4.10,SUB-ENTRY,{ Roule..... }
+7349af274289,,197.4.11,SUPPRIMÉE,II.e...
+65660d6bb1fc,,197.4.12,B-ENTRY,"II.e... { Lepelletier..... Cuynet, Place des Italiens, 1."
+ad8e8038f763,,197.4.13,SUPPRIMÉE,"Cuynet, Place des Italiens, 1."
+dc8820944d77,,197.4.14,SUB-ENTRY,"{ Mont-Blanc..... Charles, rue Helvétius, 57."
+c5ede3bc16ec,,197.4.15,SUPPRIMÉE,"Charles, rue Helvétius, 57."
+3182da7e09fb,,197.4.16,SUB-ENTRY,"{ Faubourg Montmartre. } Hoche, cloître Ste.-Opportune, 18."
+4bd0da73b5f6,,197.4.17,SUPPRIMÉE,"} Hoche, cloître Ste.-Opportune, 18."
+a091bfc146aa,,197.4.18,SUB-ENTRY,{ Butte des Moulins.... }
+cca35b1f7b77,,197.4.19,SUPPRIMÉE,III.e...
+dd2a0fbd367d,,197.4.20,B-ENTRY,"III.e... { Brutus..... Levillain jeune, rue Pavée, 3.—B. C."
+177d229334a8,,197.4.21,SUPPRIMÉE,"Levillain jeune, rue Pavée, 3.—B. C."
+6865a96a09ec,,197.4.22,SUB-ENTRY,"{ Mail..... Barat, quai des Ormes, 60."
+077ede05c5cb,,197.4.23,SUPPRIMÉE,"Barat, quai des Ormes, 60."
+6d41199827fd,,197.4.24,SUB-ENTRY,"{ Contrat-Social..... Messieux, rue des Francs-Bourgeois, 18.—T. F."
+d23441802cb4,,197.4.25,SUPPRIMÉE,"Messieux, rue des Francs-Bourgeois, 18.—T. F."
+58ad82c4165a,,197.4.26,SUB-ENTRY,"{ Poissonnière..... Charles, rue Helvétius, 57."
+c5ede3bc16ec~2,,197.4.27,SUPPRIMÉE,"Charles, rue Helvétius, 57."
+0c77b1e24655,,197.4.28,SUPPRIMÉE,IV.e...
+ff134f8e8970,,197.4.29,B-ENTRY,"IV.e... { Halle-aux-Blés..... } Sandrier, rue du Monceau-St.-Gervais, 1."
+080a3235106b,,197.4.30,SUPPRIMÉE,"} Sandrier, rue du Monceau-St.-Gervais, 1."
+b5a8fcee8bf5,,197.4.31,SUB-ENTRY,{ Gardes-Françaises.... }
+6c7a03ef4321,,197.4.32,SUB-ENTRY,"{ Muséum..... } Voyenne, rue de Cléry, 47."
+aee86d35aa1a,,197.4.33,SUPPRIMÉE,"} Voyenne, rue de Cléry, 47."
+4fb3ba46e9e4,,197.4.34,SUB-ENTRY,{ Marchés..... }
+0ab161269475,,197.4.35,SUPPRIMÉE,V.e...
+9a01b56ff2d0,,197.4.36,B-ENTRY,"V.e... { Bonne-Nouvelle..... } Moderat, rue Mandar, 10."
+8c0190b81eb4,,197.4.37,SUPPRIMÉE,"} Moderat, rue Mandar, 10."
+f8d0754310bd,,197.4.38,SUB-ENTRY,{ Bondy..... }
+2b069f315bbc,,197.4.39,SUB-ENTRY,"{ Bon-Conseil..... } Champagne, rue N.-d'Orléans, Porte St.-Denis, 22."
+2b307a7c3f6c,,197.4.40,SUPPRIMÉE,"} Champagne, rue N.-d'Orléans, Porte St.-Denis, 22."
+a34a549df890,,197.4.41,SUB-ENTRY,{ Nord..... }
+514d3f672506,,197.4.42,SUPPRIMÉE,VI.e...
+dffc132b6cc8,,197.4.43,B-ENTRY,"VI.e... { Gravilliers..... Filleul, rue Favart, 8."
+967c2a5d0a26,,197.4.44,SUPPRIMÉE,"Filleul, rue Favart, 8."
+cf4b578503e4,,197.4.45,SUB-ENTRY,"{ Temple..... Messieux, rue des Francs-Bourgeois, 18.—T. F."
+d23441802cb4~2,,197.4.46,SUPPRIMÉE,"Messieux, rue des Francs-Bourgeois, 18.—T. F."
+bdfa8a21755a,,197.4.47,SUB-ENTRY,"{ Lombards..... Barat, quai des Ormes, 60."
+077ede05c5cb~2,,197.4.48,SUPPRIMÉE,"Barat, quai des Ormes, 60."
+45499a9f2280,,197.4.49,SUB-ENTRY,"{ Amis de la Patrie..... Levillain jeune, rue Pavée, 3.—B. C."
+177d229334a8~2,,197.4.50,SUPPRIMÉE,"Levillain jeune, rue Pavée, 3.—B. C."
+188d6830c9d8,,197.4.51,SUPPRIMÉE,VII.e...
+cc2a7d75c7de,,197.4.52,B-ENTRY,"VII.e... { Réunion..... } Lemoine, rue des Rosiers, 34."
+09c7b9895662,,197.4.53,SUPPRIMÉE,"} Lemoine, rue des Rosiers, 34."
+9f5849672161,,197.4.54,SUB-ENTRY,{ Droits-de-l'Homme.... }
+7ee87aa2073f,,197.4.55,SUB-ENTRY,"{ Arcis..... } Navet, rue Vieille-du-Temple, 31."
+9f6fee45232f,,197.4.56,SUPPRIMÉE,"} Navet, rue Vieille-du-Temple, 31."
+d3670a0a96ac,,197.4.57,SUB-ENTRY,{ Homme-Armé..... }
+2d3a4e539e97,,197.4.58,SUPPRIMÉE,VIII.e...
+af857253850e,,197.4.59,B-ENTRY,"VIII.e... { Quinze-Vingts..... } Munier, rue Amelot, 30."
+3b7ef01d4393,,197.4.60,SUPPRIMÉE,"} Munier, rue Amelot, 30."
+087159a5b4c8,,197.4.61,SUB-ENTRY,{ Popincourt..... }
+7c7e6647695a,,197.4.62,SUB-ENTRY,"{ Indivisibilité..... } Feuchère, rue Jarente, 8."
+5cf6a97abbdc,,197.4.63,SUPPRIMÉE,"} Feuchère, rue Jarente, 8."
+a752707bf530,,197.4.64,SUB-ENTRY,{ Montreuil..... }
+292cb89941d1,,197.4.65,SUPPRIMÉE,IX.e...
+841d321f75b4,,197.4.66,B-ENTRY,"IX.e... { Fidélité..... Despechbach, rue Saint-Honoré, 314."
+5a81336ddda6,,197.4.67,SUPPRIMÉE,"Despechbach, rue Saint-Honoré, 314."
+efe1e8524c16,,197.4.68,SUB-ENTRY,"{ Arsenal..... } Quesnay, rue Hyacinthe, 2.—Pl. S. M."
+cbdbaf50d612,,197.4.69,SUPPRIMÉE,"} Quesnay, rue Hyacinthe, 2.—Pl. S. M."
+c4243ccc1c7b,,197.4.70,SUB-ENTRY,{ Cité..... }
+cbdba146d3bf,,197.4.71,SUB-ENTRY,"{ Fraternité..... Gardin, rue de la Tabletterie, 6."
+96bcb4c87ea5,,197.4.72,SUPPRIMÉE,"Gardin, rue de la Tabletterie, 6."
+63e47d70b4e4,,197.4.73,SUPPRIMÉE,X.e...
+0dd262afa3a7,,197.4.74,B-ENTRY,"X.e... { Fontaine-de-Grenelle... Bouchenel, rue de Cléry, 38."
+19dc8e59a6f3,,197.4.75,SUPPRIMÉE,"Bouchenel, rue de Cléry, 38."
+7ed07c6a7531,,197.4.76,SUB-ENTRY,"{ Ouest..... } Mathis, cour de l'Abbaye-St.-Germain-des-Prés, 8."
+1a610447ce0e,,197.4.77,SUPPRIMÉE,"} Mathis, cour de l'Abbaye-St.-Germain-des-Prés, 8."
+e485cf4ca230,,197.4.78,SUB-ENTRY,{ Invalides..... }
+1aba2092d962,,197.4.79,SUB-ENTRY,"{ Unité..... Gardin, rue de la Tabletterie, 6."
+96bcb4c87ea5~2,,197.4.80,SUPPRIMÉE,"Gardin, rue de la Tabletterie, 6."
+e481fc0b9654,,197.4.81,SUPPRIMÉE,XI.e...
+4fddeae8ddec,,197.4.82,B-ENTRY,"XI.e... { Théâtre-Français..... Despechbach, rue Saint-Honoré, 314."
+5a81336ddda6~2,,197.4.83,SUPPRIMÉE,"Despechbach, rue Saint-Honoré, 314."
+0401e8965f71,,197.4.84,SUB-ENTRY,"{ Thermes..... Bouchenel, rue de Cléry, 38."
+19dc8e59a6f3~2,,197.4.85,SUPPRIMÉE,"Bouchenel, rue de Cléry, 38."
+103ae3971c94,,197.4.86,SUB-ENTRY,"{ Luxembourg..... } Pihet, rue du Four-Saint-Germain, 28."
+17df05a89d8e,,197.4.87,SUPPRIMÉE,"} Pihet, rue du Four-Saint-Germain, 28."
+25f71d2e63b4,,197.4.88,SUB-ENTRY,{ Pont-Neuf..... }
+56161b02b985,,197.4.89,SUPPRIMÉE,XII.e...
+c6c8a249c6b7,,197.4.90,B-ENTRY,"XII.e... { Panthéon..... } Lassus, rue Salle-au-Comte, 7."
+2c0334c22f2b,,197.4.91,SUPPRIMÉE,"} Lassus, rue Salle-au-Comte, 7."
+081072a73929,,197.4.92,SUB-ENTRY,{ Finistère..... }
+061751b61db4,,197.4.93,SUB-ENTRY,"{ Jardin-des-Plantes... } Degret, rue Basse-St.-Denis, 16."
+cc3a1a5a32cf,,197.4.94,SUPPRIMÉE,"} Degret, rue Basse-St.-Denis, 16."
+75b7ad90f36d,,197.4.95,SUB-ENTRY,{ Observatoire..... }
+9c238f0db71d,,197.5.1,B-TITLE,"## *Receveur général du département de la Seine, et Receveurs particuliers percepteurs des Contributions foncière, mobiliare et somptuaire, des portes et fenêtres, et des patentes de la ville de Paris.*"
+2741b48f6566,,198.1.1,OUT OF SCOPE,*Mairies du canton de Paris.*
+6e6a832f2318,,198.4.1,B-TITLE,# MAIRIES DU CANTON DE PARIS.
+2da14ece1293,,198.5.1,B-TITLE,"## PREMIÈRE MAIRIE,"
+095412f6d589,,198.6.1,I-TITLE,"Composée des divisions des Tuileries, des Champs-Elysées, du Roule, et de la Place-Vendôme."
+be3aa788a008,,198.7.1,I-TITLE,"*Chef-lieu, rue d'Aguesseau, 18.*"
+19b36a45f686,,198.9.1,B-TITLE,### *Tribunal de paix.*
+bd8a69159c71,,198.10.9,B-ENTRY,"*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal, et des effets de commerce.* M. Calvinha, rue Neuve-le-Pelletier, 11."
+3e6dca10f9c9,,198.11.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du premier Arrondissement.*
+885744417926,,199.3.1,B-TITLE,### *Commissaires de police.*
+324a8a853199,,199.5.1,B-TITLE,"## II.e MAIRIE,"
+d71bf8311c69,,199.6.1,I-TITLE,"Composée des divisions de la Butte-des-Moulins, Le Pelletier, Mont-Blanc, et Faubourg-Montmartre."
+68aeb43652de,,199.7.1,I-TITLE,"*Chef-lieu, rue d'Antin, 3, division Le Pelletier.*"
+2be17f83e5c3,,199.9.1,B-TITLE,### *Tribunal de paix.*
+9620ba99f2ca,,199.11.1,OUT OF SCOPE,*Nota.* Le bureau de conciliation se tient tous les lundis et jeudis à la Mairie.
+17c3cbe4f385,,199.16.1,B-ENTRY,"*Receveur du droit de l'enregistrement, des exploits, des actes judiciaires, du tribunal et des effets de commerce.* M. Laindet, rue Neuve-St.-Roch, 34."
+be89ea02de90,,199.17.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du deuxième Arrondissement.*
+885744417926~2,,199.19.1,B-TITLE,### *Commissaires de police.*
+324a8a853199~2,,199.21.1,B-TITLE,"## III.e MAIRIE,"
+adb1821e0c81,,199.22.1,I-TITLE,"Composée des divisions Poissonnière, de Brutus, du Mail, et du Contrat-Social."
+d850c563e39b,,199.23.1,I-TITLE,"*Chef-lieu, aux Petits-Pères de la place des Victoires.*"
+2741b48f6566~3,,200.1.1,OUT OF SCOPE,*Mairies du canton de Paris.*
+2be17f83e5c3~2,,200.3.1,B-TITLE,### *Tribunal de paix.*
+13279d172780,,200.4.9,OUT OF SCOPE,Le tribunal tient ses séances au chef-lieu de la Mairie.
+da03ed4b0527,,200.4.10,B-ENTRY,"*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Becuve, rue J.-J. Rousseau, 15."
+25046b821239,,200.5.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du troisième Arrondissement.*
+9e734eb8460f,,200.7.1,B-TITLE,### *Commissaires de Police.*
+a37f2223ffa8,,200.9.1,B-TITLE,"## IV.e MAIRIE,"
+2be17f83e5c3~3,,200.13.1,B-TITLE,### *Tribunal de paix.*
+585ce284d06f,,200.14.8,OUT OF SCOPE,"Le tribunal tient ses séances place du Chevalier-du-Guet, 14."
+a84a98be5737,,201.3.1,B-TITLE,### *Limites de la Mairie et de la Justice de Paix du quatrième Arrondissement.*
+885744417926~3,,201.5.1,B-TITLE,### *Commissaires de police.*
+ffcbdd6ca40d,,201.7.1,B-TITLE,"## V.e MAIRIE,"
+84dbc76ff985,,201.8.1,I-TITLE,"Composée des divisions de Bon-Conseil, de Bonne-Nouvelle, du Nord, et de Bondy."
+ce75a4586a01,,201.9.1,I-TITLE,"*Chef-lieu, rue et division de Bondy.*"
+2be17f83e5c3~4,,201.11.1,B-TITLE,### *Tribunal de paix.*
+97f7d60b707f,,201.13.1,B-TITLE,### *Limites de la Mairie et de la Justice de Paix du cinquième Arrondissement.*
+885744417926~4,,201.15.1,B-TITLE,### *Commissaires de police.*
+2741b48f6566~5,,202.1.1,OUT OF SCOPE,*Mairies du canton de Paris.*
+11a51c5d8597,,202.3.1,B-TITLE,"## VI.e MAIRIE,"
+c3df1e6bc16c,,202.4.1,I-TITLE,"Composée des divisions du Temple, des Amis-de-la-Patrie, des Gravilliers, et des Lombards."
+7f5e11e15bec,,202.5.1,I-TITLE,"*Chef-lieu, à l'Abbaye Saint-Martin, rue Saint-Martin,*"
+2be17f83e5c3~5,,202.7.1,B-TITLE,### *Tribunal de paix.*
+fc176d86a2a8,,202.8.6,OUT OF SCOPE,"*Audiences.* Les jeudis à dix heures du matin, à la Mairie et rue Saint-Martin, 85."
+19502a70f36e,,202.8.9,B-ENTRY,"*Receveur des droits de l'enregistrement des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Huitemin, rue Saint-Martin, 147."
+79017b99d0c1,,202.9.1,B-TITLE,### *Limites de la Mairie et de la Justice de Paix du sixième Arrondissement.*
+885744417926~5,,202.11.1,B-TITLE,### *Commissaires de police.*
+7881bf5b2ec3,,202.13.1,B-TITLE,"## VII.e MAIRIE,"
+2be17f83e5c3~6,,202.17.1,B-TITLE,### *Tribunal de paix.*
+afe1142476e2,,203.3.1,B-ENTRY,"*Receveurs des droits de l'enregistrement des exploits, des actes judiciaires du tribunal et des effets de commerce. M. Finiels, cloître-St.-Méry, 4.*"
+7f524e98719c,,203.4.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du septième arrondissement.*
+885744417926~6,,203.6.1,B-TITLE,### *Commissaires de police.*
+55fe3b96435d,,203.8.1,B-TITLE,"## VIII.e MAIRIE,"
+5a30808214c8,,203.9.1,I-TITLE,"Composée des divisions des Quinze-Vingts, de Montreuil, de Popincourt, et de l'Indivisibilité."
+f3cd027083b6,,203.10.1,I-TITLE,"*Chef-lieu, place des Vosges, 14.*"
+2be17f83e5c3~7,,203.12.1,B-TITLE,### *Tribunal de paix.*
+d42dc24b2f7a,,203.14.1,B-ENTRY,"*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Letricheux, rue Jarente, 10."
+937ac1e8562d,,203.15.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du huitième arrondissement.*
+885744417926~7,,203.17.1,B-TITLE,### *Commissaires de police.*
+2741b48f6566~7,,204.1.1,OUT OF SCOPE,*Mairies du canton de Paris.*
+0181d8b369f3,,204.3.1,B-TITLE,"## IX.e MAIRIE,"
+b5caa80d6c0d,,204.5.1,I-TITLE,"*Chef-lieu, rue de Jouy, 9.*"
+2be17f83e5c3~8,,204.7.1,B-TITLE,### *Tribunal de paix.*
+ea3431567d96,,204.12.1,B-ENTRY,"*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Regnaut, quai de la République, 27."
+1b4f5f5fa436,,204.13.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du neuvième Arrondissement.*
+885744417926~8,,204.15.1,B-TITLE,### *Commissaires de police.*
+e8532f85c8be,,204.17.1,B-TITLE,"## X.e MAIRIE,"
+de617946c346,,204.19.1,I-TITLE,"*Chef-lieu, rue de Verneuil, 13.*"
+2be17f83e5c3~9,,204.21.1,B-TITLE,### *Tribunal de paix.*
+edf52890b31a,,205.3.4,B-ENTRY,"*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Caron, cour Abbatiale, 6. — Unité."
+ff270103ae80,,205.4.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du dixième Arrondissement.*
+885744417926~9,,205.6.1,B-TITLE,### *Commissaires de police.*
+575b08095842,,205.8.1,B-TITLE,"## XI.e MAIRIE,"
+2be17f83e5c3~10,,205.12.1,B-TITLE,### *Tribunal de paix.*
+ceebf6348fea,,205.17.1,OUT OF SCOPE,Le tribunal tient ses séances à la Mairie.
+b5c12dabb60c,,205.18.1,B-ENTRY,"*Receveur des droits d'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Pillon, rue du Vieux-Colombier, 29."
+11df02c08fad,,205.19.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du onzième Arrondissement.*
+885744417926~10,,205.21.1,B-TITLE,### *Commissaires de police.*
+34f48ae4a1a6,,206.3.1,B-TITLE,"## XII.e MAIRIE,"
+547ed55dda16,,206.4.1,I-TITLE,"Composée des divisions du Panthéon, du Jardin-des-Plantes, de l'Observatoire, et du Finistère."
+c98308576f4b,,206.5.1,I-TITLE,"*Chef-lieu, rue S.-Jacques, 262.*"
+2be17f83e5c3~11,,206.7.1,B-TITLE,### *Tribunal de paix.*
+55bef7f73643,,206.17.1,B-ENTRY,"*Receveur des droits d'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.* M. Dastier, rue des Carmes, 6."
+16d484fe653b,,206.18.1,B-TITLE,### *Limites de la Mairie et de la Justice de paix du douzième Arrondissement.*
+885744417926~11,,206.20.1,B-TITLE,### *Commissaires de police.*
+7e887686b823,,206.25.1,OUT OF SCOPE,"NOTE. *Attendu les changemens de noms qui s'opèrent en ce moment dans plusieurs rues de Paris, on ne peut donner que l'an prochain la liste exacte des rues. En cas de besoin, voyez la liste qui se trouve dans l'Almanach de 1806.*"
+b27a191f293f,,206.26.1,B-TITLE,"# TRIBUNAL DE POLICE DE LA VILLE DE PARIS,"
+9ea90062e954,,207.2.1,B-TITLE,# PRÉFECTURE DE POLICE.
+14fccc829ff0,,207.3.1,I-TITLE,*Quai des Orfèvres.*
+cab7d7b757d1,,207.5.1,B-TITLE,## *Secrétariat.*
+8800f774f3b9~2,,207.7.1,B-TITLE,## *Première division.*
+2b2fa287d67f~2,,207.9.1,B-TITLE,## *Deuxième division.*
+2c36f5b2fcbe,,207.11.1,B-TITLE,## *Troisième division.*
+e96c47ad73de,,207.14.1,B-TITLE,# HALLES DE PARIS.
+68485d8f7f41,,207.16.1,B-TITLE,# MARCHÉS DE PARIS.
+ca2bd907e122,,208.4.1,B-ENTRY,"Martin (Saint-), entre les rues St.-Martin et Frepillon."
+ca2bd907e122+1,ca2bd907e122,208.4.1,B-ENTRY,"Montmartre (de la rue). Il n'existe plus. Voyez le Marché Saint-Joseph, où il a été transféré."
+2b370315e1d5,,208.6.1,B-TITLE,"# PORTS SUR LA SEINE, A PARIS."
+16124b5e7a9e,,208.8.1,B-TITLE,"# RÉGIE DE L'OCTROI MUNICIPAL ET DE BIENFAISANCE DE LA COMMUNE DE PARIS,"
+ca5872009da7,,208.11.1,B-TITLE,## *Régisseurs.*
+e85beddf398a,,208.13.1,B-TITLE,## *Comptabilité.*
+cf618c55341d,,208.15.1,B-TITLE,## *Correspondance.*
+ccf6f15dc6f8,,208.17.1,B-TITLE,## *Contentieux.*
+4c46082b673e,,209.3.1,B-TITLE,## *Inspecteurs.*
+d268db030a76,,209.5.1,B-TITLE,## *Receveurs des ports.*
+01029fd1b9f1,,209.7.1,B-TITLE,## *Bureaux des barrières de première ligne.*
+5656784b5624,,209.10.1,B-TITLE,"## *Tarif des droits d'octroi qui sont perçus dans la commune de Paris, d'après l'arrêté du gouvernement du 4.e jour complém. an 11.*"
+347af10372a1,,209.11.1,B-TITLE,### *Boissons.*
+2e47e7b114d5,,209.13.1,B-TITLE,### *Comestibles.*
+a3aee243fe98,,209.15.1,B-TITLE,### *Fourrages.*
+064e7ab53a74,,209.17.1,B-TITLE,### *Matériaux.*
+5c79f8124d9f,,210.3.1,B-TITLE,### *Combustibles.*
+55fbae573a31,,210.5.1,B-TITLE,### *Orge et houblon.*
+51c6a5f59a9b,,210.7.1,B-TITLE,# RÉGIE DES DROITS DU POIDS PUBLIC
+e96d0aa35a0f,,210.8.1,I-TITLE,"*Dans la ville de Paris, rue du Bouloy, 23.*"
+2cf639d91d18,,210.10.2,SUB-ENTRY,"{ Panay-Latorette, rue du Bouloy, 23."
+4b977cf2bebb,,210.10.3,SUB-ENTRY,"{ Pelletier, rue de l'Ancry, 22."
+5ac3b729ff3d,,210.11.5,B-ENTRY,"Betont, *jaugeur en chef*, rue Pastourelle, 20."
+bda98d6f8889,,210.12.1,B-TITLE,## *Emplacement des bureaux d'arrondissement.*
+a31d3b90a3e0,,210.15.1,B-TITLE,# ÉCOLE GRATUITE DE JAUGEAGE ET DE QUADRATURE.

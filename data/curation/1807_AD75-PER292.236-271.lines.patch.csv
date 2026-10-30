@@ -1,0 +1,320 @@
+cle,apres,uid,classe,markdown
+832a3fa0259e,,236.1.1,B-TITLE,# SENAT CONSERVATEUR.
+784d5aa6efe2,,236.6.1,B-TITLE,## BUREAU DU SENAT.
+63664ed032bb,,236.8.2,SUB-ENTRY,"M. Germain Garnier, }"
+c78c7344271d,,236.9.1,B-TITLE,## ADMINISTRATION DU SENAT.
+345ab7e35494,,236.10.2,SUB-ENTRY,"M. Clément de Ris, }"
+20889d4ee0fb,,236.13.1,B-TITLE,## GRAND CONSEIL D'ADMINISTRATION *présidé par l'Empereur*.
+63664ed032bb~2,,236.14.2,SUB-ENTRY,"M. Germain Garnier, }"
+60405b34c3bb,,236.22.1,B-TITLE,### *Conseil particulier.*
+63664ed032bb~3,,236.24.2,SUB-ENTRY,"M. Germain Garnier, }"
+3d6a49a0cafd,,236.27.1,B-TITLE,### *Commission sénatoriale de la liberté individuelle.*
+3232a7d44fa8,,236.35.1,B-TITLE,### *Commission sénatoriale de la liberté de la presse.*
+2b900a0b2d80,,236.43.1,B-TITLE,### *Sénateurs.*
+2db4a3d5c726,,238.5.1,B-TITLE,# CONSEIL D'ÉTAT.
+3176e77de575,,238.7.1,B-ENTRY,L'EMPEREUR.
+d8a38d37a27d,,238.8.1,B-ENTRY,LES PRINCES DE LA FAMILLE IMPÉRIALE.
+921bdc9d47c3,,238.11.1,B-TITLE,## SECTION DE LÉGISLATION.
+821a3abc3307,,239.4.1,B-TITLE,## SECTION DE L'INTÉRIEUR.
+7b73b30129cc,,239.6.1,B-TITLE,## SECTION DES FINANCES.
+eef2696cc3bc,,239.8.1,B-TITLE,## SECTION DE LA GUERRE.
+08f50c8f205f,,239.10.1,B-TITLE,## SECTION DE LA MARINE.
+21a7fd7efd71,,239.13.1,B-TITLE,## *Service ordinaire hors des Sections.*
+e6626d66e53d,,240.3.1,B-TITLE,## *Service extraordinaire.*
+402108456bd6,,240.5.1,B-TITLE,## MAÎTRES DES REQUÊTES.
+f87ab8d943b0,,240.6.1,B-TITLE,### *Service ordinaire.*
+e6626d66e53d~2,,240.8.1,B-TITLE,### *Service extraordinaire.*
+514039caa9af,,240.10.1,B-TITLE,## *Auditeurs près les ministres et les sections du Conseil d'état.*
+f87ab8d943b0~2,,240.11.1,B-TITLE,### *Service ordinaire.*
+e1875ae1799c,,240.12.1,B-ENTRY,"MM. Treilhard fils, rue des Maçons. } *Près le ministre de la justice et la section de législation.*"
+7418792e2c10,,240.12.2,SUB-ENTRY,"Regnier fils, place Vendôme, au ministère du Grand-Juge. }"
+f3786fefad55,,240.12.3,SUB-ENTRY,"Abrial, rue Plumet. }"
+ef7c1b8c42a9,,240.12.4,SUB-ENTRY,"Delamalle fils, rue Ne.-des-Capucines, 101. }"
+acc0c5af0cd9,,240.12.5,SUB-ENTRY,"Dudon, rue du Chaume, 17. }"
+a9997d23538a,,240.12.6,SUB-ENTRY,"Dupont Delporte, rue Vivienne, 6. }"
+aabedb19aee8,,240.13.1,SUPPRIMÉE,} *Près le ministre de la justice et la section de législation.*
+67a009dc82a7,,240.14.1,B-ENTRY,"Chaillou, rue Ste-Apolline, 8. } *Près le ministre et la section de l'intérieur.*"
+c33465ebce39,,240.14.2,SUB-ENTRY,"Gosswin, de Stassart, rue du Bacq, 93. }"
+dcf341eb069e,,240.14.3,SUB-ENTRY,"Lafond, rue de la Michaudière, 7. }"
+66dc5db4791f,,240.14.4,SUB-ENTRY,"Barente, rue Projettée, 14. }"
+9cff1c3afa71,,240.14.5,SUB-ENTRY,"Campan, rue de Lille, 74. }"
+bf71de79df56,,240.14.6,SUB-ENTRY,"Mounier, rue S.-Honoré, 343. }"
+f59b86a45b7f,,240.14.7,SUB-ENTRY,"Pepin de Belle-Isle, rue Taranne, 19. }"
+9977d73b5712,,240.14.8,SUB-ENTRY,"Tournon, rue N.e-du-Luxembourg, 27. }"
+1030a4c0ad4f,,240.15.1,SUPPRIMÉE,} *Près le ministre et la section de l'intérieur.*
+f65d59d60c63,,241.3.1,B-ENTRY,"MM. Anisson Duperron, rue des Orties-du-Louvre, 22. } *Près les ministres des Finances et du Trésor Public, et la section des finances.*"
+a34cea518676,,241.4.1,SUB-ENTRY,"Le Pelletier Daunay, rue de Lille, 63. }"
+31733d65d7ce,,241.5.1,SUB-ENTRY,"Maurice, rue de la Fontaine, 12. }"
+7afa3ccfabcb,,241.6.1,SUB-ENTRY,"Vincent Martinola, rue de Cléry, hôtel des Colonnes. }"
+a4d2e92de14b,,241.7.1,SUB-ENTRY,"Wischer de Celles, rue de la Victoire, 14. }"
+2bb948c32460,,241.8.1,SUB-ENTRY,"Damolard, rue Joubert, 35. }"
+5f32462e9b9b,,241.9.1,SUB-ENTRY,"Perregaux, rue de Paradis-Poissonnière, 4. }"
+126c2f7c7a61,,241.10.1,SUB-ENTRY,"Taboureau, rue des Filles-S.-Thomas, hôtel d'Angleterre. }"
+4475c545a6b3,,241.11.1,B-ENTRY,"Pétiet fils, rue de Fréjus, 6. } *Près le ministre et la section de la guerre.*"
+a59f5b097cf3,,241.12.1,SUB-ENTRY,"Canouville, rue de Varennes, 37. }"
+cf7856fe3578,,241.13.1,SUB-ENTRY,"Duval, rue de la Concorde, hôtel Courlande. }"
+60af4309a1c3,,241.14.1,SUB-ENTRY,"Pelet fils, rue de l'Université, 17. }"
+c3d3de1695e3,,241.15.1,B-ENTRY,"Anglès Jules, rue de Verneuil, 29. } *Près le ministre et la section de la marine.*"
+e29dd3e9652e,,241.16.1,SUB-ENTRY,"D'Houdelot, rue du Faub.-S.-Honoré, 83. }"
+5b1ab29ec61d,,241.17.1,SUB-ENTRY,"Châteaubourg, rue Jacob, 12. }"
+8ea6af61f4ca,,241.18.1,SUB-ENTRY,"Redon fils, rue de Clichy, 26. }"
+0714dc190d42,,241.19.1,SUPPRIMÉE,"*Près les ministres des Finances et du Trésor Public, et la section des finances.*"
+ea666a750fe4,,241.20.1,SUPPRIMÉE,*Près le ministre et la section de la guerre.*
+555ae396beca,,241.21.1,SUPPRIMÉE,*Près le ministre et la section de la marine.*
+e6626d66e53d~3,,241.22.1,B-TITLE,### *Service extraordinaire.*
+02c8b1b4c35d,,241.31.1,B-TITLE,### *Commission des pétitions.*
+2de65cd7ffd2,,241.35.1,B-TITLE,### *Commission chargée de l'instruction et du rapport des affaires contentieuses.*
+90acb7cda26c,,241.39.1,B-TITLE,## BUREAUX.
+d43846675a15,,241.46.1,B-TITLE,### *Bureau des archives.*
+e2e258a2bcfe,,241.49.1,B-TITLE,### *Bureau d'enregistrement.*
+214842b5e52d,,242.6.1,B-TITLE,## AVOCATS AU CONSEIL D'ÉTAT.
+5818dbe6b0a2,,242.8.1,B-TITLE,"# CORPS LÉGISLATIF,"
+4804add915fd,,242.9.1,I-TITLE,"*En son Palais, rue de l'Université.*"
+632e3c782ba0,,242.10.1,B-ENTRY,"MM. FONTANES, *président*."
+4839afc2ffa3,,242.11.2,SUB-ENTRY,"Lejeas, }"
+26d8a0cbde07,,242.11.3,SUB-ENTRY,"Nougaredé, }"
+0950b24b543f,,242.12.1,B-TITLE,## *Membres composant le Corps législatif.*
+4d000f73b223,,242.13.1,OUT OF SCOPE,Sortie.
+cab28f4aad2c,,242.13.2,OUT OF SCOPE,51 Xbre.
+7d5142652cdd,,243.3.1,I-TITLE,"*En son Palais, rue Saint-Honoré.*"
+d87c04f86421,,243.5.3,SUB-ENTRY,"Jard-Panvillier, }"
+921bdc9d47c3~2,,243.6.1,B-TITLE,## SECTION DE LÉGISLATION.
+e65190d318fc,,243.7.2,SUB-ENTRY,"{ Grenier, } *Secrétaires*."
+94b51c2cb436,,243.7.3,SUB-ENTRY,"{ Gillet (de Seine-et-Oise), }"
+8b14319354fe,,243.8.1,OUT OF SCOPE,Messieurs
+8b14319354fe~2,,243.9.1,OUT OF SCOPE,Messieurs
+8858953b3389,,243.10.1,B-TITLE,## SECTION DE L'INTÉRIEUR.
+a8740cf6a2e6,,243.11.2,SUB-ENTRY,"{ Jard-Panvillier, } *Secrétaires*."
+8de630ddda34,,243.11.3,SUB-ENTRY,"{ Fréville, }"
+8b14319354fe~3,,243.12.1,OUT OF SCOPE,Messieurs
+8b14319354fe~4,,243.13.1,OUT OF SCOPE,Messieurs
+3689c2eebf57,,243.14.1,B-TITLE,## SECTION DES FINANCES.
+e420884fad5c,,243.15.2,SUB-ENTRY,"{ Malès, } *Secrétaires*."
+7b6a74ceb2ea,,243.15.3,SUB-ENTRY,"{ Gillet Lajacqueminière, }"
+8b14319354fe~5,,243.16.1,OUT OF SCOPE,Messieurs
+8b14319354fe~6,,243.17.1,OUT OF SCOPE,Messieurs
+18658416c19b,,243.18.1,B-TITLE,## *Messagers d'état.*
+cece42920d69,,244.3.1,B-TITLE,## *Huissiers.*
+7d6560117daa,,244.4.2,SUB-ENTRY,"Lafontaine, }"
+998ae5e8618d,,244.4.7,SUB-ENTRY,"Huard, }"
+90acb7cda26c~2,,244.5.1,B-TITLE,## BUREAUX.
+b3e5fddb9547,,244.6.1,B-TITLE,### *Secrétariat général et archives du Tribunat.*
+93ef9a34c786,,244.7.3,B-ENTRY,"Dupont, *secrétaire particulier* *du président, et messager d'état*, } *Commis d'ordre*, au palais du Tribunat."
+88493898072f,,244.7.4,SUPPRIMÉE,"} *du président, et messager d'état*, }"
+deba3d53f691,,244.7.5,SUB-ENTRY,"Borel, }"
+7ce587882aa6,,244.7.6,SUB-ENTRY,"Maillard, }"
+488964863492,,244.8.1,B-TITLE,### *Questure.*
+d0d694d9ac3f,,244.10.1,B-TITLE,### *Bibliothèque.*
+6a88ce0eccee,,244.11.2,SUB-ENTRY,"Malherbe, }"
+5e5a3c994cc7,,244.12.1,B-TITLE,# HAUTE-COUR IMPÉRIALE.
+bbb5b581b969,,244.14.1,B-TITLE,## PRÉSIDENT.
+ee30cf65865d,,244.16.1,B-TITLE,## PROCUREUR GÉNÉRAL IMPÉRIAL.
+9dadaf609a73,,245.2.1,B-TITLE,"# COUR DE CASSATION,"
+7e5260dec1da,,245.3.1,I-TITLE,*Séant au Palais de Justice.*
+84dc44e89cbe,,245.9.1,B-TITLE,## *Jours d'audience.*
+9849e140ebdf,,245.13.1,B-TITLE,## SECTION DES REQUÊTES.
+3348e39c63d7,,245.15.1,B-TITLE,### *Juges.*
+95a1a8446d25,,245.31.1,B-TITLE,### *Substituts de monsieur le Procureur général impérial.*
+b07ad6091120,,245.34.1,B-TITLE,## SECTION CIVILE DE CASSATION.
+3348e39c63d7~2,,245.36.1,B-TITLE,### *Juges.*
+bbcb800ab50b,,246.4.1,B-TITLE,### *Substituts de monsieur le Procureur général impérial.*
+1c4d7ed7ad9e,,246.6.1,B-TITLE,## SECTION CRIMINELLE.
+5cd42a899ba5,,246.8.1,B-TITLE,### *Juges.*
+bbcb800ab50b~2,,246.10.1,B-TITLE,### *Substituts de monsieur le Procureur général impérial.*
+0906d221c8ef,,246.12.1,B-TITLE,## *Commis - greffiers.*
+f34eda374964,,246.14.1,B-TITLE,## *Huissiers audienciers.*
+678a9b819602,,246.16.1,OUT OF SCOPE,"Leur bureau est au tribunal, corridor des Prisonniers, porte B."
+4b4c97c6096d,,246.19.1,B-TITLE,## *Avocats près la Cour de cassation et le Conseil des prises.*
+9ee135ad4a5b,,247.5.1,B-TITLE,### Membres de la Chambre.
+ee34a0340463,,247.9.1,B-TITLE,"# COMPTABILITÉ DE L'EMPIRE,"
+f6503d50b4bd,,247.10.1,I-TITLE,"*Cour de la Sainte-Chapelle, au Palais de Justice.*"
+da7c6bed06d2,,247.11.1,B-TITLE,## COMMISSAIRES.
+733b218b2168,,247.14.1,B-TITLE,## CHEFS DE DIVISION.
+44760b808655,,248.2.1,B-TITLE,"# COUR D'APPEL,"
+720efe523629,,248.3.1,I-TITLE,*Au Palais de Justice.*
+31580a348e81,,248.8.2,SUB-ENTRY,"Blondel, rue du Grand-Chantier, 8. }"
+bb8e52d30517,,248.9.1,B-TITLE,## PREMIÈRE SECTION.
+c3bdec42b327,,248.11.1,B-TITLE,### *Juges.*
+07a13d71147b,,248.15.1,B-TITLE,## DEUXIÈME SECTION.
+c3bdec42b327~2,,248.17.1,B-TITLE,### *Juges.*
+58bf6a41661b,,248.22.1,B-TITLE,## TROISIÈME SECTION.
+c3bdec42b327~3,,248.24.1,B-TITLE,### *Juges.*
+78c6d2ba05c6,,249.6.1,B-TITLE,## *Commis-greffiers.*
+1318c1d6e947,,249.8.1,B-TITLE,## *Secrétaires du parquet.*
+f34eda374964~2,,249.10.1,B-TITLE,## *Huissiers audienciers.*
+6fb6b98180e3,,249.12.1,B-TITLE,## *Bureau des audienciers.*
+cc6978695158,,249.14.1,B-TITLE,## *Concierge.*
+305b0fff967d,,249.16.1,B-TITLE,## *Défenseurs-avoués près la cour d'appel.*
+810db0d64900,,250.5.1,B-TITLE,"## CHAMBRE DES AVOUÉS,"
+75310938bd8b,,250.6.1,I-TITLE,*Etablie par arrêté des Consuls du 13 frimaire an 9.*
+49ca30dd8a59,,250.9.1,B-TITLE,### *Jours des séances ordinaires de la chambre.*
+993255b1a8c4,,250.11.1,B-TITLE,"# COUR DE JUSTICE CRIMINELLE ET SPÉCIALE,"
+b90116337255,,251.5.1,B-TITLE,## *Juges.*
+58d2340368fe,,251.7.1,B-TITLE,## *Suppléans.*
+00414ce7350a,,251.9.1,B-TITLE,## PROCUREUR GÉNÉRAL IMPÉRIAL.
+428ea746f419,,251.11.1,B-TITLE,## *Substituts.*
+5aa6f25fc63e,,251.13.1,B-TITLE,## *Parquet du procureur général.*
+e8fc37c063f2,,251.15.1,B-TITLE,## Greffier.
+6e87ae9c80a9,,251.17.1,B-TITLE,## *Greffiers d'audience.*
+49880367a5a6,,251.19.1,B-TITLE,## *Huissiers audienciers.*
+b4ddbc8a7153,,251.21.1,B-TITLE,## *Secrétaire commis d'ordre.*
+cc6978695158~2,,252.3.1,B-TITLE,## *Concierge.*
+d94036c6d4a7,,252.5.1,B-TITLE,## *Garçon du parquet.*
+8b2a3db314aa,,252.7.1,B-TITLE,"## *Experts-écrivains-vérificateurs, exerçant près le tribunal.*"
+4187e32d996f,,252.11.1,B-TITLE,## *Avoués de la Cour d'appel.*
+8be52d012ba0,,252.14.1,B-TITLE,## *Avoués du tribunal de première instance.*
+900f20b4ea2e,,253.5.1,OUT OF SCOPE,*Nota.* Leurs demeures se trouvent aux listes des avoués près la cour d'appel et le tribunal de première instance.
+a3b1cc1827f4,,253.6.1,B-TITLE,"# TRIBUNAL DE PREMIÈRE INSTANCE,"
+720efe523629~2,,253.7.1,I-TITLE,*Au Palais de Justice.*
+68c64b2fda99,,253.15.1,B-TITLE,## *Président.*
+33052bcc108f,,253.17.1,B-TITLE,## *Vice-présidens.*
+c3bdec42b327~4,,253.19.1,B-TITLE,## *Juges.*
+549b0d55d357,,254.4.1,B-TITLE,## *Suppléans.*
+132ddf65a414,,254.6.1,B-TITLE,## *Procureur impérial.*
+38275716502b,,254.8.1,B-TITLE,"## *Premier substitut, spécialement chargé de la police correctionnelle.*"
+1f0a1ce4c631,,254.10.1,B-TITLE,## *Substituts.*
+3483fdde75de,,254.12.1,B-TITLE,"## *Magistrats de sûreté substituts du procureur général impérial près la Cour criminelle, établis par la loi du 7 pluviôse an 9.*"
+c78900dafe6f,,254.14.1,B-TITLE,"### *Substituts du procureur impérial près les directeurs du jury, au palais de Justice, bâtimens de la police correctionnelle.*"
+60064e7d3cea,,255.3.1,B-TITLE,### PREMIÈRE DIVISION.
+74c93df006e2,,255.5.1,B-TITLE,#### *Noms des sections et des cantons.*
+88e7588cc63c,,255.6.1,B-TITLE,##### *Sections.*
+d500cfc28cab,,255.7.1,B-TITLE,##### *Cantons.*
+dcd513e78ebd,,255.9.1,B-TITLE,### DEUXIÈME DIVISION.
+74c93df006e2~2,,255.11.1,B-TITLE,#### *Noms des sections et des cantons.*
+88e7588cc63c~2,,255.12.1,B-TITLE,##### *Sections.*
+d500cfc28cab~2,,255.13.1,B-TITLE,##### *Cantons.*
+680a4760200b,,255.15.1,B-TITLE,### TROISIÈME DIVISION.
+4a434ea056a8,,255.17.1,B-TITLE,#### *Noms des sections.*
+bb5394488ea9,,255.20.1,B-TITLE,### QUATRIÈME DIVISION.
+74c93df006e2~3,,255.22.1,B-TITLE,#### *Noms des sections et des cantons.*
+88e7588cc63c~3,,255.23.1,B-TITLE,##### *Sections.*
+d500cfc28cab~3,,255.24.1,B-TITLE,##### *Cantons.*
+697fce05332e,,255.26.1,B-TITLE,### CINQUIÈME DIVISION.
+74c93df006e2~4,,255.28.1,B-TITLE,#### *Noms des sections et des cantons.*
+88e7588cc63c~4,,255.29.1,B-TITLE,##### *Sections.*
+d500cfc28cab~4,,255.30.1,B-TITLE,##### *Cantons.*
+19bf103ca31c,,256.3.1,B-TITLE,### SIXIÈME DIVISION.
+4a434ea056a8~2,,256.5.1,B-TITLE,#### *Noms des sections.*
+559d707e5884,,256.8.1,B-TITLE,## *Greffier en chef.*
+c2b820dd1290,,256.10.1,B-TITLE,## *Greffiers plumitifs.*
+df27574d5b86,,256.13.1,B-TITLE,## *Commis-Greffier pour la recette des dépôts de police correctionnelle et du jury d'accusation.*
+5f3c1e8f46d7,,256.15.1,B-TITLE,## *Commis-greffiers près les directeurs du jury d'accusation.*
+444460bb114b,,256.17.1,B-TITLE,## *Secrétaire du parquet pour les affaires civiles.*
+7bba8337fcab,,256.19.1,B-TITLE,## *Pour les affaires de police correctionnelle.*
+f34eda374964~3,,256.21.1,B-TITLE,## *Huissiers audienciers.*
+8c98211e3169,,256.22.1,B-TITLE,### *Sections civiles.*
+b54ba2d53cae,,257.3.1,B-TITLE,### *Sections de la police correctionnelle.*
+2f2369b801cb,,257.5.1,B-TITLE,## *Jury d'accusation.*
+cc6978695158~3,,257.7.1,B-TITLE,### *Concierge.*
+f8c302ec6d38,,257.9.1,B-TITLE,## *Avoués près le Tribunal de première instance.*
+d89ce27791b4,,259.5.1,B-TITLE,"### *Défenseurs-avoués près la Cour de justice criminelle, ayant le droit de postuler au Tribunal de première instance.*"
+810db0d64900~2,,259.8.1,B-TITLE,"## CHAMBRE DES AVOUÉS,"
+f454f1ecf217,,259.9.1,I-TITLE,"*Établie près le Tribunal de première instance du département de la Seine, en exécution de l'arrêté des Consuls du 13 frimaire an 9.*"
+38ec27dd7ae0,,259.14.1,B-TITLE,### *Notaire de la compagnie.*
+ddb23b96d557,,259.16.1,B-TITLE,### *Commis en chef de la chambre.*
+2024347105fe,,259.18.1,B-TITLE,### *Commis adjoint.*
+cc6978695158~4,,259.20.1,B-TITLE,### *Concierge.*
+3248ae2fa084,,260.2.1,B-TITLE,"# TRIBUNAL DE COMMERCE,"
+9b4f00d9eb96,,260.3.1,I-TITLE,"*Cloître Saint-Méry, 4.*"
+68c64b2fda99~2,,260.5.1,B-TITLE,## *Président.*
+c3bdec42b327~5,,260.7.1,B-TITLE,## *Juges.*
+a80b390c456b,,260.9.1,B-TITLE,## *Juges suppléans.*
+1335a435ada1,,260.11.1,B-TITLE,## *Greffier.*
+a9e20668ae09,,260.13.1,B-TITLE,## *Commis-Greffiers.*
+fbbba96a668f,,260.15.1,B-TITLE,## *Huissiers audienciers.*
+f6ef39a4b970,,260.17.1,B-TITLE,## *Défenseurs officieux.*
+96cb1720aaaa,,260.21.1,B-TITLE,## *Interprètes-Traducteurs près le tribunal de commerce.*
+60c8476f6b83,,260.23.1,B-TITLE,"## *Officiers-Gardes du commerce, enregistrés au tribunal.*"
+2cf16bc49de4,,261.2.1,B-TITLE,"# CONSEIL DES PRISES MARITIMES,"
+8b479ae0a0b2,,261.3.1,I-TITLE,*Rue et maison de l'Oratoire.*
+274e8207ab22,,261.11.1,B-ENTRY,"Nion, rue de l'Echiquier, 33. } *Membres du Conseil.*"
+69de4f1d0b95,,261.11.2,SUB-ENTRY,"Lacoste, rue de la Magdeleine, 14. }"
+5e750b830476,,261.11.3,SUB-ENTRY,"Montigny-Monplaisir, rue des Petits-Augustins, 24. }"
+a2a72bfa4d46,,261.11.4,SUB-ENTRY,"Tournachon, rue Le Pelletier, 17. }"
+d7125ddb2f7b,,261.11.5,SUB-ENTRY,"Laloi, rue Jacob, 18. }"
+4adf60ca3d09,,261.11.6,SUB-ENTRY,"Lecamus-Néville, rue du Bacq, en face des Missions. }"
+371c50875868,,261.11.7,SUB-ENTRY,"Parseval-Grandmaison, rue des Moulins, 32. }"
+9c84ddb19625,,261.11.8,SUB-ENTRY,"Chompré, rue et hôtel Serpente. }"
+2a0a7f1cd4b1,,261.12.1,SUPPRIMÉE,} *Membres du Conseil.*
+05009c62e3bd,,261.19.1,B-TITLE,## *Interprètes des langues étrangères.*
+4bf260922f24,,261.30.1,OUT OF SCOPE,Le bureau de l'enregistrement est rue Etienne. — Muséum.
+d59c730b1f1e,,262.2.1,B-TITLE,# *Jurisconsultes et Défenseurs près les Cours et Tribunaux.*
+db8e20abb62f,,263.1.1,OUT OF SCOPE,"*Jurisconsultes, etc.*"
+9bad326cd38c,,264.5.1,B-TITLE,"# INSTITUT DES SCIENCES, LETTRES ET ARTS,"
+cb8a0d805a99,,264.6.1,I-TITLE,*Au Palais des Quatre-Nations.*
+93c3ad455100,,264.7.1,B-TITLE,## PREMIÈRE CLASSE.
+a29ce9096bd3,,264.8.1,I-TITLE,*Sciences mathématiques et physiques.*
+463d933d712a,,264.10.1,B-TITLE,### I.re SECTION. *Géométrie.*
+40f5ed07080b,,265.3.1,B-TITLE,### II.e SECTION.
+d03b3096df27,,265.7.1,B-TITLE,### III.e SECTION.
+7596db53deb2,,265.11.1,B-TITLE,### IV.e SECTION.
+fbc0aa1e6e15,,265.15.1,B-TITLE,### V.e SECTION.
+2aee855be01e,,265.16.1,I-TITLE,*Physique générale.*
+3f03499693da,,265.19.1,B-TITLE,### VI.e SECTION.
+c4ef9974d3d9,,265.23.1,B-TITLE,### VII.e SECTION.
+21194754606c,,265.27.1,B-TITLE,### VIII.e SECTION.
+0c0e2c1006f6,,265.31.1,B-TITLE,### IX.e SECTION.
+621b54abf13d,,265.32.1,I-TITLE,*Économie rurale et vétérinaire.*
+26b4b1ea9d07,,265.35.1,B-TITLE,### X.e SECTION.
+ef88d69cb0bf,,265.39.1,B-TITLE,### XI.e SECTION.
+263d3868f7aa,,265.43.1,B-TITLE,### *Secrétaires perpétuels.*
+9025016212f4,,265.44.1,B-ENTRY,"Delambre, rue de Paradis, 16."
+9025016212f4+1,9025016212f4,265.44.1,B-ENTRY,"Cuvier, au jardin des Plantes, rue de Seine, 36."
+595d98a4dfdf,,265.45.1,B-TITLE,"### Les associés étrangers de la première classe de l'Institut, sont :"
+3033f5cc1e6f,,266.3.1,B-TITLE,## DEUXIÈME CLASSE.
+332d698141e4,,266.4.1,I-TITLE,*Langue et littérature française.*
+b2af4d7e6590,,266.7.1,B-TITLE,## TROISIÈME CLASSE.
+53cfe9ef05a1,,266.8.1,I-TITLE,*Histoire et littérature ancienne.*
+93be827f2549,,267.3.1,B-TITLE,"### Les associés étrangers de la troisième classe, sont :"
+ae4abdc9be9f,,267.6.1,B-TITLE,## QUATRIÈME CLASSE.
+4e76c1e19c35,,267.8.1,B-TITLE,### I.re SECTION. *Peinture.*
+41b7299e6fff,,267.11.1,B-TITLE,### II.e SECTION. *Sculpture.*
+67db0183503b,,267.14.1,B-TITLE,### III.e SECTION. *Architecture.*
+4d50d7971273,,267.17.1,B-TITLE,### IV.e SECTION. *Gravure.*
+dce4ecbf4225,,267.20.1,B-TITLE,### V.e SECTION. *Musique* (composition).
+8170f0235dee,,267.24.1,B-TITLE,### Les associés étrangers de la quatrième classe sont :
+c107b3239be0,,267.27.1,B-TITLE,"# CAISSE D'AMORTISSEMENT,"
+39659aabeb41,,267.28.1,I-TITLE,*Rue et maison de l'Oratoire.*
+29e449cc2d40,,267.30.1,B-ENTRY,"MM. Décrétot, rue du Mail, 27, } *administrateurs.*"
+6f1d94a02962,,267.30.2,SUB-ENTRY,"Dufaut, rue Projettée, 3, }"
+11160e800753,,267.30.3,SUB-ENTRY,"Dutremblay, rue Montmartre, 178, }"
+4157956ba10d,,267.31.1,SUPPRIMÉE,} *administrateurs.*
+6f05e68c9b40,,267.33.1,SUB-ENTRY,"Miguotte, *sous-caissier*, }"
+257ef12bf15c,,268.3.1,B-TITLE,"# THÉÂTRE DE LA GAIÉTÉ,"
+4b2294e8a79d,,268.6.1,B-TITLE,"# *Correspondance théâtrale de M. PERLET,*"
+61848329e8eb,,268.9.1,B-TITLE,"# LOTERIE IMPÉRIALE DE FRANCE,"
+327ff3fc1b65,,268.10.1,I-TITLE,"*Rue Neuve-des-Petits-Champs, 42.*"
+d5a210848ff9,,268.11.1,B-TITLE,## *Administrateurs.*
+d33fd40364e6,,268.14.1,B-TITLE,## *Correspondance générale.*
+bef9f3a5a204,,268.16.1,B-TITLE,### *Section de Paris.*
+c54382afe6ab,,268.17.1,B-ENTRY,"MM. Vivet, *chef*, rue Montmartre, 84. } *et Direction du Timbre.*"
+6e2a2f934096,,268.17.2,SUB-ENTRY,"Chelle, *sous-chef*. }"
+e581ac7a0d0b,,268.18.1,SUPPRIMÉE,} *et Direction du Timbre.*
+c177207b8217,,268.19.1,B-TITLE,### *Section des Départemens.*
+4921bab46f5e,,268.21.1,B-TITLE,## DIVISION DU CASTELET.
+fc6ba16f4bc5,,268.23.1,B-TITLE,### CASTELET.
+5c62c4ef0786,,269.2.1,OUT OF SCOPE,# Loterie impériale de France.
+836e34e5691a,,269.3.1,B-TITLE,## *Vérification des Mises et Recettes.*
+94e9ef38a6de,,269.4.1,B-TITLE,### *Section de Paris.*
+9d6f9bb2aff6,,269.6.1,B-TITLE,### *Section des départemens.*
+04d283ef314a,,269.8.1,B-TITLE,## *Bureau des Billets faits.*
+3a2c68903075,,269.10.1,B-TITLE,## *Comptabilité générale.*
+ba3833612c6c,,269.12.1,B-TITLE,## *Bureau des livres.*
+b719c6096555,,269.14.1,B-TITLE,## *Bureau des Comptes-courans de Paris.*
+76b30c2db7ad,,269.16.1,B-TITLE,## *Comptes-courans des départemens.*
+f3c40b9e259a,,269.18.1,B-TITLE,## *Bureau des Dépenses.*
+d8556ce50d9a,,269.20.1,B-TITLE,## DIVISION DE LA VÉRIFICATION DES LOTS.
+539fd7432757,,269.22.1,B-TITLE,### PREMIÈRE VÉRIFICATION.
+a1395f2a5676,,269.23.1,B-TITLE,#### *Section de Paris.*
+6a6e14c29da1,,269.25.1,B-TITLE,#### *Section des départemens.*
+0be0de5de430,,269.27.1,B-TITLE,### DERNIÈRE VÉRIFICATION.
+98f713afd311,,269.29.1,B-TITLE,## ARCHIVES.
+6bedac8a112e,,269.31.1,B-TITLE,## *Contentieux et Cautionnemens.*
+02e010260efb,,269.33.1,B-TITLE,## *Bureau du Magasin.*
+48bc64f25f86,,270.3.1,B-TITLE,## *Inspecteurs de Paris.*
+cbba8fcb3fe7,,270.5.1,B-TITLE,"## *Caisse générale et Salle du tirage, rue Neuve-des-Petits-Champs, 42.*"
+cfc6bf70d593,,270.8.1,SUPPRIMÉE,*Contrôleurs de la caisse générale.*
+756ecc72ca87,,270.9.1,B-ENTRY,"*Contrôleurs de la caisse générale.* { MM. Mercier, rue de Seine, hôtel Larochefoucault."
+99f71370d221,,270.9.2,SUB-ENTRY,"{ Varigny, rue Quincampoix, 47."
+270b41d77252,,270.11.1,B-TITLE,"## *Receveurs de la Loterie dans le département de la Seine, avec les numéros de leurs Bureaux.*"
+4e946d5021c2,,271.2.1,OUT OF SCOPE,Loterie impériale de France.

@@ -1,0 +1,369 @@
+uuid,uid,tagged_text,parent_uuid
+8ad36a95-af4d-5878-9443-5ba74c43940e,192.11.1,"<SUBJ>M. FROCHOT</SUBJ>, <DESC>Conseiller d'état, *préfet*</DESC>, <ADDR>hôtel de la Préfecture.</ADDR>",63ecf8d4-05c7-57b2-8e1a-bd9a2694c466
+8de089f2-ca44-55a8-a113-788eb845077a,192.11.2,"<SUBJ>M. Hely d'Oissel</SUBJ>, <DESC>auditeur au conseil d'état, *secrétaire général*</DESC>, <ADDR>rue des Fossés-Saint-Germain-l'Auxerrois, 29.</ADDR>",63ecf8d4-05c7-57b2-8e1a-bd9a2694c466
+43a7a029-bc75-520a-98ce-4446deb35c6c,192.13.6,"<SUBJ>Bruin</SUBJ>, <DESC>*secrétaire*</DESC>, <ADDR>rue Montmartre, 6.</ADDR>",c64855e1-343a-5946-bdfb-ca18e6c9f91a
+057a0933-a879-5904-b426-00222fa991c4,192.17.1,"<DESC>*Conseiller particulier du préfet*.</DESC> <SUBJ>M. Chignard</SUBJ>, <ADDR>rue du Mail, 12.</ADDR>",9c925768-d935-5bff-9d74-0c8fc356a764
+c952454f-92a5-572e-a3ee-dd31f4511048,192.17.2,"<DESC>*Notaires de la préfecture*</DESC>. <SUBJ>M. Marchoux</SUBJ>, <ADDR>rue Vivienne, 6.</ADDR>—<SUBJ>M. Noel</SUBJ>, <ADDR>rue Saint-Honoré.</ADDR>",9c925768-d935-5bff-9d74-0c8fc356a764
+1023394a-c649-59cd-9ab8-ceada76480e3,192.17.3,"<DESC>*Huissier de la préfecture*.</DESC> <SUBJ>M. Lepeigneux</SUBJ>, <DESC>*huissier près la cour d'appel*</DESC>, <ADDR>rue Saint-Thomas-du-Louvre, 26.</ADDR>",9c925768-d935-5bff-9d74-0c8fc356a764
+7ad98041-d513-5ee5-9a03-7e523a9b3ba9,192.23.1,"<SUBJ>M. Bouhin</SUBJ>, <DESC>*chef*</DESC>, <ADDR>hôtel de la Préfecture.</ADDR>",020b80a8-557b-5b32-a248-ac2abe539a84
+6c5d4ce9-7a69-5cda-9ba5-9b1c438578e2,192.23.2,"<SUBJ>M. J. T. Verneur</SUBJ>, <DESC>*chef adjoint*</DESC>, <ADDR>quai Pelletier, 28.</ADDR>",020b80a8-557b-5b32-a248-ac2abe539a84
+1159e41a-f247-526c-9836-c41e952db6c2,193.4.1,"<DESC>*De la préfecture.*</DESC> <SUBJ>M. Propiac</SUBJ>, <ADDR>au presbytère St.-Jean, derrière l'Hôtel-de-ville.</ADDR>",e4735d43-e73b-5ad2-8522-a44826ee8e77
+bc3d5fa5-167f-56f3-bc00-5e0a77949f2f,193.4.2,"<DESC>*De l'état civil.*</DESC> <SUBJ>M. Marquis</SUBJ>, <ADDR>au presbytère St.-Jean, derrière l'Hôtel-de-ville</ADDR>, <DESC>pour les actes antérieurs à la formation des douze mairies.</DESC>",e4735d43-e73b-5ad2-8522-a44826ee8e77
+fdf36364-1199-5968-822c-4f8de2cccded,193.5.1,"<DESC>*Des contributions directes, à partir de 1786.*</DESC> <SUBJ>M. Roy</SUBJ>, <ADDR>rue Quincampoix.</ADDR>",e4735d43-e73b-5ad2-8522-a44826ee8e77
+f78c764d-2968-5791-8536-3a8e45cc3484,193.5.2,"<DESC>*Des domaines nationaux.*</DESC> <SUBJ>M. Dupré</SUBJ>, <ADDR>à l'Hôtel-de-ville.</ADDR>",e4735d43-e73b-5ad2-8522-a44826ee8e77
+608e6eb4-5d72-5d8b-b557-711a6a12967f,193.11.1,"<DESC>I.er BUREAU. *Etat civil et politique.*</DESC> <SUBJ>M. Regley</SUBJ>, <DESC>chef</DESC>, <ADDR>rue Meslé, 9.</ADDR>",65a17afa-a977-5bcd-bafd-507db89e0747
+541e9068-8d61-51ee-ae97-0b712b2e97ea,193.12.1,"<DESC>II.e BUREAU. *Régime départemental et municipal.*</DESC> <SUBJ>M. Bourcey</SUBJ>, <DESC>chef</DESC>, <ADDR>rue Sainte-Croix-de-la-Bretonnerie, 44.</ADDR>",65a17afa-a977-5bcd-bafd-507db89e0747
+02e004d6-d296-50ee-92c6-143f39237fed,"193.13.1,193.13.2","<DESC>III.e BUREAU</DESC>. { <DESC>*Institutions milit.*</DESC> <SUBJ>M. Lavaux</SUBJ>, <DESC>chef</DESC>, <ADDR>rue des Tournelles, 50.</ADDR>
+{ <DESC>*Garde de Paris.*</DESC> <SUBJ>M. Blandin</SUBJ>, <DESC>chef</DESC>, <ADDR>rue du Faub.-St.-Jacques, en face du Val-de-Grâce.</ADDR>",65a17afa-a977-5bcd-bafd-507db89e0747
+1962e85f-9dc8-5473-8036-86187bd36cf6,193.16.1,"<DESC>IV.e BUREAU. *Instruction publique, commerce et arts.*</DESC> <SUBJ>M. Ruphy</SUBJ>, <DESC>chef</DESC>, <ADDR>rue du Jour, 4.</ADDR>",ab2876e7-eed5-5e45-9d1b-995c34a13e32
+627eb1e4-e7f5-5c94-98ce-e2de15653f73,193.17.1,"<DESC>V.e BUREAU. *Secours et hôpitaux.*</DESC> <SUBJ>M. Duplay</SUBJ>, <DESC>chef</DESC>, <ADDR>rue de l'Union, Faubourg-St.-Honoré, 8.</ADDR>",ab2876e7-eed5-5e45-9d1b-995c34a13e32
+f3406a77-d674-50fd-b4a1-1af6f6a35a87,193.18.1,"<DESC>VI.e BUREAU. *Prisons.*</DESC> <SUBJ>M. Racine</SUBJ>, <DESC>chef</DESC>, <ADDR>rue d'Anjou, 9.—Unité.</ADDR>",ab2876e7-eed5-5e45-9d1b-995c34a13e32
+8f7dd605-5030-51af-9c7f-de58bd0e5cd2,193.22.1,"<DESC>I.er BUREAU. *Architecture.*</DESC> <SUBJ>M. Fromentin</SUBJ>, <DESC>chef</DESC>, <ADDR>rue St.-Nicolas, 20.—Q. V.</ADDR>",6284ffa6-be6c-594d-8197-1ed9a36b1099
+6916f330-b55c-5235-abdc-bef2e167bf84,193.23.1,"<DESC>II.e BUREAU. *Ponts et Chaussées.*</DESC> <SUBJ>M. Navarre</SUBJ>, <DESC>chef</DESC>, <ADDR>rue Tiron, 7.</ADDR>",6284ffa6-be6c-594d-8197-1ed9a36b1099
+fac77344-2788-5766-a7e7-5bcd3fae681a,"193.25.1,193.25.2,193.25.3","<DESC>Commissaires-vérificateurs</DESC>. { <SUBJ>MM. Touzet</SUBJ>.
+{ <SUBJ>Lalande</SUBJ>, <ADDR>rue Mandar.</ADDR>
+{ <SUBJ>Perrin</SUBJ>, <ADDR>rue du Hurepoix.</ADDR>",d3d92106-c78d-51e4-a8cf-fe2c1c375d27
+52106faa-9a60-5f09-92a2-b54d56502154,193.30.1,"<SUBJ>M. Lechat, aîné</SUBJ>, <DESC>chef de division.</DESC>",28d62fb0-4a5e-5841-83c9-728f287fff76
+f32bd5fa-7ee3-57b1-9317-9162d19561a4,194.5.1,"<SUBJ>M. Lagrange</SUBJ>, <DESC>*chef de division*</DESC>, <ADDR>quai de l'Égalité, 18.</ADDR>",b846eb5f-4f92-5660-a0f2-9d6d4b51c780
+0ff02b71-4766-5f6c-a39c-70acac4f3eba,194.5.2,"<SUBJ>M. Gueroult</SUBJ>, <DESC>*reviseur*</DESC>, <ADDR>rue de la Verrerie, 36.</ADDR>",b846eb5f-4f92-5660-a0f2-9d6d4b51c780
+c1df592e-d151-5834-8e8e-38c387083cf5,194.6.1,"<DESC>I.er BUREAU. *Immobilier*.</DESC> <SUBJ>M. Mayr</SUBJ>, <DESC>*chef*</DESC>, <ADDR>rue de Vaugirard, couvent des Carmes.</ADDR>",b846eb5f-4f92-5660-a0f2-9d6d4b51c780
+77d74d9b-4de5-53de-a682-5d87508fda2f,194.6.2,"<DESC>II.e BUREAU. *Mobilier*.</DESC> <SUBJ>M. Devanpré</SUBJ>, <DESC>*chef*</DESC>, <ADDR>rue des Nonnaindières, 1.</ADDR>",b846eb5f-4f92-5660-a0f2-9d6d4b51c780
+8676abc7-3ce1-5d47-b17d-50f62c7412f0,194.12.5,"<SUBJ>Brard</SUBJ>, <DESC>*expert vérificateur des écritures*</DESC>, <ADDR>enclos du Temple, 19.</ADDR>",6cf67de7-4a1d-5329-86c1-8ed210ed1d28
+d33d0d42-1de1-5303-8e22-37a755cb2a98,194.18.16,"<SUBJ>Vignon</SUBJ>, <DESC>*vice-président*</DESC>, <ADDR>rue de Grenelle-S.-Germain, 20.</ADDR>",1121316d-61b6-5156-a519-ef7b34358357
+82bc0747-ce53-57e8-baa8-76f45cae02cf,194.21.1,"<SUBJ>M. Ch. Brunet</SUBJ>, <DESC>*secrétaire*</DESC>, <ADDR>rue du Croissant, 20.</ADDR>",b5439fc7-60d2-51ad-9b55-58a241bbb100
+74274160-ddaf-54c1-8678-234486cf9a14,195.8.5,"<SUBJ>Debelloy</SUBJ>, <DESC>cardinal archevêque de Paris</DESC>, <ADDR>cloître Notre-Dame.</ADDR>",55b31d1c-e568-5a40-b11d-eff641ba02d8
+ae764aaf-497e-53e2-81a2-02fd6a97d8ef,195.8.14,"<SUBJ>Camet de la Bonnardiére</SUBJ>, <DESC>*maire* du onzième arrondissement.</DESC>",55b31d1c-e568-5a40-b11d-eff641ba02d8
+9ba421a8-e564-5bd6-96eb-454c95693b77,195.8.15,"<SUBJ>Maison</SUBJ>, <DESC>*secrétaire général*</DESC>, <ADDR>rue S.-Christophe, 1.</ADDR>",55b31d1c-e568-5a40-b11d-eff641ba02d8
+ac30dca2-41ac-541b-9254-ea814fb13aca,195.11.1,<DESC>I.re DIVISION. *Hospices*</DESC>. — <SUBJ>M. Desportes</SUBJ>.,421a264e-edef-56d6-8a13-0da5669c562e
+f7786431-3b70-5c7d-83b2-890ad168c284,195.11.2,"<DESC>II.e DIVISION. *Hôpitaux*</DESC>. — <SUBJ>MM. Alloy</SUBJ>, <SUBJ>Duchanoy</SUBJ>, <SUBJ>Lemaignan</SUBJ>.",421a264e-edef-56d6-8a13-0da5669c562e
+3dc921f1-f3b0-53f5-907e-85c8527558c1,195.11.3,<DESC>III.e DIVISION. *Domaines et comptabilité*</DESC>. — <SUBJ>M. Fesquet</SUBJ>.,421a264e-edef-56d6-8a13-0da5669c562e
+c19c0f25-83b1-5531-8583-d6ed61700b57,195.11.4,<DESC>IV.e DIVISION. *Secours à domicile*</DESC>. — <SUBJ>MM. Coulomb et Montholon</SUBJ>.,421a264e-edef-56d6-8a13-0da5669c562e
+ba3574af-4737-532b-bebb-45919e272252,195.11.5,<DESC>V.e DIVISION. *Comptabilité générale*</DESC>. — <SUBJ>M. Nicod</SUBJ>.,421a264e-edef-56d6-8a13-0da5669c562e
+ee1485a5-ced9-51a3-b141-8eca92552ce9,195.11.6,"<DESC>*Huissier-priseur de l'Administration*</DESC>. <SUBJ>Charriot</SUBJ>, <ADDR>rue J. J. Rousseau, 3.</ADDR>",421a264e-edef-56d6-8a13-0da5669c562e
+c576d1cd-f43d-5c43-96af-dee59916d3ac,"195.17.1,195.17.2,195.17.3,195.17.4","<SUBJ>Fieffé</SUBJ>. } <DESC>*Membres du conseil d'administration des hospices et secours.*</DESC>
+<SUBJ>Pastoret</SUBJ>. }
+<SUBJ>Richard d'Aubigny</SUBJ>. }
+<SUBJ>Thouret</SUBJ>. }",ad1b056f-7bfe-5731-bcfc-25bf00ea1db4
+24055c7d-749f-5ccb-97bb-8885ea4ae3b6,"195.18.1,195.18.2,195.18.3","<SUBJ>Doyen</SUBJ>. } <DESC>*Membres du conseil d'administration pour les actionnaires.*</DESC>
+<SUBJ>Fulchiron</SUBJ>. }
+<SUBJ>Michoud</SUBJ>. }",ad1b056f-7bfe-5731-bcfc-25bf00ea1db4
+2d7566eb-54fe-5d3c-abd7-e6661e8d7052,195.19.1,"<SUBJ>Beaufils</SUBJ>, <DESC>*directeur de l'établissement*.</DESC>",ad1b056f-7bfe-5731-bcfc-25bf00ea1db4
+5551429d-9744-5256-96d9-e539dea4e124,196.9.1,"<SUBJ>Simonnot</SUBJ>, <DESC>*chef du secrétariat*.</DESC>",f5385de3-126c-5cfe-a544-225f3164e8af
+0ce490dd-00ce-525c-9240-57b0aa723b1c,196.13.1,"<SUBJ>M. Darras</SUBJ>, <DESC>*chef*.</DESC>",8dd3a0a8-dfe9-578f-b5d5-a79dbb0a02fb
+3b60ecc9-7979-5ba3-988d-e2531c678288,196.14.1,"<SUBJ>Savouré</SUBJ>, <DESC>*sous-chef*.</DESC>",8dd3a0a8-dfe9-578f-b5d5-a79dbb0a02fb
+9d4d0a2a-69ec-5f05-aea9-6900ef8701dd,196.16.1,"<SUBJ>M. Myr</SUBJ>, <DESC>*chef*.</DESC>",6d7d7cfc-953f-5411-88e5-7acef9c9a9cb
+4dddc197-6add-5fec-87b9-40cb57bfa626,196.17.1,"<SUBJ>Goret</SUBJ>, <DESC>*sous-chef*.</DESC>",6d7d7cfc-953f-5411-88e5-7acef9c9a9cb
+8a2f24c1-5b93-525f-a770-17344c74d4df,196.21.1,"<SUBJ>M. Lemarcis</SUBJ>, <DESC>*directeur*</DESC>, <ADDR>rue Gaillon, 12.</ADDR>",3325cc90-980c-5bfb-a809-7a31d681dc26
+35d9e46b-07f7-56f6-b857-c0bad957e281,196.23.1,"<SUBJ>M. Lareveillère</SUBJ>, <DESC>*premier commis*.</DESC>",8cffaf2a-3f6d-5930-8691-429b0e1a266b
+61e02aec-292a-5512-8bd8-95e1a0223880,196.25.1,"<DESC>*Première division.*</DESC> <SUBJ>M. Vauthier</SUBJ>, <DESC>*chef*.</DESC>",8cffaf2a-3f6d-5930-8691-429b0e1a266b
+0812dba4-5ed2-5b7e-8184-0c71fb80ad7c,196.27.1,"<DESC>*Deuxième division.*</DESC> <SUBJ>M. Lefevre</SUBJ>, <DESC>*chef*.</DESC>",8cffaf2a-3f6d-5930-8691-429b0e1a266b
+6982da4a-059a-5f19-a445-5e0bb3a0a297,196.29.1,"<DESC>*Troisième division.*</DESC> <SUBJ>M. Lefranc</SUBJ>, <DESC>*chef*.</DESC>",8cffaf2a-3f6d-5930-8691-429b0e1a266b
+22fc7e2c-bcfa-505c-90fe-e6a6070bb692,"197.4.5,197.4.7,197.4.8,197.4.10","<DESC>I.er</DESC>... { <DESC>Tuileries</DESC>..... } <SUBJ>Cuynet</SUBJ>, <ADDR>place des Italiens, 1.</ADDR>
+{ <DESC>Champs-Elysées</DESC>..... }
+{ <DESC>Place Vendôme</DESC>..... } <SUBJ>Besnard</SUBJ>, <ADDR>rue des Lions-St.-Paul, 8.</ADDR>
+{ <DESC>Roule</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+76a866ae-3865-5c0b-a708-c02e5303dd31,"197.4.12,197.4.14,197.4.16,197.4.18","<DESC>II.e</DESC>... { <DESC>Lepelletier</DESC>..... <SUBJ>Cuynet</SUBJ>, <ADDR>Place des Italiens, 1.</ADDR>
+{ <DESC>Mont-Blanc</DESC>..... <SUBJ>Charles</SUBJ>, <ADDR>rue Helvétius, 57.</ADDR>
+{ <DESC>Faubourg Montmartre</DESC>. } <SUBJ>Hoche</SUBJ>, <ADDR>cloître Ste.-Opportune, 18.</ADDR>
+{ <DESC>Butte des Moulins</DESC>.... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+62410469-95ee-54cf-b2b4-35285a2108d9,"197.4.20,197.4.22,197.4.24,197.4.26","<DESC>III.e</DESC>... { <DESC>Brutus</DESC>..... <SUBJ>Levillain jeune</SUBJ>, <ADDR>rue Pavée, 3.—B. C.</ADDR>
+{ <DESC>Mail</DESC>..... <SUBJ>Barat</SUBJ>, <ADDR>quai des Ormes, 60.</ADDR>
+{ <DESC>Contrat-Social</DESC>..... <SUBJ>Messieux</SUBJ>, <ADDR>rue des Francs-Bourgeois, 18.—T. F.</ADDR>
+{ <DESC>Poissonnière</DESC>..... <SUBJ>Charles</SUBJ>, <ADDR>rue Helvétius, 57.</ADDR>",aba188b4-1371-52c5-b762-b7dd9780a5c1
+298c0a06-8bfb-5bad-bccc-c577b05ee9fb,"197.4.29,197.4.31,197.4.32,197.4.34","<DESC>IV.e</DESC>... { <DESC>Halle-aux-Blés</DESC>..... } <SUBJ>Sandrier</SUBJ>, <ADDR>rue du Monceau-St.-Gervais, 1.</ADDR>
+{ <DESC>Gardes-Françaises</DESC>.... }
+{ <DESC>Muséum</DESC>..... } <SUBJ>Voyenne</SUBJ>, <ADDR>rue de Cléry, 47.</ADDR>
+{ <DESC>Marchés</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+55f8e1a2-4c81-5257-972f-c247a61d4fb0,"197.4.36,197.4.38,197.4.39,197.4.41","<DESC>V.e</DESC>... { <DESC>Bonne-Nouvelle</DESC>..... } <SUBJ>Moderat</SUBJ>, <ADDR>rue Mandar, 10.</ADDR>
+{ <DESC>Bondy</DESC>..... }
+{ <DESC>Bon-Conseil</DESC>..... } <SUBJ>Champagne</SUBJ>, <ADDR>rue N.-d'Orléans, Porte St.-Denis, 22.</ADDR>
+{ <DESC>Nord</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+b7652131-42d6-5a82-9c6d-7cd6da628d37,"197.4.43,197.4.45,197.4.47,197.4.49","<DESC>VI.e</DESC>... { <DESC>Gravilliers</DESC>..... <SUBJ>Filleul</SUBJ>, <ADDR>rue Favart, 8.</ADDR>
+{ <DESC>Temple</DESC>..... <SUBJ>Messieux</SUBJ>, <ADDR>rue des Francs-Bourgeois, 18.—T. F.</ADDR>
+{ <DESC>Lombards</DESC>..... <SUBJ>Barat</SUBJ>, <ADDR>quai des Ormes, 60.</ADDR>
+{ <DESC>Amis de la Patrie</DESC>..... <SUBJ>Levillain jeune</SUBJ>, <ADDR>rue Pavée, 3.—B. C.</ADDR>",aba188b4-1371-52c5-b762-b7dd9780a5c1
+026bf6a8-f746-58ff-b791-d6845ae6f7da,"197.4.52,197.4.54,197.4.55,197.4.57","<DESC>VII.e</DESC>... { <DESC>Réunion</DESC>..... } <SUBJ>Lemoine</SUBJ>, <ADDR>rue des Rosiers, 34.</ADDR>
+{ <DESC>Droits-de-l'Homme</DESC>.... }
+{ <DESC>Arcis</DESC>..... } <SUBJ>Navet</SUBJ>, <ADDR>rue Vieille-du-Temple, 31.</ADDR>
+{ <DESC>Homme-Armé</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+1a08264c-0813-54ff-8e35-63011bd0afe2,"197.4.59,197.4.61,197.4.62,197.4.64","<DESC>VIII.e</DESC>... { <DESC>Quinze-Vingts</DESC>..... } <SUBJ>Munier</SUBJ>, <ADDR>rue Amelot, 30.</ADDR>
+{ <DESC>Popincourt</DESC>..... }
+{ <DESC>Indivisibilité</DESC>..... } <SUBJ>Feuchère</SUBJ>, <ADDR>rue Jarente, 8.</ADDR>
+{ <DESC>Montreuil</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+a833d635-9045-51da-ad84-29c595aedaa0,"197.4.66,197.4.68,197.4.70,197.4.71","<DESC>IX.e</DESC>... { <DESC>Fidélité</DESC>..... <SUBJ>Despechbach</SUBJ>, <ADDR>rue Saint-Honoré, 314.</ADDR>
+{ <DESC>Arsenal</DESC>..... } <SUBJ>Quesnay</SUBJ>, <ADDR>rue Hyacinthe, 2.—Pl. S. M.</ADDR>
+{ <DESC>Cité</DESC>..... }
+{ <DESC>Fraternité</DESC>..... <SUBJ>Gardin</SUBJ>, <ADDR>rue de la Tabletterie, 6.</ADDR>",aba188b4-1371-52c5-b762-b7dd9780a5c1
+b4dddc05-870c-5751-8bab-1c908f76f025,"197.4.74,197.4.76,197.4.78,197.4.79","<DESC>X.e</DESC>... { <DESC>Fontaine-de-Grenelle</DESC>... <SUBJ>Bouchenel</SUBJ>, <ADDR>rue de Cléry, 38.</ADDR>
+{ <DESC>Ouest</DESC>..... } <SUBJ>Mathis</SUBJ>, <ADDR>cour de l'Abbaye-St.-Germain-des-Prés, 8.</ADDR>
+{ <DESC>Invalides</DESC>..... }
+{ <DESC>Unité</DESC>..... <SUBJ>Gardin</SUBJ>, <ADDR>rue de la Tabletterie, 6.</ADDR>",aba188b4-1371-52c5-b762-b7dd9780a5c1
+3b7e11d5-1bfd-5432-8208-75fc5eee41b9,"197.4.82,197.4.84,197.4.86,197.4.88","<DESC>XI.e</DESC>... { <DESC>Théâtre-Français</DESC>..... <SUBJ>Despechbach</SUBJ>, <ADDR>rue Saint-Honoré, 314.</ADDR>
+{ <DESC>Thermes</DESC>..... <SUBJ>Bouchenel</SUBJ>, <ADDR>rue de Cléry, 38.</ADDR>
+{ <DESC>Luxembourg</DESC>..... } <SUBJ>Pihet</SUBJ>, <ADDR>rue du Four-Saint-Germain, 28.</ADDR>
+{ <DESC>Pont-Neuf</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+baa57569-7ccf-5731-b887-e8ac8a7b68d8,"197.4.90,197.4.92,197.4.93,197.4.95","<DESC>XII.e</DESC>... { <DESC>Panthéon</DESC>..... } <SUBJ>Lassus</SUBJ>, <ADDR>rue Salle-au-Comte, 7.</ADDR>
+{ <DESC>Finistère</DESC>..... }
+{ <DESC>Jardin-des-Plantes</DESC>... } <SUBJ>Degret</SUBJ>, <ADDR>rue Basse-St.-Denis, 16.</ADDR>
+{ <DESC>Observatoire</DESC>..... }",aba188b4-1371-52c5-b762-b7dd9780a5c1
+61eab19c-c47c-5c06-aaa5-f470d59e814a,197.6.1,"<SUBJ>MM. LAPEYRIERE</SUBJ>, <DESC>*receveur général*</DESC>, <ADDR>rue de l'Université, 24-26.</ADDR>",de795d70-3fcd-5031-bdd3-24315bb47db0
+a0cef295-4b60-5115-baaa-b7e1a696bd3e,197.6.2,"<SUBJ>VALLET DE VILLENEUVE</SUBJ>, <DESC>*receveur de la ville de Paris*</DESC>, <ADDR>rue d'Anjou-S.-H., 11.</ADDR>",de795d70-3fcd-5031-bdd3-24315bb47db0
+22a276a6-4574-5a16-a2ec-837df10a5e98,197.6.3,"<DESC>I.er ARRONDISSEMENT</DESC>. <SUBJ>Goetz</SUBJ>, <ADDR>rue Saint-Honoré, 281.</ADDR> — <DESC>Pour les div. des Tuileries, Champs-Elysées, Place-Vendôme et Roule.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+bcb8eb21-f631-51dc-b316-6e952a7a2146,198.3.1,"<DESC>II.e ARROND</DESC>. <SUBJ>Ledoux</SUBJ>, <ADDR>rue de Richelieu, 115.</ADDR> — <DESC>Pour les div. Lepelletier, Mont-Blanc, Faubourg-Montmartre et Butte-des-Moulins.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+698b1660-01b7-5152-9f9e-b2d58e3c84a8,198.3.2,"<DESC>III.e ARROND</DESC>. <SUBJ>Tiron</SUBJ>, <ADDR>rue du Mail, 13.</ADDR> — <DESC>Pour les div. Brutus, Mail, Contrat-Social et Poissonnière.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+9591f965-f56e-5164-b8ce-37b71ef2b93a,198.3.3,"<DESC>IV.e ARROND</DESC>. <SUBJ>Blondel</SUBJ>, <ADDR>cloître Saint-Germain-l'Auxerrois, 35.</ADDR> — <DESC>Pour les div. de la Halle-aux-Blés, Gardes-Françaises, Muséum et Marchés.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+e3082678-6bcf-5f25-9246-3e6e74629b9a,198.3.4,"<DESC>V.e ARROND</DESC>. <SUBJ>Vander Linden</SUBJ>, <ADDR>rue des Deux-Portes-Saint-Sauveur, 30.</ADDR> — <DESC>Pour les div. de Bonne-Nouvelle, Boudy, Bon-Conseil et Nord.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+b1925c41-f072-55e6-abcd-c2de082300d1,198.3.5,"<DESC>VI.e ARROND</DESC>. <SUBJ>Potier</SUBJ>, <ADDR>rue Charlot, 47.</ADDR> — <DESC>Pour les div. des Gravilliers, du Temple, des Lombards et des Amis-de-la-Patrie.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+6c0b7852-eaaf-5843-93ab-d8b591e8a7e7,198.3.6,"<DESC>VII.e ARROND</DESC>. <SUBJ>Delamery</SUBJ>, <ADDR>rue des Juifs, 24.</ADDR> — <DESC>Pour les divis. de la Réunion, des Droits-de-l'Homme, des Arcis et de l'Homme-Armé.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+5cfe0dc5-8c94-540e-9183-9717886838fe,198.3.7,"<DESC>VIII.e ARROND</DESC>. <SUBJ>Ducret</SUBJ>, <ADDR>rue du Chemin-Vert, Pont-aux-Choux, 31.</ADDR> — <DESC>Pour les div. des Quinze-Vingts, Popincourt, Indivisibilité et Montreuil.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+c8438faa-7ae3-5a2b-9f5f-a43f7fca35c9,198.3.8,"<DESC>IX.e ARROND</DESC>. <SUBJ>Robert</SUBJ>, <ADDR>rue S.-Antoine, 76.</ADDR> — <DESC>Pour les div. de la Fidélité, Arsenal, Cité et Fraternité.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+2d5c19a8-4bb3-5263-843e-ac6181aba26d,198.3.9,"<DESC>X.e ARROND</DESC>. <SUBJ>Dutremblay</SUBJ>, <ADDR>rue de Seine-Saint-Germain, 48.</ADDR> — <DESC>Pour les divis. de la Fontaine-de-Grenelle, de l'Ouest, des Invalides et de l'Unité.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+7234f7d1-d124-5fc0-a1a2-483304ad0e31,198.3.10,"<DESC>XI.e ARROND</DESC>. <SUBJ>Chénié</SUBJ>, <ADDR>rue du Cherche-Midi, 23.</ADDR> — <DESC>Pour les div. du Théâtre-Français, des Thermes, du Luxembourg et du Pont-Neuf.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+dd7bdf54-26f9-50c3-af33-e9548129f4f5,198.3.11,"<DESC>XII.e ARROND</DESC>. <SUBJ>Puissan</SUBJ>, <ADDR>quai de la Tournelle, 31.</ADDR> — <DESC>Pour les div. du Panthéon, du Finistère, du Jardin-des-Plantes et de l'Observatoire.</DESC>",de795d70-3fcd-5031-bdd3-24315bb47db0
+53c1ae47-dd85-50a2-911d-347f027dbd31,198.8.1,"<SUBJ>MM. Huguet de Montaran</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue de Varennes, 37.</ADDR>",8386dbf5-74be-5c03-b2fe-9d7202416ca5
+eba8eacb-1af6-5ae5-b014-0adc958b02ac,198.8.2,"<SUBJ>Lecordier</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue Saint-Honoré, 327.</ADDR>",8386dbf5-74be-5c03-b2fe-9d7202416ca5
+32ae1418-67e8-55ab-a41f-23b4e1e2d122,198.8.3,"<SUBJ>Roze</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue Neuve-du-Luxembourg, 7.</ADDR>",8386dbf5-74be-5c03-b2fe-9d7202416ca5
+7a7b6c0d-0cea-5c86-977b-2ce931772c89,198.8.4,"<SUBJ>Baudement</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>rue Joubert, 32.</ADDR>",8386dbf5-74be-5c03-b2fe-9d7202416ca5
+30033817-670a-5f64-8946-1ae120ed0e05,198.8.5,"<SUBJ>Vidoine</SUBJ>, <DESC>*chef de l'état-civil*</DESC>, <ADDR>rue du Doyenné, 8.</ADDR>",8386dbf5-74be-5c03-b2fe-9d7202416ca5
+dd78533f-73b7-596f-8ac4-302d02eb596b,198.10.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Laimaignère</SUBJ>, <ADDR>rue de la Concorde, 8.</ADDR>",a5097d73-ca0f-5e0a-b24a-9d543c035158
+9dcc7c69-bf9a-5e9e-884a-3bf55b7ee924,198.10.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Eve Vaudemont</SUBJ>, <ADDR>même demeure.</ADDR>",a5097d73-ca0f-5e0a-b24a-9d543c035158
+87313f4b-79a6-5f83-8a91-28f653ce728b,198.10.3,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Paltre</SUBJ>, <ADDR>petite rue Saint-Louis, 6. — Tuileries.</ADDR>",a5097d73-ca0f-5e0a-b24a-9d543c035158
+39cf719b-2a93-52c8-a461-315369bcb733,198.10.9,"<DESC>*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal, et des effets de commerce.*</DESC> <SUBJ>M. Calvinha</SUBJ>, <ADDR>rue Neuve-le-Pelletier, 11.</ADDR>",a5097d73-ca0f-5e0a-b24a-9d543c035158
+e3a8a820-615f-5a36-8714-b7cdca3fd4e1,199.4.1,"<DESC>*Division des Tuileries.*</DESC> <SUBJ>M. Chazot</SUBJ>, <ADDR>rue Marceau, 15.</ADDR>",22219d26-66a3-54bd-99fc-e8a82ad509a1
+2269cc52-ae51-5699-952b-a2e5497c40ef,199.4.2,"<DESC>*Div. des Champs-Elysées.*</DESC> <SUBJ>M. Delafontaine</SUBJ>, <ADDR>rue du Faubourg-du-Roule, 7.</ADDR>",22219d26-66a3-54bd-99fc-e8a82ad509a1
+e29bc7b2-9771-560f-bfa8-571bd0f590f5,199.4.3,"<DESC>*Div. du Roule.*</DESC> <SUBJ>M. Renault</SUBJ>, <ADDR>grande rue Verte, 16.</ADDR>",22219d26-66a3-54bd-99fc-e8a82ad509a1
+f9cb0c70-5269-5139-b8be-9e9862895300,199.4.4,"<DESC>*Div. de la Place Vendôme.*</DESC> <SUBJ>M. Allets</SUBJ>, <ADDR>rue Tiroux, 12.</ADDR>",22219d26-66a3-54bd-99fc-e8a82ad509a1
+14b9b0ef-9903-592c-adc8-b61ae048d0b2,199.8.1,"<SUBJ>MM. Brière-Montdétour</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue Saint-Honoré, 354.</ADDR>",bf9b7562-4f21-567a-8d89-cec3396c452b
+41f686a5-f471-5c3e-b078-b7a554013503,199.8.2,"<SUBJ>Picard</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue Thérèse, 2.</ADDR>",bf9b7562-4f21-567a-8d89-cec3396c452b
+5b0fab9c-3f4e-5368-bba6-23765c73252e,199.8.3,"<SUBJ>Boileau</SUBJ>, <DESC>*adjoint*, notaire</DESC>, <ADDR>rue de Richelieu, 45.</ADDR>",bf9b7562-4f21-567a-8d89-cec3396c452b
+21c784f2-1c7e-5f3c-929b-2bc08f0f8220,199.8.4,"<SUBJ>Moriceau</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>à la Mairie.</ADDR>",bf9b7562-4f21-567a-8d89-cec3396c452b
+6767d61a-4395-58b3-9bf6-1ad074c7a7e3,199.8.5,"<SUBJ>Duclos</SUBJ>, <DESC>*chef de l'état-civil*</DESC>, <ADDR>rue Gaillon, 7.</ADDR>",bf9b7562-4f21-567a-8d89-cec3396c452b
+d7792e98-dd3f-57b3-aa65-e712da7a170b,199.10.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Delorme</SUBJ>, <ADDR>rue Feydeau, 28.</ADDR>",c35e8022-c8fc-557f-88dc-a8f83768f875
+96761888-be92-5580-a63d-08e76a67e89e,199.10.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Parent</SUBJ>, <ADDR>rue de Grammont, 3.</ADDR>",c35e8022-c8fc-557f-88dc-a8f83768f875
+7e5bd974-7913-58b5-886d-3bf49d5e930a,199.10.3,"<DESC>*Huissier.*</DESC> <SUBJ>M. Millet</SUBJ>, <ADDR>place des Italiens, 1.</ADDR>",c35e8022-c8fc-557f-88dc-a8f83768f875
+ac910085-5d15-5bd1-88b4-2789cb9650c3,199.16.1,"<DESC>*Receveur du droit de l'enregistrement, des exploits, des actes judiciaires, du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Laindet</SUBJ>, <ADDR>rue Neuve-St.-Roch, 34.</ADDR>",c35e8022-c8fc-557f-88dc-a8f83768f875
+c7c602d4-3cbd-5bac-96c3-40b59e687591,199.20.1,"<DESC>*Division de la Butte-des-Moulins.*</DESC> <SUBJ>M. Comminge</SUBJ>, <ADDR>rue d'Argenteuil, 48.</ADDR>",e3b92c4c-1a72-533e-8f50-c3ca84ae1b68
+9a435bc1-ffbd-5e6e-9381-0343aa7a902f,199.20.2,"<DESC>*Div. Le-Pelletier.*</DESC> <SUBJ>M. Meunier</SUBJ>, <ADDR>rue de Grétry, 5.</ADDR>",e3b92c4c-1a72-533e-8f50-c3ca84ae1b68
+006d8eb6-94b4-56e0-b816-5fce8ac39aa3,199.20.3,"<DESC>*Div. du Mont-Blanc.*</DESC> <SUBJ>M. Beffara</SUBJ>, <ADDR>rue Saint-Lazare, 12.</ADDR>",e3b92c4c-1a72-533e-8f50-c3ca84ae1b68
+ba7fcdba-dc14-551c-b64e-39edf7724136,199.20.4,"<DESC>*Div. du Faubourg Montmartre.*</DESC> <SUBJ>M. Saudras</SUBJ>, <ADDR>rue de Rochechouart, 51.</ADDR>",e3b92c4c-1a72-533e-8f50-c3ca84ae1b68
+a2a47eb5-7179-5dbe-8b19-f65df6850167,199.24.1,"<SUBJ>MM. Rousseau (J.-J.)</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue des Jeuneurs, 9.</ADDR>",d120a550-2cb0-5bc0-94ad-01100128bd29
+4d2e0c92-a5f7-5a84-8b2d-9b9768c61df6,199.24.2,"<SUBJ>Véron</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue Neuve-Saint-Eustache, 34.</ADDR>",d120a550-2cb0-5bc0-94ad-01100128bd29
+3b8d6744-4dcf-5333-a955-06ce8377da62,199.24.3,"<SUBJ>Chartier</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>au chef-lieu de la Mairie.</ADDR>",d120a550-2cb0-5bc0-94ad-01100128bd29
+0d2496c2-76ba-575e-97e2-c7150bf4cac5,199.24.4,"<SUBJ>Renaudin</SUBJ>, <DESC>*chef de l'état-civil*</DESC>, <ADDR>rue Feydeau, 20.</ADDR>",d120a550-2cb0-5bc0-94ad-01100128bd29
+2be912f5-fab5-567b-bbef-0c1ced947097,200.4.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Véron fils</SUBJ>, <ADDR>rue Neuve-Saint-Eustache, 34.</ADDR>",8cb69b3f-ef62-52a4-82fb-3a2d747a8ee6
+3d895d04-6e63-51ac-870f-3371a409ad4f,200.4.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Champagne</SUBJ>, <ADDR>rue Montmartre, 18.</ADDR>",8cb69b3f-ef62-52a4-82fb-3a2d747a8ee6
+55eb63b7-9596-53e7-9fb7-b725499dfe66,200.4.3,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Fleury</SUBJ>, <ADDR>rue Tiquetonne, 17</ADDR>, <DESC>pour les *Divisions du Mail et du Contrat Social*</DESC>.",8cb69b3f-ef62-52a4-82fb-3a2d747a8ee6
+bc79cd8c-515d-5ef1-8062-d155593d0d3f,200.4.4,"<SUBJ>M. Masson (Etienne)</SUBJ>, <ADDR>rue de l'Échiquier, 32</ADDR>, <DESC>pour les *Divisions de Brutus et Poissonnière*</DESC>.",8cb69b3f-ef62-52a4-82fb-3a2d747a8ee6
+18510f5c-86e2-53f1-b2a4-5c2ada750880,200.4.10,"<DESC>*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Becuve</SUBJ>, <ADDR>rue J.-J. Rousseau, 15.</ADDR>",8cb69b3f-ef62-52a4-82fb-3a2d747a8ee6
+83d02cea-47c5-56ce-a9f3-d102f2d42c7f,200.8.1,"<DESC>*Division Poissonnière.*</DESC> <SUBJ>M. Bauve</SUBJ>, <ADDR>rue du Faubourg-Saint-Denis, 51.</ADDR>",dce6841b-246d-5687-b5fb-eae0b767af93
+6458d03b-163f-51f2-afc7-b91a32ec9bbb,200.8.2,"<DESC>*Div. de Brutus.*</DESC> <SUBJ>M. Leroux</SUBJ>, <ADDR>rue Montmartre, 144.</ADDR>",dce6841b-246d-5687-b5fb-eae0b767af93
+ad577aef-28c0-5675-b0ef-ba734e04ee4a,200.8.3,"<DESC>*Div. du Mail.*</DESC> <SUBJ>M. Noël</SUBJ>, <ADDR>rue Pagevin, 3.</ADDR>",dce6841b-246d-5687-b5fb-eae0b767af93
+34f1b007-1343-5a38-8ac5-3ddfd46073ba,200.8.4,<DESC>*Div. du Contrat Social.*</DESC> <SUBJ>M.....</SUBJ>,dce6841b-246d-5687-b5fb-eae0b767af93
+8a5302bf-22d2-5db5-b491-161471c8eff3,200.12.1,"<SUBJ>M. Doulcet-d'Egligny</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue Sainte-Croix-de-la-Bretonnerie, 23.</ADDR>",cd712bae-a9e8-5fc0-adc5-c7883f87156c
+aaac2c87-a110-5317-8e46-d9a1f13b6569,200.12.2,"<SUBJ>Lelong</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue du Roule, 13.</ADDR>",cd712bae-a9e8-5fc0-adc5-c7883f87156c
+508c34c2-8012-5190-8559-cbcddaf48daa,200.12.4,"<SUBJ>Cellier</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>à la Mairie.</ADDR>",cd712bae-a9e8-5fc0-adc5-c7883f87156c
+2782319f-60ac-525a-aca8-855ce0ccd321,200.12.5,"<SUBJ>Angot</SUBJ>, <DESC>*chef des bureaux de l'état civil*</DESC>, <ADDR>rue Saint-Denis, 17.</ADDR>",cd712bae-a9e8-5fc0-adc5-c7883f87156c
+80d0704e-dd64-5646-bc4d-539b8dde7ce3,200.14.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Leseyre</SUBJ>, <ADDR>rue Bailleul, 6.</ADDR>",f56e54b2-65be-5f77-9e09-d4812b23fabb
+1cd8819f-967d-5b80-8f22-78a271bf3034,200.14.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Aumont</SUBJ>, <ADDR>rue des Poulies, 3.</ADDR>",f56e54b2-65be-5f77-9e09-d4812b23fabb
+4da5562f-3227-5633-9e3c-55f3c08a88bf,200.14.3,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Tavernier</SUBJ>, <ADDR>rue de la Monnaie, 14</ADDR>, <DESC>pour les divisions du Muséum et des Gardes-Françaises.</DESC>",f56e54b2-65be-5f77-9e09-d4812b23fabb
+b44b9d7f-f8c9-5a85-a0e6-39454dd0b370,200.14.4,"<SUBJ>M. Huguenot</SUBJ>, <ADDR>rue Saint-Honoré, 150</ADDR>, <DESC>pour les divisions de la Halle-aux-Blés et des Marchés.</DESC>",f56e54b2-65be-5f77-9e09-d4812b23fabb
+33d4b9c1-07b7-559d-91f7-39e2e4a7f416,200.14.9,"<DESC>*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires, du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Pasquau</SUBJ>, <ADDR>rue Étienne-Boucher, 5.</ADDR>",f56e54b2-65be-5f77-9e09-d4812b23fabb
+52948354-c8b9-5c46-a07b-c84df98934d8,201.6.1,"<DESC>*Division de la Halle-aux-Blés.*</DESC> <SUBJ>M. Sautray</SUBJ>, <ADDR>rue Croix-des-Petits-Champs, 55.</ADDR>",a0bcef21-8c92-5118-b697-d427931e84d8
+544386ed-c4ff-5ec7-8075-941a3a5ede03,201.6.2,"<DESC>*Div. des Gardes-Françaises.*</DESC> <SUBJ>M. Couté</SUBJ>, <ADDR>rue du Chantre, 18.</ADDR>",a0bcef21-8c92-5118-b697-d427931e84d8
+0642f864-ec15-5fca-bf66-bc537867607d,201.6.3,"<DESC>*Div. du Muséum.*</DESC> <SUBJ>M. Couvreur</SUBJ>, <ADDR>rue Saint-Germain-l'Auxerrois, 35.</ADDR>",a0bcef21-8c92-5118-b697-d427931e84d8
+596feaee-63ac-539a-88d0-e1835c921cf6,"201.6.4,201.6.5","<DESC>*Div. des Marchés.*</DESC> <SUBJ>M. Masson</SUBJ>, <ADDR>rue de l'Aiguillerie, 14, cloître Sainte-Opportune.
+Son bureau est à la halle aux Draps.</ADDR>",a0bcef21-8c92-5118-b697-d427931e84d8
+a6b618f6-4a4a-5c4e-9203-db56ce1f68af,201.10.1,"<SUBJ>MM. Moreau (Louis-Victor)</SUBJ> <DESC>*maire*</DESC>, <ADDR>rue Saint-Antoine, 177.</ADDR>",53d6b47b-68d7-5615-915d-c8e6b188895d
+c78fcfa5-3ad7-58a6-80ce-e7f7116365af,201.10.2,"<SUBJ>Mauvage</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue du Faubourg-Saint-Denis, 14.</ADDR>",53d6b47b-68d7-5615-915d-c8e6b188895d
+62a68967-1cda-543d-a60c-3f700b553487,201.10.3,"<SUBJ>Olry Hayem Worms</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de Bondy, 44.</ADDR>",53d6b47b-68d7-5615-915d-c8e6b188895d
+61143eef-8601-5211-ba42-03c2cdd198e5,201.10.4,"<SUBJ>F. Ricou</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>à la Mairie.</ADDR>",53d6b47b-68d7-5615-915d-c8e6b188895d
+66b5bd7d-f89a-5273-ba59-b1198a626b4a,201.10.5,"<SUBJ>Richer</SUBJ>, <DESC>*chef de l'état civil*</DESC>, <ADDR>rue de Bondy, 46.</ADDR>",53d6b47b-68d7-5615-915d-c8e6b188895d
+bfa9d7ac-a575-52a7-8100-da8697a66c73,201.12.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Leblond</SUBJ>, <ADDR>rue Thévenot, 4.</ADDR>",7ec47eae-16af-5789-9d37-6f6bdf18b3ce
+c11494fe-49ce-55cb-a5cc-8b00b027da43,201.12.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Cochet</SUBJ>, <ADDR>rue du Petit-Carreau, 32.</ADDR>",7ec47eae-16af-5789-9d37-6f6bdf18b3ce
+369f2238-15c6-580d-8d49-d1cdfcc76e74,201.12.3,"<DESC>*Huissier.*</DESC> <SUBJ>M. Godin</SUBJ>, <ADDR>rue Neuve-Egalité, 65.</ADDR>",7ec47eae-16af-5789-9d37-6f6bdf18b3ce
+ef3d7598-955d-5980-9419-ae07b9901618,201.12.9,"<DESC>*Receveur des droits de l'enregistrement des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Debrienne</SUBJ>, <ADDR>rue Bon-Conseil, 12.</ADDR>",7ec47eae-16af-5789-9d37-6f6bdf18b3ce
+cff417ac-e290-5f9a-a577-6a8a353d1a91,201.16.1,"<DESC>*Division de Bon-Conseil.*</DESC> <SUBJ>M. Quint</SUBJ>, <ADDR>rue Thévenot, 23.</ADDR>",1c0bb765-7172-5687-99d4-ae3b57aac43f
+4c8b9961-f501-52b0-b1a8-453126e76bcb,201.16.2,"<DESC>*Div. de Bonne-Nouvelle.*</DESC> <SUBJ>M. Jacquemin</SUBJ>, <ADDR>rue Saint-Claude, 6.</ADDR>",1c0bb765-7172-5687-99d4-ae3b57aac43f
+4934c608-0eed-5a85-ba82-f459ed941c49,201.16.3,"<DESC>*Div. du Nord.*</DESC> <SUBJ>M. Oger</SUBJ>, <ADDR>rue Saint-Laurent, 7.</ADDR>",1c0bb765-7172-5687-99d4-ae3b57aac43f
+1406fbdf-bacf-5310-81fb-7ec476769b1f,201.16.4,"<DESC>*Div. de Bondy.*</DESC> <SUBJ>M. Vaugeois</SUBJ>, <ADDR>rue de Lancry, 17.</ADDR>",1c0bb765-7172-5687-99d4-ae3b57aac43f
+7a2adda8-b262-5590-9408-b9a0d5964557,202.6.1,"<SUBJ>MM. Bricogne</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue Saint-Denis, 132.</ADDR>",cf516f46-4bdd-5d44-9287-c39a7b84dc37
+df4f9a6a-964c-5ff2-932a-7df1971dc2a1,202.6.2,"<SUBJ>Goulet</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue Quincampoix, 11.</ADDR>",cf516f46-4bdd-5d44-9287-c39a7b84dc37
+dac67dd8-f79f-5032-871c-243c478c7e8c,202.6.3,"<SUBJ>Souhart</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue des Gravilliers, 10.</ADDR>",cf516f46-4bdd-5d44-9287-c39a7b84dc37
+b8ad8220-0cc4-55fd-b28b-84ff41a7b1b2,202.6.4,"<SUBJ>Gallet</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>rue Aumaire, 53.</ADDR>",cf516f46-4bdd-5d44-9287-c39a7b84dc37
+49e7fa6c-6ecf-595b-8320-660510d7478a,202.6.5,"<SUBJ>Monvoisin</SUBJ>, <DESC>*chef de l'état civil*</DESC>, <ADDR>rue Meslé, 12.</ADDR>",cf516f46-4bdd-5d44-9287-c39a7b84dc37
+3d935191-3fdd-5dad-ae99-95ed411f0fa7,202.8.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Lamouque</SUBJ>, <ADDR>rue Saint-Martin, 85.</ADDR>",a9609e27-e94b-52f6-ad4c-91e5fdf9b951
+eef0ac11-e3b5-53ec-9d07-1a514be871fe,202.8.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Boucher</SUBJ>, <ADDR>rue des Cinq-Diamans, 24.</ADDR>",a9609e27-e94b-52f6-ad4c-91e5fdf9b951
+ec6e9955-d19b-5b8c-841d-b2d0866c913d,202.8.3,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Lhermite</SUBJ>, <ADDR>rue de la Vieille-Monnaie, 17.</ADDR>",a9609e27-e94b-52f6-ad4c-91e5fdf9b951
+b5695cbe-2f01-50b7-b66e-3a0e10f3db8f,202.8.9,"<DESC>*Receveur des droits de l'enregistrement des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Huitemin</SUBJ>, <ADDR>rue Saint-Martin, 147.</ADDR>",a9609e27-e94b-52f6-ad4c-91e5fdf9b951
+d27254cd-ea03-55b9-b718-8b2a4d0dfa07,202.12.1,"<DESC>*Division du Temple.*</DESC> <SUBJ>M. Dusser</SUBJ>, <ADDR>rue Charlot, 39.</ADDR>",c73b399b-8f8f-5e04-8271-03e7a4a8013b
+c9dc5d51-70cb-5a5d-86a8-bdc3467b036f,202.12.2,"<DESC>*Division des Amis de la Patrie.*</DESC> <SUBJ>M. Lemonnier</SUBJ>, <ADDR>rue Ste.-Apolline, 5.</ADDR>",c73b399b-8f8f-5e04-8271-03e7a4a8013b
+5bf04a52-deb3-590c-af5f-95cf51eb7c8d,202.12.3,"<DESC>*Division des Gravilliers.*</DESC> <SUBJ>M. Droulot</SUBJ>, <ADDR>rue des Fontaines, 15.</ADDR>",c73b399b-8f8f-5e04-8271-03e7a4a8013b
+f55884d1-d380-5546-9241-8370dd20e76a,202.12.4,"<DESC>*Division des Lombards.*</DESC> <SUBJ>M. Gandillaud</SUBJ>, <ADDR>rue Quincampoix, 59.</ADDR>",c73b399b-8f8f-5e04-8271-03e7a4a8013b
+3026a11b-5dcb-58e2-8f62-5b508e42af2d,202.16.1,"<SUBJ>MM. Dupont</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue des Vieilles-Audriettes, 2.</ADDR>",e0d75cdf-229c-5c0b-ac03-8d5c0936f42c
+b9016392-4bca-5fea-9e1c-f7924c409e11,202.16.2,"<SUBJ>Guyot</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue du Mouton, 5.</ADDR>",e0d75cdf-229c-5c0b-ac03-8d5c0936f42c
+f30b4b11-ce91-5e5f-b0b6-b2edcf4da4ae,202.16.3,"<SUBJ>Hemar de Sevran</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de Paradis, 10.</ADDR>",e0d75cdf-229c-5c0b-ac03-8d5c0936f42c
+503cdc78-bd09-52ce-a1f9-3066ea597187,202.16.4,"<SUBJ>Lambin</SUBJ>, <DESC>*secrétaire*</DESC>, <ADDR>rue des Billettes, 7.</ADDR>",e0d75cdf-229c-5c0b-ac03-8d5c0936f42c
+990d5ebf-2e1b-536f-9a3d-903c374bb4a1,202.16.5,"<SUBJ>Gouniou</SUBJ>, <DESC>*chef de l'état-civil*</DESC>, <ADDR>rue des Blancs-Manteaux, 13.</ADDR>",e0d75cdf-229c-5c0b-ac03-8d5c0936f42c
+83748d87-adb9-5031-ba91-5b4099a6942b,202.18.1,"<DESC>*Juge de paix*</DESC>, <SUBJ>M. Fariau</SUBJ>, <ADDR>rue Saint-Avoie, 18.</ADDR>",d699267e-f235-5995-b6f0-50c004fb8ea1
+2ec2589c-b7de-55f8-b108-327962b46063,202.18.2,"<DESC>*Greffier*</DESC>, <SUBJ>M. Huet</SUBJ>, <ADDR>rue des Singes, 5.</ADDR>",d699267e-f235-5995-b6f0-50c004fb8ea1
+ebb56950-efa3-51c1-875b-dad0f294b052,202.18.3,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Simonnot</SUBJ>, <ADDR>cul-de-sac Pecquet et rue des Blancs-Manteaux, 40.</ADDR>",d699267e-f235-5995-b6f0-50c004fb8ea1
+46783086-de38-50d9-aa86-dfd6fa1ea0db,203.3.1,"*<DESC>Receveurs des droits de l'enregistrement des exploits, des actes judiciaires du tribunal et des effets de commerce</DESC>. <SUBJ>M. Finiels</SUBJ>, <ADDR>cloître-St.-Méry, 4.</ADDR>*",d699267e-f235-5995-b6f0-50c004fb8ea1
+0c7235fa-c43d-5c3f-9eb3-493c4d9b41eb,203.7.1,"<DESC>*Division de la Réunion.*</DESC> <SUBJ>M. Allemain</SUBJ>, <ADDR>rue du Cimetière-St.-Nicolas, 9.</ADDR>",a9ea6582-e459-5436-87a0-d4b705e7d697
+607af482-d1d0-5fa2-9dc7-f770d7180157,203.7.2,"<DESC>*Division des Arcis*</DESC> <SUBJ>M. Fremy</SUBJ>, <ADDR>rue de la Tixeranderie, 25.</ADDR>",a9ea6582-e459-5436-87a0-d4b705e7d697
+14f6a1c7-2502-5294-b348-d384f8668f55,203.7.3,"<DESC>*Division de l'Homme-Armé.*</DESC> <SUBJ>M. Pons</SUBJ>, <ADDR>rue de l'Homme-Armé, 3.</ADDR>",a9ea6582-e459-5436-87a0-d4b705e7d697
+57e0fc2e-4bbf-5cdf-9353-e143d643d8f4,203.7.4,"<DESC>*Division des Droits-de-l'Homme.*</DESC> <SUBJ>M. Chapuis</SUBJ>, <ADDR>rue des Juifs, 18.</ADDR>",a9ea6582-e459-5436-87a0-d4b705e7d697
+11bc5ed4-86a1-5d81-877b-c395fe4a8a86,203.11.1,"<SUBJ>MM. Bénard (Eugène)</SUBJ>, <DESC>*mairie*</DESC>, <ADDR>rue de Montreuil, 35.</ADDR>",df985729-3582-5c1c-84a0-558fa9cc7b12
+632e7716-52e9-5973-b993-eaea71809370,203.11.2,"<SUBJ>Villemsens</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue du Chemin-Vert, 6.</ADDR>",df985729-3582-5c1c-84a0-558fa9cc7b12
+34395c01-45a2-5413-a118-1bdcaf09ae47,203.11.3,"<SUBJ>Péan de Saint-Gille</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>place des Vosges, 6.</ADDR>",df985729-3582-5c1c-84a0-558fa9cc7b12
+64792993-e6eb-558c-a7fc-e58df0b188b7,203.11.4,"<SUBJ>Pillas</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>rue du Pont-aux-Choux, 85.</ADDR>",df985729-3582-5c1c-84a0-558fa9cc7b12
+1225cfea-b9b7-5cf5-b0b8-388594422c78,203.11.5,"<SUBJ>Capitaine</SUBJ>, <DESC>*chef de l'état civil*</DESC>, <ADDR>rue Jean-Beausire, 7.</ADDR>",df985729-3582-5c1c-84a0-558fa9cc7b12
+5b36c772-3d88-5cbb-a9bb-8410d0996bbf,203.13.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Pinatel</SUBJ>, <ADDR>rue St.-Bernard, 37.</ADDR>",f93178b5-dae0-5cb8-83c4-5efd4650bfb0
+6e21c4e2-ea7f-5243-8de7-f125582baceb,203.13.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Dubamel</SUBJ>, <ADDR>rue St.-Bernard, 39.</ADDR>",f93178b5-dae0-5cb8-83c4-5efd4650bfb0
+72423285-f8c8-57ce-b8be-8d745693a4a0,203.13.3,"<DESC>*Huissier.*</DESC> <SUBJ>M. Braulard</SUBJ>, <ADDR>place de la Porte Saint-Antoine, 5.</ADDR>",f93178b5-dae0-5cb8-83c4-5efd4650bfb0
+30dc6649-072d-5c1b-9172-aa6224224c5a,203.14.1,"<DESC>*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Letricheux</SUBJ>, <ADDR>rue Jarente, 10.</ADDR>",f93178b5-dae0-5cb8-83c4-5efd4650bfb0
+1f4cbe20-99b0-5ba3-85ae-261b9085e5c8,203.18.1,"<DESC>*Division des Quinze-Vingts.*</DESC> <SUBJ>M. Coutans</SUBJ>, <ADDR>rue de Charenton, 78.</ADDR>",5d5740e0-4a29-5f9d-af91-70df523c1ae4
+d9680c8c-560e-58d7-925e-77172bd0ea23,203.18.2,"<DESC>*Division de Montreuil.*</DESC> <SUBJ>M. Laurent</SUBJ>, <ADDR>rue du Faubourg-St.-Antoine, 181.</ADDR>",5d5740e0-4a29-5f9d-af91-70df523c1ae4
+e62b88f1-a4b2-5829-b29a-601e20a0b650,203.18.3,"<DESC>*Division de Popincourt.*</DESC> <SUBJ>M. Bagnard</SUBJ>, <ADDR>rue Amelot, 36.</ADDR>",5d5740e0-4a29-5f9d-af91-70df523c1ae4
+beaba1e2-df22-5faf-a2d9-883d871ca0ed,203.18.4,"<DESC>*Division de l'Indivisibilité.*</DESC> <SUBJ>M. Lafontaine</SUBJ>, <ADDR>rue Neuve-St.-François, 3.</ADDR>",5d5740e0-4a29-5f9d-af91-70df523c1ae4
+3caf12b9-5392-5e2a-865f-1f79b16a254e,204.6.2,"<SUBJ>Molinier Montplanqua</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de la Verrerie, 36.</ADDR>",e0531024-0d79-57ad-acd5-37d7ea31f1b3
+abbbd5be-e7f3-5974-899d-ddc6046d48c5,204.6.3,"<SUBJ>Denise</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue St.-Antoine, 76.</ADDR>",e0531024-0d79-57ad-acd5-37d7ea31f1b3
+28f0c5f2-14c2-5dd9-8678-b84b8ed9f8d8,204.6.4,"<SUBJ>Bellicard</SUBJ>, <DESC>*secrétaire*</DESC>, <ADDR>rue St.-Denis, 118.</ADDR>",e0531024-0d79-57ad-acd5-37d7ea31f1b3
+5d4c91fe-1970-524f-9760-5e4dec148b14,204.6.5,"<SUBJ>Lorthioir</SUBJ>, <DESC>*chef de l'état civil*</DESC>, <ADDR>parvis Notre-Dame, 22.</ADDR>",e0531024-0d79-57ad-acd5-37d7ea31f1b3
+4c04a90e-b36c-58d7-8bc8-a4eac47c3b88,204.8.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Wisnick</SUBJ>, <ADDR>rue des Barres, 4.</ADDR>",5c147780-bf08-5436-a242-4f9287cfaa69
+b1a13f4d-f7a3-5020-893e-5c484073fa0a,204.8.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Bordier</SUBJ>, <ADDR>rue des Barres, 4.</ADDR>",5c147780-bf08-5436-a242-4f9287cfaa69
+5b2b08f2-5216-5d83-9bc3-c4c58660bfdb,204.8.3,"<DESC>*Huissier.*</DESC> <SUBJ>M. Boutroux</SUBJ>, <ADDR>rue de la Mortellerie, 87-85.</ADDR>",5c147780-bf08-5436-a242-4f9287cfaa69
+9e7f85e9-a9b6-5635-9be3-36653f4db091,204.12.1,"<DESC>*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Regnaut</SUBJ>, <ADDR>quai de la République, 27.</ADDR>",5c147780-bf08-5436-a242-4f9287cfaa69
+0016a2b2-3ac0-5658-b5b8-19e47d2ee65d,204.16.1,"<DESC>*Division de la Fraternité.*</DESC> <SUBJ>M.....</SUBJ>, <ADDR>quai d'Orléans, 24.</ADDR>",20bb91c9-7bff-51c1-b8fd-c2e0bb8455ac
+abfa59e0-1bce-5592-8e05-a805d5c74a20,204.16.2,"<DESC>*Division de la Cité.*</DESC> <SUBJ>M. Violet</SUBJ>, <ADDR>cloître Notre-Dame, 4.</ADDR>",20bb91c9-7bff-51c1-b8fd-c2e0bb8455ac
+82914575-10fb-5ce7-bc4f-eb109338b48a,204.16.3,"<DESC>*Division de la Fidélité.*</DESC> <SUBJ>M. Taine</SUBJ>, <ADDR>rue des Barres, 4.</ADDR>",20bb91c9-7bff-51c1-b8fd-c2e0bb8455ac
+d1d735c1-6329-5891-becd-2f2d655c0572,204.16.4,"<DESC>*Division de l'Arsenal.*</DESC> <SUBJ>M. Arnould</SUBJ>, <ADDR>rue des Lions, 12.</ADDR>",20bb91c9-7bff-51c1-b8fd-c2e0bb8455ac
+4667000c-087f-5bfc-818d-dcd0e3d44d4e,204.20.1,"<SUBJ>MM. Duquesnoy</SUBJ>, <DESC>*mairie*</DESC>, <ADDR>rue Neuve-Saint-Augustin, 8.</ADDR>",9c87641d-fa5b-5626-b26f-8fb7be612eea
+21f3392f-a45e-5e78-94ea-9fc9c9edf83f,204.20.2,"<SUBJ>Piaut</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de Lille, 30.</ADDR>",9c87641d-fa5b-5626-b26f-8fb7be612eea
+47c701fb-1dbc-5e78-8bae-3476030e5329,204.20.3,"<SUBJ>Fabre</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de Seine, 30.</ADDR>",9c87641d-fa5b-5626-b26f-8fb7be612eea
+d5edf425-68a2-56cd-a849-b19fdd0d3b8a,204.20.4,"<SUBJ>Fontanier</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>à la Mairie.</ADDR>",9c87641d-fa5b-5626-b26f-8fb7be612eea
+3c0b53f9-85c9-5377-b56d-5c827522db13,204.22.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Godard</SUBJ>, <ADDR>rue de l'Université, 11.</ADDR>",7ed3c868-79a9-5728-bd3f-f88b05114774
+1bb4fbc9-1273-5eaa-9097-6b7aeeb98c5d,204.22.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Choquet jeune</SUBJ>, <ADDR>rue Saint-Guillaume, 30.</ADDR>",7ed3c868-79a9-5728-bd3f-f88b05114774
+3d5f592e-66f9-55c6-a5dd-72472358fe4f,204.22.3,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Choquet aîné</SUBJ>, <ADDR>rue du Sépulcre, 6</ADDR>, <DESC>pour les divisions de l'Unité et de l'Ouest.</DESC>",7ed3c868-79a9-5728-bd3f-f88b05114774
+1ba8041d-87bc-5b5c-9b65-8264c3e9351c,204.22.4,"<SUBJ>M. Fayard</SUBJ>, <ADDR>rue de Lille, 36</ADDR>, <DESC>pour les divisions de la Fontaine-de-Grenelle et des Invalides.</DESC>",7ed3c868-79a9-5728-bd3f-f88b05114774
+a6ef0ed0-f638-53fb-9b2e-e15eedb78e77,205.3.4,"<DESC>*Receveur des droits de l'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Caron</SUBJ>, <ADDR>cour Abbatiale, 6. — Unité.</ADDR>",7ed3c868-79a9-5728-bd3f-f88b05114774
+145d67c5-f505-54b4-b981-1f74c5e0bacd,205.7.1,"<DESC>*Division des Invalides.*</DESC> <SUBJ>M. Martinet</SUBJ>, <ADDR>rue de la Boucherie, au Gros-Caillou, 29.</ADDR>",ea1e8b8f-d73b-5047-9f6e-0656f210f92b
+e3b5f0ff-2a59-561f-b042-cc52a7d4e783,205.7.2,"<DESC>*Division de la Fontaine-de-Grenelle.*</DESC> <SUBJ>M. Sobry</SUBJ>, <ADDR>rue du Bacq, 58.</ADDR>",ea1e8b8f-d73b-5047-9f6e-0656f210f92b
+8e726a2d-1699-5317-9314-8156aa5f835b,205.7.3,"<DESC>*Division de l'Unité.*</DESC> <SUBJ>M. Pessoneaux</SUBJ>, <ADDR>rue des Marais, 18.</ADDR>",ea1e8b8f-d73b-5047-9f6e-0656f210f92b
+9f1f9c6b-27a7-5521-a469-201247f3f38a,205.7.4,"<DESC>*Division de l'Ouest.*</DESC> <SUBJ>M. Genest</SUBJ>, <ADDR>rue de Sèvres, 89.</ADDR>",ea1e8b8f-d73b-5047-9f6e-0656f210f92b
+20677772-8ee2-529f-9d2a-d75d02140444,205.11.1,"<SUBJ>MM. Camet de la Bonnardiére</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue Pierre-Sarrasin, 13.</ADDR>",11e82c78-c292-532b-a607-0d056b2392fd
+0716f4df-20fb-5dd0-a3a2-26279ba60619,205.11.2,"<SUBJ>Lemoine</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>quai des Orfèvres, 40.</ADDR>",11e82c78-c292-532b-a607-0d056b2392fd
+07c86439-d8ba-535b-9c12-de9e691ea953,205.11.3,"<SUBJ>Justinart</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue Saint-Jean-de-Beauvais, 26.</ADDR>",11e82c78-c292-532b-a607-0d056b2392fd
+1d9b040f-ccc8-5eae-ac6b-7e1fd7883774,205.11.4,"<SUBJ>Gastebois</SUBJ>, <DESC>*secrétaire*</DESC>, <ADDR>à la Mairie.</ADDR>",11e82c78-c292-532b-a607-0d056b2392fd
+9e25988a-29d4-5ed6-ab21-34948a88faa8,205.11.5,"<SUBJ>Menand</SUBJ>, <DESC>*chef de l'état civil*</DESC>, <ADDR>rue de la Harpe, 81.</ADDR>",11e82c78-c292-532b-a607-0d056b2392fd
+427f7a61-b25e-557a-8dc3-b8ce066f74e9,205.13.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Guérin</SUBJ>, <ADDR>rue Férou, 28.</ADDR>",8daabc63-52fa-5d86-b841-1403d08f23e3
+5fc56812-ff59-55d8-9279-1fdcafdbf728,205.13.2,"<DESC>*Greffier.*</DESC> <SUBJ>M. Thiboult</SUBJ>, <ADDR>rue Férou, 28.</ADDR>",8daabc63-52fa-5d86-b841-1403d08f23e3
+08fdc280-0212-5f63-8f0a-f30519d303d9,205.13.3,"<DESC>*Huissier.*</DESC> <SUBJ>M. Tavernier</SUBJ>, <ADDR>rue du Four, 35.</ADDR>",8daabc63-52fa-5d86-b841-1403d08f23e3
+706c487f-8b00-5593-93d0-836afa53b410,205.18.1,"<DESC>*Receveur des droits d'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Pillon</SUBJ>, <ADDR>rue du Vieux-Colombier, 29.</ADDR>",8daabc63-52fa-5d86-b841-1403d08f23e3
+c3527f37-dfc6-51eb-8121-57d37d5987f3,205.22.1,"<DESC>*Division du Pont-Neuf.*</DESC> <SUBJ>M. Clément</SUBJ>, <ADDR>rue S.-Louis, 57.</ADDR>",9d6455c0-2994-5903-8a39-36b6ac805757
+586e29f5-a9dd-5341-90ba-cdc739e62ae9,205.22.2,"<DESC>*Division du Théâtre-Français.*</DESC> <SUBJ>M. Renouf</SUBJ>, <ADDR>rue des Poitevins, 104.</ADDR>",9d6455c0-2994-5903-8a39-36b6ac805757
+72c03933-5e19-5e7d-a453-5dacadf3a214,205.22.3,"<DESC>*Division du Luxembourg.*</DESC> <SUBJ>M. Daubanel</SUBJ>, <ADDR>rue des Cannettes, 28.</ADDR>",9d6455c0-2994-5903-8a39-36b6ac805757
+19f91c30-7496-561a-979f-5785a07f838f,205.22.4,"<DESC>*Division des Thermes.*</DESC> <SUBJ>M. Larcher</SUBJ>, <ADDR>rue S.-Jacques, 30.</ADDR>",9d6455c0-2994-5903-8a39-36b6ac805757
+cd2aac9b-72b4-5e5d-af72-ca21f6edf620,206.6.1,"<SUBJ>MM. Collette</SUBJ>, <DESC>*maire*</DESC>, <ADDR>rue S.-Jacques, 234.</ADDR>",5cfa57c1-ac0b-57ae-bc51-a5445fdf9e64
+5896b015-9fb4-5fc9-b090-c0e66137a603,206.6.2,"<SUBJ>Poulin</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de la Vieille-Estrapade, 9.</ADDR>",5cfa57c1-ac0b-57ae-bc51-a5445fdf9e64
+937a4bb6-5cfa-5fb8-b92f-472de2ea5dd2,206.6.3,"<SUBJ>Salleron (Joseph)</SUBJ>, <DESC>*adjoint*</DESC>, <ADDR>rue de l'Oursine, 9.</ADDR>",5cfa57c1-ac0b-57ae-bc51-a5445fdf9e64
+6f795489-e7e5-5861-af76-1513048d0532,206.6.4,"<SUBJ>Deneufforge</SUBJ>, <DESC>*secrétaire en chef*</DESC>, <ADDR>rue du Plâtre-S.-Jacques, 14.</ADDR>",5cfa57c1-ac0b-57ae-bc51-a5445fdf9e64
+7a76ae36-a58c-546b-9b71-5e0e8ae2fa13,206.6.5,"<SUBJ>Desbans</SUBJ>, <DESC>*chef de l'état-civil*</DESC>, <ADDR>quai de la Tournelle.</ADDR>",5cfa57c1-ac0b-57ae-bc51-a5445fdf9e64
+375df3f2-3546-5b3a-aea1-780e361f3c29,206.8.1,"<DESC>*Juge de paix.*</DESC> <SUBJ>M. Gobert</SUBJ>, <ADDR>place de l'Estrapade, 4.</ADDR>",5f20aee2-00b6-5274-af3d-ea35e99a072c
+12780f9a-f4f3-527c-9f8b-ca504409ec3b,206.9.1,"<DESC>*Greffier.*</DESC> <SUBJ>M. Devillers</SUBJ>, <ADDR>rue d'Enfer, 31.</ADDR>",5f20aee2-00b6-5274-af3d-ea35e99a072c
+2fcb111f-f3ea-5968-92c9-0d602670c0c4,206.10.1,"<DESC>*Huissiers.*</DESC> <SUBJ>M. Carrel</SUBJ>, <ADDR>rue et Porte S.-Jacques, 161.</ADDR>",5f20aee2-00b6-5274-af3d-ea35e99a072c
+db274365-4a85-555a-859f-dbb762d4ab85,206.17.1,"<DESC>*Receveur des droits d'enregistrement, des exploits, des actes judiciaires du tribunal et des effets de commerce.*</DESC> <SUBJ>M. Dastier</SUBJ>, <ADDR>rue des Carmes, 6.</ADDR>",5f20aee2-00b6-5274-af3d-ea35e99a072c
+bff38a94-6143-5574-8f97-6b8db71ee83b,206.21.1,"<DESC>*Division du Panthéon.*</DESC> <SUBJ>M. Brouet</SUBJ>, <ADDR>rue de Bièvre, 21.</ADDR>",f6327b17-5ea4-5b4b-b959-008dde282313
+25ae9892-0b24-56dd-a895-1c74dee3ac4a,206.22.1,"<DESC>*Division du Jardin des Plantes.*</DESC> <SUBJ>M. Naudon</SUBJ>, <ADDR>rue des Fossés-S.-Bernard, 43.</ADDR>",f6327b17-5ea4-5b4b-b959-008dde282313
+24ac4823-6e67-5573-a74e-f9355649ef50,206.23.1,"<DESC>*Division de l'Observatoire.*</DESC> <SUBJ>M. Legoy</SUBJ>, <ADDR>rue du Faub.-S.-Jacques, 287.</ADDR>",f6327b17-5ea4-5b4b-b959-008dde282313
+e8433f41-9974-5258-b69e-88216293df48,206.24.1,"<DESC>*Division du Finistère.*</DESC> <SUBJ>M. Brion</SUBJ>, <ADDR>au marché aux Chevaux, 16.</ADDR>",f6327b17-5ea4-5b4b-b959-008dde282313
+eb3ab35f-c3a2-52b6-8d9d-c90d95dc5d83,206.30.1,"<DESC>*Greffier.*</DESC> <SUBJ>M. Duchauffour</SUBJ>, <ADDR>rue Ste-Croix-de-la-Bretonnerie, 3.</ADDR>",a93ee989-3fa0-50dd-b2e7-09b1d7425f80
+83a8e60e-0d6c-5c08-8474-6e0adf9c2f8e,206.31.1,"<DESC>*Commis-Greffier assermenté.*</DESC> <SUBJ>M. Auzolles</SUBJ>, <ADDR>rue Ste-Croix-de-la-Bretonnerie.</ADDR>",a93ee989-3fa0-50dd-b2e7-09b1d7425f80
+04fccb12-b175-5cd1-9d46-bb7eeca7d4a3,207.4.2,"<SUBJ>M. Pius</SUBJ>, <DESC>*Secrétaire général*</DESC>, <ADDR>rue S.-Avoye, 54.</ADDR>",a860f5de-3a1c-5680-922d-75909e63ef7b
+1195d326-416e-57e1-a96f-d5f7b618e3ad,207.6.1,"<SUBJ>MM. Bauve</SUBJ>, <DESC>*secrétaire en chef*.</DESC>",97cbe18c-ff3d-571e-ab00-bf183072c223
+b412047a-a845-5816-acd1-480c17fa8675,207.6.2,"<SUBJ>Lemaître</SUBJ>, <DESC>*garde des archives*.</DESC>",97cbe18c-ff3d-571e-ab00-bf183072c223
+c4aba712-74fa-5410-ba7f-3ecccde0071a,207.6.3,"<SUBJ>Beurlier</SUBJ>, <DESC>*garde des dépôts*.</DESC>",97cbe18c-ff3d-571e-ab00-bf183072c223
+445c3a84-63e1-540e-9b6b-c7c87a98d872,207.8.1,"<SUBJ>MM. Bertrand</SUBJ>, <DESC>*chef*.</DESC>",bbb608ed-42f2-5e50-9190-b40932fb0944
+4db88e80-8b4b-5a79-ad4e-04d5f4e8380f,"207.8.2,207.8.3","<SUBJ>Boucheseiche</SUBJ>, } <DESC>*chefs de bureaux*</DESC>.
+<SUBJ>Léger</SUBJ>, }",bbb608ed-42f2-5e50-9190-b40932fb0944
+0fdf4ec1-69f4-5e34-9318-912e9d31261d,207.10.1,"<SUBJ>MM. Henri</SUBJ>, <DESC>*chef*.</DESC>",1a065adb-465a-529b-83b4-80a0cffd0af2
+ecb4d62b-340d-5f7b-8ce2-8688365bba8b,"207.10.2,207.10.3","<SUBJ>Limodin</SUBJ>, } <DESC>*chefs de bureaux*</DESC>.
+<SUBJ>Parisot</SUBJ>, }",1a065adb-465a-529b-83b4-80a0cffd0af2
+52b04dc5-e406-5ca1-a666-def8f0e0143e,207.12.1,"<SUBJ>MM. Chicou</SUBJ>, <DESC>*chef*.</DESC>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+f82b6b13-cb23-57e9-81b6-c6c5c0cbab25,"207.12.2,207.12.3","<SUBJ>Farmond</SUBJ>, } <DESC>*chefs de bureaux*</DESC>.
+<SUBJ>Dumas</SUBJ>, }",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+df13ea1f-ef1e-5459-b20f-67ad4a68b90c,207.13.1,"<SUBJ>Armand</SUBJ>, <DESC>*caissier*</DESC>, <ADDR>rue de l'Université, près celle de Beaune.</ADDR>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+16c91be3-65c6-5cdb-88e1-191b4ccf24ab,207.13.2,"<SUBJ>Happe</SUBJ>, <DESC>*architecte*, *commissaire de la petite voirie*</DESC>, <ADDR>à la Préfecture de Police.</ADDR>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+d885a3e0-a845-5b6b-a3c7-3aead8224564,207.13.3,"<SUBJ>Parton</SUBJ>, <DESC>*inspecteur de l'éclairage*</DESC>, <ADDR>rue Serpente.</ADDR>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+fc4b047b-5ebf-5101-9b7f-33469affc9d0,207.13.4,"<SUBJ>Magin</SUBJ>, <DESC>*inspecteur général de la navigation*.</DESC>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+d0f3c1d3-eaf8-5ce6-9389-1b23e6853d0a,207.13.5,"<SUBJ>Margana</SUBJ>, <DESC>*commissaire des halles et marchés*.</DESC>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+18028415-5653-5994-baf8-bdf4501176db,207.13.6,"<SUBJ>Caylus</SUBJ>, <DESC>*adjoint*.</DESC>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+e3172c6f-b0eb-5f0b-a92e-37fffd2388ce,207.13.7,"<SUBJ>Pira</SUBJ>, <DESC>*inspecteur général des chantiers*.</DESC>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+8d8dcc40-4670-56b5-ba1c-42ac82ca468b,207.13.8,"<SUBJ>Gibé</SUBJ>, <DESC>*notaire de la préfecture*</DESC>, <ADDR>rue Vivienne, 20.</ADDR>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+c87ca7f1-139a-5b53-8645-f8c447edb95c,207.13.9,"<SUBJ>Julienne</SUBJ>, <DESC>jurisconsulte - défenseur, *conseil de la Préfecture*</DESC>, <ADDR>cloître Notre-Dame, 18.</ADDR>",0128ae05-1de1-50bf-a4ae-5fc147b1202b
+ee889112-c270-5104-9e00-f267f7695464,207.15.1,"*<SUBJ>Blés (aux)</SUBJ>, <DESC>farines, grains et graines de toute espèce</DESC>*, <ADDR>près l'église St.-Eustache.</ADDR>",f453088b-1749-5c26-8d90-1cca9c8e229f
+0d66ca30-17a6-52f2-8fd9-f392dcebe382,207.15.2,"<SUBJ>*Carreau de la Halle*</SUBJ>, <ADDR>entre l'église St.-Eustache et la rue de la Ferronnerie</ADDR>; <DESC>*arrivage général de tous les légumes, beurres, fruits, œufs, poissons, etc.*</DESC>",f453088b-1749-5c26-8d90-1cca9c8e229f
+60deef4f-eda3-58ef-955f-4af9dc14e3ca,207.15.3,"<SUBJ>*Cuirs (aux)*</SUBJ>, <ADDR>rue Bon-Conseil.</ADDR>",f453088b-1749-5c26-8d90-1cca9c8e229f
+c8da3e2d-a0d0-539f-92f6-994f98c5eda0,207.15.4,"<SUBJ>*Draps (aux)*</SUBJ>, <ADDR>rue de la Poterie.</ADDR>",f453088b-1749-5c26-8d90-1cca9c8e229f
+37f87ebd-cf4c-5475-b7cf-90fc475d97d4,207.15.5,"<SUBJ>*Vins (aux)*</SUBJ>, <ADDR>quai St.-Bernard.</ADDR>",f453088b-1749-5c26-8d90-1cca9c8e229f
+3b2834d4-1ae0-59ea-880f-93f87a94a4ef,207.17.1,"<SUBJ>*Aguesseau (D')*</SUBJ>, <ADDR>rue et passage de la Magdeleine.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+d46485ec-a8b6-5c19-964c-961d6a5873f6,207.17.2,"<SUBJ>*Antoine (Saint-)*</SUBJ>, <ADDR>rue d'Aligre, faubourg St.-Antoine.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+21ad22a1-16fd-5464-852f-eaadbbeb6bff,207.17.3,"<SUBJ>*Boulainvilliers*</SUBJ>, <ADDR>rue du Bacq.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+2b8c8f77-1c67-5427-beba-2f12dbe511e3,207.17.4,"<SUBJ>*Carreau de la Halle*</SUBJ>, <ADDR>entre l'église St.-Eustache et la rue de la Ferronnerie</ADDR>; <DESC>*arrivage général de tous légumes, etc.*</DESC>",baedce8a-6432-550d-9936-7946aa8f2d8d
+6e5831a9-e67d-5f24-95b0-6d4d31dad87f,207.17.5,"<SUBJ>*Catherine (Sainte-)*</SUBJ>, <ADDR>entre la rue St.-Antoine et la place des Vosges.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+c610229f-be74-5a81-a440-2706adc0e0ae,207.17.6,"<SUBJ>*Chevaux (aux)*</SUBJ>, <ADDR>près le boulevard de l'Hôpital.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+5290cc12-00df-5709-8f22-119288e5b23f,207.17.7,"<SUBJ>*Enfants Rouges (des)*</SUBJ>, <ADDR>au Marais.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+f9ae9e4d-6217-5be0-94c3-2e13136f3496,207.17.8,"<SUBJ>*Fourrages (aux)*</SUBJ>, <ADDR>rue du Faubourg-Saint-Martin, près la barrière; et rue d'Enfer, près le Luxembourg.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+aafe1d1c-5826-56a2-b053-d9e6fcde524f,207.17.9,"<SUBJ>*Fourcyde (la rue de)*</SUBJ>, <ADDR>faubourg St.-Marceau.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+21408c6e-a0e2-5a28-a203-c3141ebe5df7,207.17.10,"<SUBJ>*Germain (Saint-)*</SUBJ>, <ADDR>dans l'emplacement de l'ancienne Foire St.-Germain.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+47929bea-4e94-5d7a-bcec-8b90990ebddc,207.17.11,"<SUBJ>*Innocens (des)*</SUBJ>, <ADDR>entre les rues de la Ferronnerie et aux Fers</ADDR>; <DESC>*arrivage général de toutes les denrées, etc.*</DESC>",baedce8a-6432-550d-9936-7946aa8f2d8d
+4d84d6bb-b183-5608-a4bc-a1e11c2f1a74,207.17.12,"<SUBJ>*Jacques-de-la-Boucherie (Saint-)*</SUBJ>, <ADDR>entre les rues St.-Jacques-de-la-Boucherie et des Arcis.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+70d40663-16c6-5b51-b9e6-5c6e085bbb0f,207.17.13,"<SUBJ>*Jacques (petit Marché Saint-)*</SUBJ>, <ADDR>rue St. Jacques, près le Panthéon.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+0131376c-424b-5e0f-92ea-31f2fe71a245,208.3.2,"<SUBJ>Joseph (Saint-)</SUBJ>, <ADDR>rue Montmartre, 144, et rues St.-Joseph et du Croissant.</ADDR> <DESC>Ce marché, qui obstruait précédemment la rue Montmartre, construit depuis un an, sous l'autorité de monsieur le Conseiller d'Etat préfet de police, fait honneur aux propriétaires qui l'ont entrepris; il est d'une très-grande utilité aux acheteurs et bien éclairé; c'est le seul qui soit couvert; il est bien aéré, très-propre, très-fournies de denrées qui récréent l'œil. Il est toujours très-fréquenté par les consommateurs, et admiré par les curieux. Il serait à désirer que, dans chaque quartier, il en existât un semblable, pour débarrasser, embellir les rues, et diminuer le nombre d'accidens funestes que les étalages causent chaque jour dans Paris.</DESC>",baedce8a-6432-550d-9936-7946aa8f2d8d
+2e895a84-58c0-59ec-b9f2-ec58b70e70b4,208.4.1,"<SUBJ>Montmartre (de la rue)</SUBJ>. <DESC>Il n'existe plus. Voyez le Marché Saint-Joseph, où il a été transféré.</DESC>",baedce8a-6432-550d-9936-7946aa8f2d8d
+cdffb935-917b-5656-aa57-a24c8f9b827f,208.5.2,"<SUBJ>Patriarches (des)</SUBJ>, <ADDR>entre les rues Mouffetard et du Noir.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+e6bfae3b-3c8f-5004-b417-cf52464eab8e,208.5.3,"<SUBJ>Place Maubert (de la)</SUBJ>, <ADDR>place Maubert.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+7313e820-d463-5e93-8429-87f43d14ceb8,208.5.4,"<SUBJ>Pont Saint-Michel (du)</SUBJ>, <ADDR>place du pont St.-Michel.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+cf8b28f0-cb9a-5d35-b176-ba4a4945e4c4,208.5.5,"<SUBJ>Porte Saint-Denis (de la)</SUBJ>, <ADDR>rue et près la porte St.-Denis.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+bdf41c11-5567-5fa2-855c-dc8a8bfb1e94,208.5.6,"<SUBJ>Porte Saint-Martin (de la)</SUBJ>, <ADDR>rue et près la porte St.-Martin.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+42fbf7f3-7295-58c8-bbbe-d4c28fc70dbe,208.5.7,"<SUBJ>Sèvres (de la rue de)</SUBJ>, <ADDR>rue de Sèvres, près l'hospice des Incurables.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+032ba6a1-5d01-56e0-9de1-8e72bce4352d,208.5.8,"<SUBJ>Traversière (de la rue)</SUBJ>, <ADDR>anciens Quinze-Vingts, près les rues St.-Honoré et de l'Anglade.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+e4668552-bc53-5b38-a95d-1122b1fbc40b,208.5.9,"<SUBJ>Vallée (la)</SUBJ>, <ADDR>quai des Augustins, près le pont Neuf</ADDR>; <DESC>*arrivée générale de toute la volaille.*</DESC>",baedce8a-6432-550d-9936-7946aa8f2d8d
+481eccf3-12f8-54ad-b138-06d879cbcd12,208.5.10,"<SUBJ>Vieux (aux)</SUBJ>, <ADDR>près du quai de la Tournelle.</ADDR>",baedce8a-6432-550d-9936-7946aa8f2d8d
+3f5ed4bc-22f6-5cdc-980f-53223b334240,208.7.1,"<SUBJ>Blés (aux)</SUBJ>, <ADDR>quai de la Grève</ADDR>; <DESC>*vente de blés, avoine et autres grains.*</DESC>",9464602b-9953-55cd-9492-d8860a4343fa
+58235d5b-ebdf-50ab-ab54-7910c5c28ff2,208.7.2,"<SUBJ>Fruits (aux) ou le Mail</SUBJ>, <ADDR>au bout du quai de la Tournelle.</ADDR>",9464602b-9953-55cd-9492-d8860a4343fa
+dbb6a779-a314-577b-aa38-babdeda7417b,208.7.5,"<SUBJ>Pierres-Saint-Leu (aux)</SUBJ>, <ADDR>sur le quai de la Conférence, en face l'allée d'Antin.</ADDR>",9464602b-9953-55cd-9492-d8860a4343fa
+ad6209b6-7309-52c0-8fd5-0d7a9ab7eef3,208.7.6,"<SUBJ>Plâtre (au)</SUBJ>, <ADDR>à la Rápée.</ADDR>",9464602b-9953-55cd-9492-d8860a4343fa
+d61c742e-1204-5cf2-9a7c-2d9f53ff6c80,208.7.7,"<SUBJ>Tuiles (aux)</SUBJ>, <ADDR>sur le quai de la Tournelle.</ADDR>",9464602b-9953-55cd-9492-d8860a4343fa
+94eea73d-d2b7-5236-95e1-6368ccdbeada,208.7.8,"<SUBJ>Vins (aux)</SUBJ>, <ADDR>sur le quai St.-Bernard.</ADDR>",9464602b-9953-55cd-9492-d8860a4343fa
+ec86a907-4fc5-50e6-8ee6-5b8a61f6c68b,208.12.6,"<SUBJ>M. De Montzaigle</SUBJ>, <DESC>*secrétaire-général*</DESC>, <ADDR>à l'hôtel de la Régie.</ADDR>",9bf80ddc-ce3a-5da7-b298-260e5b472924
+7496b2b5-f9e0-5244-a71f-0852691f2c8e,208.14.1,"<SUBJ>MM. Nozan</SUBJ>, <DESC>*chef*</DESC>, <ADDR>quai de l'École, 20.</ADDR>",29d2fd1c-3102-5914-b6f3-d423e23c9187
+b6c46b3d-1f59-541a-b88c-19a6b8296eef,208.14.2,"<SUBJ>Lefebvre</SUBJ>, <DESC>*sous-chef*</DESC>, <ADDR>quai Malaquais.</ADDR>",29d2fd1c-3102-5914-b6f3-d423e23c9187
+f1117309-d393-5a8b-a04d-f99048877de9,208.16.1,"<SUBJ>MM. Comyn</SUBJ>, <DESC>*sous-chef*</DESC>, <ADDR>rue St.-Martin, 147.</ADDR>",1b50bbde-c332-504f-8ac7-2a5cdd9d127a
+477a2efc-011e-55f6-8c19-0427672580bf,208.16.2,"<SUBJ>Buchez</SUBJ>, <DESC>*sous-chef*</DESC>, <ADDR>rue de la Chaudière, 12.</ADDR>",1b50bbde-c332-504f-8ac7-2a5cdd9d127a
+6686fbdf-5efc-525c-a3fc-f76f59d9ac9d,208.16.3,"<SUBJ>Delamarre</SUBJ>, <DESC>*commis principal*</DESC>, <ADDR>quai Pelletier, 12.</ADDR>",1b50bbde-c332-504f-8ac7-2a5cdd9d127a
+53c5c57b-a8a4-5352-b775-f52b9bf850f9,208.18.1,"<SUBJ>MM. Raoul</SUBJ>, <DESC>*chef, receveur particulier des saisies*</DESC>, <ADDR>rue des Mâcons-Sorbonne, 19.</ADDR>",a32f58d8-8994-5e51-abf6-28429f2c8cac
+f3966ad7-4460-5557-83ac-7eeb5f93f247,208.18.2,"<SUBJ>Lambert</SUBJ>, <DESC>*agent du contentieux*.</DESC>",a32f58d8-8994-5e51-abf6-28429f2c8cac
+3febcc0c-15a3-56b9-81d0-6b9618327b5e,209.6.3,"<SUBJ>Ligollet</SUBJ>, <ADDR>port Saint-Nicolas, rue St.-Thomas-du-Louvre, 20.</ADDR>",367389eb-08fe-5437-8a0a-9a00a260080e
+4f83ab97-a13f-555d-b802-f0d3895562e2,209.6.4,"<SUBJ>Rouglé</SUBJ>, <ADDR>port Saint-Germain, rue de Lille, 65.</ADDR>",367389eb-08fe-5437-8a0a-9a00a260080e
+db41b8fc-ff12-5c79-8d8a-33fedb85fbde,209.8.6,"<SUBJ>D'Hervilly</SUBJ>, <ADDR>— de Charenton.</ADDR>",4d370125-98ce-51aa-8cc2-b4fa2b955fd4
+2f72c15d-b7cd-5a80-b287-231571b55b0c,209.9.1,"<SUBJ>M. Lamberi</SUBJ>, <DESC>concierge de la Régie.</DESC>",4d370125-98ce-51aa-8cc2-b4fa2b955fd4
+064dd7d9-7cac-5083-aa8d-cb8589ce7e41,"210.10.1,210.10.2,210.10.3","<DESC>*Régisseurs.*</DESC> { <SUBJ>MM. Housset</SUBJ>, <ADDR>rue de Seine-S.-Germain, 48.</ADDR>
+{ <SUBJ>Panay-Latorette</SUBJ>, <ADDR>rue du Bouloy, 23.</ADDR>
+{ <SUBJ>Pelletier</SUBJ>, <ADDR>rue de l'Ancry, 22.</ADDR>",663d3f00-55bd-5434-a8cd-1ce692ea4ba6
+0e9384bc-e25d-5cf7-a63c-628ece4fb915,210.11.1,"<SUBJ>MM. Landon-Vernon</SUBJ>, <DESC>*agent communal*</DESC>, <ADDR>rue de Crussol, 15.</ADDR>",663d3f00-55bd-5434-a8cd-1ce692ea4ba6
+d6859bd0-936e-55f5-a48e-0f61fe49f56d,"210.11.2,210.11.3,210.11.4","<SUBJ>Frochot</SUBJ>, <DESC>*chef de correspondance*</DESC>. } <ADDR>Au bureau principal, rue du Bouloy, 23.</ADDR>
+<SUBJ>Rocher</SUBJ>, <DESC>*recepteur principal*</DESC>. }
+<SUBJ>Legentil</SUBJ>, <DESC>*contrôleur*</DESC>. }",663d3f00-55bd-5434-a8cd-1ce692ea4ba6
+745466cf-c65c-5835-994f-edfdc1efdc54,210.11.5,"<SUBJ>Betont</SUBJ>, <DESC>*jaugeur en chef*</DESC>, <ADDR>rue Pastourelle, 20.</ADDR>",663d3f00-55bd-5434-a8cd-1ce692ea4ba6
+ce1c1931-4d0a-5d72-9e36-4ed00fabf6d3,"210.13.1,210.13.2,210.13.3,210.13.4,210.13.5","<DESC>Ports</DESC> { <SUBJ>S.-Bernard</SUBJ>..... } <ADDR>Rive gauche de la Seine.</ADDR>
+{ <SUBJ>des SS.-Pères</SUBJ>..... }
+{ <SUBJ>S.-Paul</SUBJ>..... } <ADDR>Rive droite de la Seine.</ADDR>
+{ <SUBJ>au Blé</SUBJ>..... }
+{ <SUBJ>S.-Nicolas</SUBJ>..... }",6d53182c-6383-5200-a846-ad34f80b226e
+947315cd-c873-54ca-bc92-b3265d0cbee6,"210.13.6,210.13.7,210.13.8,210.13.9,210.13.10","<DESC>Halles</DESC> { <SUBJ>aux Cuirs</SUBJ>..... <ADDR>Dépôt Ste-Élisabeth.</ADDR>
+{ <SUBJ>aux Toiles et Draps</SUBJ>..... <ADDR>Marché des Innocens.</ADDR>
+{ <SUBJ>à la Viande</SUBJ>..... } <ADDR>Places à Charbon. { d'Aval.</ADDR>
+{ <SUBJ>au Beure</SUBJ>..... } { <ADDR>Cisalpine.</ADDR>
+{ <SUBJ>aux Grains et aux Farines</SUBJ>. }",6d53182c-6383-5200-a846-ad34f80b226e
+69c09fd0-a747-5630-b270-6bc752b6d306,"210.16.1,210.16.2","<SUBJ>M. Bazaine</SUBJ>, <DESC>*contrôleur-jaugeur de l'octroi de bienfaisance de Paris, professeur de jaugeage*,
+Donne un cours public de stéréométrie appliqué au jaugeage, de deux jours l'un, à midi précis, dans la salle des séances de l'Athénée des arts, à l'Oratoire, et des leçons particulières</DESC>, <ADDR>à son domicile, rue du Pont-de-Lodi, 1.</ADDR>",1f658463-572f-5a22-be98-3157d063134b

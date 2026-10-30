@@ -1,0 +1,233 @@
+uuid,uid,tagged_text,parent_uuid
+5729e9ed-8ce7-5198-9b55-ed4c562933f5,178.5.1,"<SUBJ>M. Lavallette</SUBJ>, <ADDR>hôtel des Postes, rue Coq-Héron.</ADDR>",1611ff1f-bd87-5ff5-ba64-fca5bb4b5e3c
+c86a710c-4de7-5e14-afd1-8bf6a8b5c159,178.12.1,"<SUBJ>M. Legrand</SUBJ>, <DESC>*secrétaire général*</DESC>, <ADDR>rue du Petit-Lion-Saint-Sauveur, 17.</ADDR>",8593256c-f515-54fd-9016-66896841d43d
+f7619f76-c31d-51ec-8f5f-2dd1f35ba095,178.13.1,"<SUBJ>M. Benczet</SUBJ>, <DESC>*inspecteur général*</DESC>, <ADDR>rue du Doyenné, 3.</ADDR>",8593256c-f515-54fd-9016-66896841d43d
+37727f40-0599-58fa-9e68-e2cbd9245a6c,178.15.1,"<SUBJ>MM. Lavallette</SUBJ>, <DESC>*conseiller d'état directeur général*.</DESC>",463d8dc2-1ce7-56ea-a3c3-79b14ce1599a
+4689357c-67ce-5b47-83e0-b15a00a8db88,"178.16.1,178.17.1,178.18.1","<SUBJ>Boudin</SUBJ>, <ADDR>rue du Bouloy, 10.</ADDR>  } <DESC>*inspecteurs génér., membres du conseil.*</DESC>
+<SUBJ>Boulenger</SUBJ>, <ADDR>rue Projettée-Choiseul, 6.</ADDR> }
+<SUBJ>D'Avrange</SUBJ>, <ADDR>rue de l'Eperon, 9.</ADDR> }",463d8dc2-1ce7-56ea-a3c3-79b14ce1599a
+c03ce6b4-ca62-5580-8da2-be63b25b6a50,178.19.1,"<SUBJ>Darnay de la Periere</SUBJ>, <DESC>*secrétaire général*</DESC>, <ADDR>rue de Cléry, 26.</ADDR>",463d8dc2-1ce7-56ea-a3c3-79b14ce1599a
+bf0ad44c-169d-52c0-9e4a-f6aadfe9351f,178.20.1,"<SUBJ>Trubert</SUBJ>, <DESC>*notaire*.</DESC>",463d8dc2-1ce7-56ea-a3c3-79b14ce1599a
+9ed5a3c6-12d7-547c-a32f-9b6362e753a6,178.22.1,"<SUBJ>M. Joinville</SUBJ>, <DESC>*caissier général*.</DESC>",0a1f21e9-68b2-5ebf-81f3-4f387bfe8c0e
+a1e0e8ba-17e3-5bce-901b-bda14c739923,178.24.1,"<SUBJ>MM. Piron</SUBJ>, <DESC>*chef pour le Midi*</DESC>, <ADDR>rue Montmartre, 124.</ADDR>",6c35b325-e48f-5d35-a45d-57531c281049
+0f7f216c-71f1-5bcf-a836-c627d1a5f636,178.25.1,"<SUBJ>Guérin</SUBJ>, <DESC>*chef pour le Nord*</DESC>, <ADDR>rue des Bourdonnais, 10.</ADDR>",6c35b325-e48f-5d35-a45d-57531c281049
+b4a3b84e-a40b-564f-bc12-9254f05e701e,178.27.1,"<SUBJ>M. Deaddé</SUBJ>, <DESC>*chef*</DESC>, <ADDR>rue de la Feuillade, 2.</ADDR>",402e5753-97a0-5f7f-93ad-aef3156c67d8
+e9af1083-145e-5c86-8fc0-045d64b16a23,178.29.1,"<SUBJ>MM. Dancourt</SUBJ>, <DESC>*chef de division*</DESC>, <ADDR>hôtel des Postes.</ADDR>",d9865657-5a99-58fa-be2d-af4fdeead722
+3f8a37a3-6c74-5cd8-b0e4-0f8b972abef2,178.30.1,"<SUBJ>D'Agand père</SUBJ>, <DESC>*second chef*</DESC>, <ADDR>hôtel des Postes.</ADDR>",d9865657-5a99-58fa-be2d-af4fdeead722
+54320c6d-0798-55c1-87f0-0dbd2b6e9adf,179.4.1,"<SUBJ>M. Itasse</SUBJ>, <DESC>*chef de division*</DESC>, <ADDR>hôtel des Postes.</ADDR>",978cedeb-a4bd-563b-9492-e16a40c64869
+d2ea5734-69e3-5be0-ac8b-b2a6c526bb62,179.6.1,"<SUBJ>M. Frappier</SUBJ>, <DESC>*caissier*</DESC>, <ADDR>hôtel des Postes.</ADDR>",6f1173aa-4920-554d-b574-a538282bfa3a
+95b6d2b5-a342-527a-82c2-437526ef9c48,179.8.1,"<SUBJ>M. Moncy</SUBJ>, <DESC>*caissier*</DESC>, <ADDR>rue Montmartre, 130.</ADDR>",9dffe751-36a4-55b9-b663-dba8a1e8fb8a
+3ed01e22-ac76-5065-86a8-03710bb5c960,179.10.1,"<SUBJ>M. Vomorillon</SUBJ>, <DESC>*chef de division*</DESC>, <ADDR>rue d'Orléans, porte Saint-Denis, 8.</ADDR>",37fd16b3-6215-5645-ab80-a967282de103
+a781511d-e037-50ad-b741-b208691f1cf4,179.13.1,"<SUBJ>MM. Coustillier</SUBJ>, <DESC>*chef de division*</DESC>, <ADDR>hôtel des Postes.</ADDR>",d4e70324-673b-5b05-9a21-f159d08a33e3
+6d9341cf-c044-574a-916d-79849c800288,"179.13.2,179.13.3","<SUBJ>Decourcelle</SUBJ>, } <DESC>*sous-chefs*</DESC>.
+<SUBJ>Courrejoles</SUBJ>, }",d4e70324-673b-5b05-9a21-f159d08a33e3
+fa488947-e5e3-587d-bf8a-6eb61269b919,179.19.2,"<SUBJ>M. Godard</SUBJ>, <DESC>*chef de distribution*.</DESC>",7482d2a4-fa5b-5d0a-9f47-0b1f018de57e
+ef847701-754c-5237-9242-43e085e2dd29,"180.4.1,180.5.1","<SUBJ>M. Guérin</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue des Déchargeurs, 3.</ADDR> <DESC>Ce bureau comprend les quartiers Montmartre, des Halles, de la nouvelle Halle, du Palais du Tribunat, rue Saint-Denis, Palais de Justice et la Cité</DESC>.",f205c3fd-09d0-5052-8c71-353443640df7
+e419a7d8-34f4-5f70-ad7e-645be6eda458,180.7.1,"<SUBJ>1</SUBJ>. <ADDR>Rue des Vieux-Augustins, 4.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+cba6d3e7-358e-56f7-9a49-919778ffd4d5,180.7.2,"<SUBJ>2</SUBJ>. <ADDR>Rue du Jour, 3.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+1806bbb4-b421-5902-9340-d01cb56f65a0,180.7.3,"<SUBJ>3</SUBJ>. <ADDR>Rue du Bouloy, 4.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+6c979bba-6528-57be-9381-1b2843398c64,180.7.4,"<SUBJ>4</SUBJ>. <ADDR>Rue de Grenelle-St.-Honoré, 39.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+fff6bc0d-ba6d-57cd-8ffd-595642c24cbb,180.7.5,"<SUBJ>5</SUBJ>. <ADDR>Rue des Deux-Ecus, 17.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+28b68834-b282-541d-87d6-3e762a4112b9,180.7.6,"<SUBJ>6</SUBJ>. <ADDR>Rue des Prouvaires, 12.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+eb2dca83-dd53-51b1-8c2e-9ab84c501bc7,180.7.7,"<SUBJ>7</SUBJ>. <ADDR>Pointe St.-Eustache, 4.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+58991aec-c74e-5153-b3b0-f773ca6f6599,180.7.8,"<SUBJ>8</SUBJ>. <ADDR>Cul-de-sac St.-Pierre, 2.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+95e69f20-1315-5039-bab9-04c12285bed0,180.7.9,"<SUBJ>9</SUBJ>. <ADDR>Rue Montmartre, 131.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+30bca57a-5dfa-57ac-8959-c57ad4f81c58,180.7.10,"<SUBJ>10</SUBJ>. <ADDR>Rue Montmartre, 163.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+56284804-d3bb-54a2-89b1-aee1a3e89ff3,180.7.11,"<SUBJ>11</SUBJ>. <ADDR>Place des Victoires, 3.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+f3847b2b-b12c-5c75-a319-e0defc4ba7ca,180.7.12,"<SUBJ>15</SUBJ>. <ADDR>Rue des Colonnes, 1.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+b5c69147-3d2d-53a1-a548-cc551221f3df,180.7.13,"<SUBJ>16</SUBJ>. <ADDR>Rue des Arcis, 32.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+76080574-5d0d-5ba4-b593-787123e07ac1,180.7.14,"<SUBJ>18</SUBJ>. <ADDR>Rue du Chantre, 1.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+bb49b5b8-b6d7-5686-ab32-91cb034eed10,180.7.15,"<SUBJ>19</SUBJ>. <ADDR>Place du Musée, 5.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+ec6d132a-8ce4-5fa5-bc0c-c94898ef77dd,180.7.16,"<SUBJ>20</SUBJ>. <ADDR>Place du Tribunat, 237.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+0b7436fa-55bc-5659-8527-6f5276ff18e8,180.7.17,"<SUBJ>21</SUBJ>. <ADDR>Place du Carrousel, 26.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+723c79d7-f946-5931-8c45-0195a6fbaed8,180.8.1,"<SUBJ>22</SUBJ>. <ADDR>Rue des Foss.-S.-Germ.-l'Auxerr., 47.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+661b9507-a78a-5523-80f5-2e7801df4664,180.8.2,"<SUBJ>23</SUBJ>. <ADDR>Place de l'Ecole, 1.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+ade96a8f-2afb-5ed4-bf67-b093e705c890,180.8.3,"<SUBJ>24</SUBJ>. <ADDR>Rue de la Monnaie, 7.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+8589e28e-652c-539e-afc9-46385b244469,180.8.4,"<SUBJ>25</SUBJ>. <ADDR>Rue des Bourdonnais, 3.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+fa253ac0-7ed2-5b36-a422-2da48a8f02c0,180.8.5,"<SUBJ>26</SUBJ>. <ADDR>Quai de la Mégisserie, 2.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+a0dc7642-be14-55bd-936d-1a22b00c9c69,180.8.6,"<SUBJ>27</SUBJ>. <ADDR>Place de Thionville, 1.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+02789db2-5ce9-5d92-bd3c-5ec3523e6865,180.8.7,"<SUBJ>28</SUBJ>. <ADDR>A la Préfecture de Police, quai des Orfèvres, 7.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+41d8a06c-1d4e-5988-94de-78149e34e729,180.8.8,"<SUBJ>29</SUBJ>. <ADDR>Place du Palais de Justice, 7.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+5c0824c0-2156-5c58-8801-4c99d6dfef02,180.8.9,"<SUBJ>30</SUBJ>. <ADDR>Rue du Marché-Palu, 1.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+92173617-be11-5fc1-8d08-d3767c8e9a44,180.8.10,"<SUBJ>31</SUBJ>. <ADDR>Parvis Notre-Dame, 22.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+f02f132b-8683-5309-a312-c10e712fe558,180.8.11,"<SUBJ>32</SUBJ>. <ADDR>Au marché Neuf, 52.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+142bec88-a490-59fa-94c1-2ff1cc853200,180.8.12,"<SUBJ>33</SUBJ>. <ADDR>Rue de la Ferronnerie, 3.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+a0920444-f93e-527c-bcc5-db6dbb29eec5,180.8.13,"<SUBJ>34</SUBJ>. <ADDR>Rue St.-Denis, 131.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+67e34fe3-eecd-5b13-82f1-99a4711d098f,180.8.14,"<SUBJ>35</SUBJ>. <ADDR>Rue St.-Denis, 251.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+49cd34c2-e454-5a84-9f0c-63cf1ebe5fff,180.8.15,"<SUBJ>36</SUBJ>. <ADDR>Rue St.-Denis, 309.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+2207d257-8f32-5dc6-af32-fe3e49169a01,180.8.16,"<SUBJ>37</SUBJ>. <ADDR>Rue St.-Denis, 385.</ADDR>",1ae25b1d-0219-568a-be68-ead6472843f3
+ccadc858-68a8-5000-b7d8-1b7cf0b66fe6,"180.10.1,180.11.1","<SUBJ>M. Dagua</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue des Ballets-Saint-Antoine, 1.</ADDR> <DESC>Ce bureau comprend les quartiers de la Grève, rue de la Verrerie, Saint-Antoine, Saint-Paul, Arsenal et une partie du Marais</DESC>.",d12a3715-d0dc-5095-978c-73f6348dffa5
+a9f1796e-bcd8-52da-bf84-1daf714f624c,180.13.1,"<SUBJ>1</SUBJ>. <ADDR>Port St.-Paul, 20.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+73c4321e-d567-5330-8675-c4fac76c1d91,180.13.2,"<SUBJ>2</SUBJ>. <ADDR>Rue Vieille-du-Temple, 88.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+9303990a-0b03-564d-9353-54aa6fb91123,180.13.3,"<SUBJ>3</SUBJ>. <ADDR>Rue Vieille-du-Temple, 71.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+1027e592-2eca-5f18-b296-7f147bdf8c68,180.13.4,"<SUBJ>4</SUBJ>. <ADDR>Rue St.-Antoine, 50.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+e18823b6-b029-51ee-9aa2-d15286619527,180.13.5,"<SUBJ>5</SUBJ>. <ADDR>Rue St.-Antoine, 196.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+b0e86364-7093-5797-8854-052e1ca21e01,180.13.6,"<SUBJ>6</SUBJ>. <ADDR>Rue St.-Antoine, 205.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+1e247988-302d-50d0-b141-07969d2d477c,180.13.7,"<SUBJ>7</SUBJ>. <ADDR>Rue Culture-Ste.-Catherine, 22.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+4754d159-cf1b-5a5d-b084-35601d31c859,180.13.8,"<SUBJ>8</SUBJ>. <ADDR>Rue de Turenne, 69.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+13a4b5f3-f0d5-5aff-8116-d98e9edd8140,180.13.9,"<SUBJ>9</SUBJ>. <ADDR>Place des Vosges, 14.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+15003df5-63cc-5148-91b6-6c48dae9e9a4,180.13.10,"<SUBJ>10</SUBJ>. <ADDR>Portier des Minimes, 6.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+d09de152-7d92-528a-8c66-eb05fc41257b,180.13.11,"<SUBJ>11</SUBJ>. <ADDR>Quai des Ormes, 60.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+28a6f6b9-c02a-5200-a218-722658c77868,180.13.12,"<SUBJ>12</SUBJ>. <ADDR>Place de l'Hôtel-de-Ville, 11.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+809d7efe-9b53-5746-830a-08c058ec8681,180.13.13,"<SUBJ>13</SUBJ>. <ADDR>Rue du Monceau-St.-Gervais, 14.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+1c7a3a28-f03e-57c9-aded-079c3d792b52,180.13.14,"<SUBJ>14</SUBJ>. <ADDR>Marché St.-Jean, 2.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+b9fa57c8-cd71-55a8-9c9f-36e645e266fc,180.13.15,"<SUBJ>15</SUBJ>. <ADDR>Rue de la Tixeranderie, 52.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+442d292f-65e2-506c-92d6-93442bba82d0,180.14.1,"<SUBJ>16</SUBJ>. <ADDR>Rue de la Verrerie, 26.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+bc3f55c1-cd8c-56f8-96ff-69abdb0218d7,180.14.2,"<SUBJ>17</SUBJ>. <ADDR>Rue de Fourcy, 2.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+26a56e63-ae0a-5a22-9861-7da0ed4325de,180.14.3,"<SUBJ>18</SUBJ>. <ADDR>Rue des Deux-Ponts, 24.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+c2b46390-6c57-5839-b445-8146e1a9ae84,180.14.4,"<SUBJ>19</SUBJ>. <ADDR>Rue du Faub.-St.-Antoine, 26.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+8bbcf1c7-26d3-5198-964b-aad4597a91df,180.14.5,<SUBJ>20</SUBJ>. <ADDR>Rue du Faub.-St.-Antoine.</ADDR>,92e93121-0f0f-5aba-b135-bddfdf96b4e1
+b60bacab-b3fb-5bdd-82ca-11638bbc7f90,180.14.6,<SUBJ>21</SUBJ>. <ADDR>Rue de Charenton.</ADDR>,92e93121-0f0f-5aba-b135-bddfdf96b4e1
+153b3084-809f-597d-8cac-cc3d375dee68,180.14.7,"<SUBJ>22</SUBJ>. <ADDR>Rue de la Roquette, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+427dab2c-3db4-5153-b63d-fe16512f82ae,180.14.8,"<SUBJ>23</SUBJ>. <ADDR>Rue de Charonne, 72, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+d7ee48e8-792c-55bf-b76f-bf7bb948b4ff,180.14.9,"<SUBJ>24</SUBJ>. <ADDR>Rue de Charonne, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+2b657e43-db99-5b5f-a660-3ad5665a7fec,180.14.10,"<SUBJ>25</SUBJ>. <ADDR>Rue Amelot, 68, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+18828775-3577-513f-bb09-818f5f0d8414,180.14.11,"<SUBJ>26</SUBJ>. <ADDR>Rue Popincourt, 37, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+c86ba31f-e256-5976-a8ca-9f3d2dbce345,180.14.12,"<SUBJ>27</SUBJ>. <ADDR>Rue Picpus, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+1a7221e9-cb48-5b35-a27f-b311b42f8d02,180.14.13,"<SUBJ>28</SUBJ>. <ADDR>Rue du Faub.-St.-Antoine, 91, pet. b.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+c43ea952-164e-516b-9704-fa999ab16dbe,180.14.14,"<SUBJ>29</SUBJ>. <ADDR>Rue Picpus, 19, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+01b25d26-ab0e-5b6b-96b8-961ad16ddfef,180.14.15,"<SUBJ>30</SUBJ>. <ADDR>A la Râpee, petite banlieue.</ADDR>",92e93121-0f0f-5aba-b135-bddfdf96b4e1
+c9768a10-26ca-5776-8f85-cb89df9847b5,"180.16.1,180.17.1","<SUBJ>M. Langlade</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue du Grand-Chantier.</ADDR> <DESC>Ce bureau comprend les quartiers St.-Martin, du Temple, et l'autre partie du Marais</DESC>.",9c31e3d3-9123-57a6-b742-d0c0eec7d1c0
+1aab9e7d-771e-50b5-864a-98299c31b379,180.19.1,"<SUBJ>1</SUBJ>. <ADDR>Rue du Perche, 4.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+6f29616a-746a-5047-b541-d3c6daa761c4,180.19.2,"<SUBJ>2</SUBJ>. <ADDR>Rue de Poitou, 4.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+8942a7d0-7362-553f-afd0-28a6e2072d92,180.19.3,"<SUBJ>3</SUBJ>. <ADDR>Rue de Bretagne, 37.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+1cf161bc-ad8f-534c-b27e-f4d975a9d30c,180.19.4,"<SUBJ>4</SUBJ>. <ADDR>Boulevard du Temple, 15.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+3839553d-9999-54c8-b5f4-7293150428fc,180.19.5,"<SUBJ>5</SUBJ>. <ADDR>Rue du Temple, 13.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+aabf7345-6e72-5540-b117-04ab22ca88b7,180.19.6,"<SUBJ>6</SUBJ>. <ADDR>Rue du Temple, 83.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+2c214bb0-ce00-5c25-8a95-0471fbfd2eb9,180.19.7,"<SUBJ>7</SUBJ>. <ADDR>Rue du Temple, 106.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+9afe09c0-c111-5bf5-8e64-8576b2389dca,180.19.8,"<SUBJ>8</SUBJ>. <ADDR>Rue St.-Avoye, 57.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+92ed1ba8-2336-5ce8-9ef3-e7bef9808377,180.19.9,"<SUBJ>9</SUBJ>. <ADDR>Rue St.-Avoye, 15.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+4d764c0c-6b01-59ad-b061-e78ceb5bd0de,180.20.1,"<SUBJ>10</SUBJ>. <ADDR>Rue St.-Méry, 46.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+3a8bc660-d7fb-5d5e-9356-a51618b7dc09,180.20.2,"<SUBJ>11</SUBJ>. <ADDR>Rue des Blancs-Manteaux, 19.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+040215e4-bbe3-54ca-91b9-ae688d875c97,180.20.3,"<SUBJ>12</SUBJ>. <ADDR>Rue des Gravilliers, 26.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+d6e62dba-bede-5915-975b-26b30b7b2f86,180.20.4,"<SUBJ>13</SUBJ>. <ADDR>Rue Aumaire, 28.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+8f6d4643-b8a7-5205-b888-156010cd8ef7,180.20.5,"<SUBJ>14</SUBJ>. <ADDR>Rue Phelippeaux, 38.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+f652b9a1-610d-5be6-a05d-854fc512f9e7,180.20.6,"<SUBJ>15</SUBJ>. <ADDR>Rue Grenier-St.-Lazare, 15.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+312d689a-056f-500b-a4c5-d57b729da810,180.20.7,"<SUBJ>16</SUBJ>. <ADDR>Rue St.-Martin, 28.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+d751eb00-4af5-5d8b-b95d-f4410d521658,180.20.8,"<SUBJ>17</SUBJ>. <ADDR>Rue St.-Martin, 135.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+0c8ab96d-5af2-5d0b-a831-f9d0d0dcf702,180.20.9,"<SUBJ>18</SUBJ>. <ADDR>Rue St.-Martin, 235.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+dd789c2f-bad8-5437-b0be-4a8d2dd0bcbf,181.3.1,"<SUBJ>19</SUBJ>. <ADDR>Carré et Porte St.-Martin, 317.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+e8827780-dba3-533d-8ed9-2f4c067dc705,181.3.2,<SUBJ>21</SUBJ>. <ADDR>Rue Bourg-l'Abbé.</ADDR>,b02a53a8-5384-58de-a33a-56cba89fd5f9
+b3c4539c-b7df-588d-a057-b0ef00ec2b41,181.3.3,"<SUBJ>22</SUBJ>. <ADDR>Rue du Faub.-du-Temple, 36, pet. b.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+e4cb9676-1ff4-54ba-b2dc-61a442ae0375,181.3.4,"<SUBJ>23</SUBJ>. <ADDR>Rue du Faub.-du-Temple, 69, pet. b.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+177532f4-1f17-5fcf-95f4-b8af07db15c8,181.4.1,"<SUBJ>24</SUBJ>. <ADDR>A la Haute-Courtille, 80, petite banl.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+6c92e2c0-a7ea-5bb6-bfe4-1479c063bf0c,181.4.2,"<SUBJ>25</SUBJ>. <ADDR>Rue Mesnil-Montant, 59, petite banl.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+a92e85b4-2541-5b86-a195-488846d169b5,181.4.3,"<SUBJ>26</SUBJ>. <ADDR>A la Haute-Courtille, rue Mesnil-Montant, 17, petite banlieue.</ADDR>",b02a53a8-5384-58de-a33a-56cba89fd5f9
+88de2232-7fec-59a7-8c93-2e4fcf22cd4f,"181.6.1,181.7.1","<SUBJ>M. Grach</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue Beauregard, 11.</ADDR> <DESC>Ce bureau comprend les quartiers de la Ville-Neuve, de Bonne-Nouvelle, du Petit-Carreau, du faubourg Montmartre et de la Nouvelle-France</DESC>.",f9543703-5caf-52cf-8df2-6061edd23118
+755fc1e5-900f-5f4b-b0d8-0c4de68bda65,181.9.1,"<SUBJ>1</SUBJ>. <ADDR>Rue Pavée-St.-Sauveur, 14.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+55140426-b6f0-55f3-aa89-fd8f38281fe4,181.9.2,"<SUBJ>2</SUBJ>. <ADDR>Rue St.-Sauveur, 24.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+1aa41b6f-5d34-50b8-a0f0-41a22c5d8888,181.9.3,"<SUBJ>3</SUBJ>. <ADDR>Rue Montorgueil, 59.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+d1e488cb-ec47-55a9-94b4-a2ca06f93969,181.9.4,"<SUBJ>4</SUBJ>. <ADDR>Rue Neuve-St.-Eustache, 15.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+4b7d3c47-e136-5db9-a3e2-dbd7eef51b29,181.9.5,"<SUBJ>5</SUBJ>. <ADDR>Rue St.-Lazare, 10.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+cfacdd26-2401-54ff-b9c6-3f26dd4a81d9,181.9.6,"<SUBJ>6</SUBJ>. <ADDR>Rue St.-Lazare, au coin de celle du Mont-Blanc.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+2e24107b-b594-5431-8102-1fc4cd787e82,181.9.7,"<SUBJ>7</SUBJ>. <ADDR>Rue du Sentier, 10.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+04da5c08-9898-5535-8ab5-49a6aa684e1f,181.9.8,"<SUBJ>8</SUBJ>. <ADDR>Rue Cérutti, 36.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+6ad45d90-a307-5ed1-8566-1704f76a07f1,181.9.9,<SUBJ>9</SUBJ>. <ADDR>Rue Taitbout.</ADDR>,65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+848deee6-5456-5df5-94a3-432ea39de73a,181.9.10,"<SUBJ>10</SUBJ>. <ADDR>Rue du Faub.-Poissonnière, 69.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+3071e605-c36d-507a-a61f-01e5ba7ff74e,181.10.1,"<SUBJ>11</SUBJ>. <ADDR>Rue du Faub.-Montmartre, 18.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+48d1b7ad-2209-579f-9992-0bddf69f55b6,181.10.2,<SUBJ>12</SUBJ>. <ADDR>Rue de Bourbon-Villeneuve.</ADDR>,65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+28779cb5-73a0-5288-9405-820833a716d0,181.10.3,"<SUBJ>13</SUBJ>. <ADDR>Rue du Faub.-St.-Denis, 67.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+673df737-92bd-5274-bd90-7c44e64e37e0,181.10.4,"<SUBJ>14</SUBJ>. <ADDR>Rue du Faub.-St.-Denis, 196.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+33881bfd-eaf3-55f6-818f-f1ff3475ef3c,181.10.5,"<SUBJ>15</SUBJ>. <ADDR>Rue du Faub.-St.-Denis, 169.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+df38f4da-fdef-5db2-ae4d-81a95cfc0522,181.10.6,"<SUBJ>16</SUBJ>. <ADDR>Rue du Faub.-St.-Martin, 103.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+6f7c3d70-00e5-5399-b302-15c9bcf47140,181.10.7,"<SUBJ>17</SUBJ>. <ADDR>Rue du Faub.-St.-Martin, 54.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+eec3c805-4096-5e8e-a9c0-cce40130e989,181.10.8,"<SUBJ>18</SUBJ>. <ADDR>Rue du Faub.-St.-Martin, 158.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+3974d063-19bf-52ab-86f9-8806da398720,181.10.9,"<SUBJ>20</SUBJ>. <ADDR>Rue Rochechouart, 19.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+6f5b9ff8-3ce7-50b5-bceb-158953db2aa8,181.10.10,"<SUBJ>21</SUBJ>. <ADDR>Rue de Lancry, 21, petite banlieue.</ADDR>",65bb7d31-6704-5a03-8c59-4b01b9a8dfdd
+64e7f06e-0c3c-533d-849b-701f2dbad24d,"181.12.1,181.13.1","<SUBJ>M. Lacour</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue Saint-Honoré, 368.</ADDR> <DESC>Ce bureau comprend les quartiers Saint-Honoré, du Mont-Blanc, du Roule, des Tuileries, de Richelieu et des Petits-Champs</DESC>.",b3da04ff-e74c-5b72-b1d6-9df5e4708d43
+93315ac8-9c40-518e-96b5-26238764bd99,181.15.1,"<SUBJ>1</SUBJ>. <ADDR>Rue St.-Louis-St.-Honoré, 1.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+cff3ef43-ee37-5e1e-9c83-03ab79e5cc9f,181.15.2,"<SUBJ>2</SUBJ>. <ADDR>Rue de Langlade, 9.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+3efc7276-5159-5b77-9aa1-62dbf4e1d809,181.15.3,"<SUBJ>3</SUBJ>. <ADDR>Rue de la Sourdière, 2.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+7943b3a3-aacb-5a88-b55e-6178af14eb71,181.15.4,"<SUBJ>4</SUBJ>. <ADDR>Rue du Mont-Blanc, 2.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+354498ef-0af8-529f-95da-e215f43383e7,181.15.5,"<SUBJ>5</SUBJ>. <ADDR>Rue St.-Honoré, 161.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+529810a7-ef87-5927-aadd-1d69e39aed6a,181.15.6,"<SUBJ>6</SUBJ>. <ADDR>Rue St.-Honoré, 94.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+325a65be-fda5-583b-9a86-90752964ec7d,181.15.7,"<SUBJ>7</SUBJ>. <ADDR>Rue Neuve-St.-Augustin, 26.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+3836d379-5640-5052-a25f-e98013631b56,181.15.8,"<SUBJ>8</SUBJ>. <ADDR>Rue des Capucines, 3.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+f2604ab2-af62-53b7-a84c-2fdd8b28a723,181.15.9,<SUBJ>9</SUBJ>. <ADDR>Rue des Orties.</ADDR>,2f9a884d-8433-5bd8-a081-d76c53b795c3
+bf534f85-3b86-54cc-8a2e-be5bea1729aa,181.15.10,"<SUBJ>10</SUBJ>. <ADDR>Rue Neuve-le-Pelletier, à l'Opéra.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+4f4e1c00-c6e1-5ef5-896b-f3e8eace11d4,181.15.11,"<SUBJ>11</SUBJ>. <ADDR>Rue de Choiseul, aux Domaines, 2.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+e95bd15a-dd8a-560f-825b-baa3faa8ead7,181.15.12,"<SUBJ>12</SUBJ>. <ADDR>Rue Neuve-St.-Marc, 11.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+11125297-d654-54cc-87ad-488600948756,181.15.13,"<SUBJ>13</SUBJ>. <ADDR>Rue Thiroux, 13.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+03bbf320-00ff-5327-af1c-e2c1ba947141,181.15.14,"<SUBJ>14</SUBJ>. <ADDR>Rue du Mont-Blanc, 50.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+cb102b33-c7fc-5d29-be6b-03b31e75ca08,181.15.15,"<SUBJ>15</SUBJ>. <ADDR>Rue du Faub.-St.-Honoré, 94.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+04194aff-d55d-5fe5-934d-1666d6cf0a6a,181.16.1,"<SUBJ>16</SUBJ>. <ADDR>Rue du Fb.-St.-Honoré, Elysée Bourb.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+daabbaf5-a82d-5282-85ed-8b77659640ef,181.16.2,"<SUBJ>17</SUBJ>. <ADDR>Au coin de la rue St.-Charles, 136.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+a4a0d24b-e07e-50d1-bebf-c8301a99c125,181.16.3,"<SUBJ>18</SUBJ>. <ADDR>Rue de la Ville-l'Evêque, 4.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+00c4d0dd-c39c-5dd4-b40d-d411057ed016,181.16.4,"<SUBJ>19</SUBJ>. <ADDR>Rue du Fb.-du-Roule, 46, petite banl.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+45d461c5-12bd-5b15-b71c-9064e744c060,181.16.5,"<SUBJ>20</SUBJ>. <ADDR>Rue de la Pépinière, 30, petite banl.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+a7d3cb47-c996-55ad-b95c-4ab96dde98eb,181.16.6,"<SUBJ>21</SUBJ>. <ADDR>Rue du Rocher, 15.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+360c261b-ddef-5397-ae36-751054a9df91,181.16.7,"<SUBJ>22</SUBJ>. <ADDR>A la Grille de Chaillot, petite banlieue.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+ebce7396-6f5c-58ab-bc06-47607195f2e0,181.16.8,"<SUBJ>23</SUBJ>. <ADDR>Grande-Rue de Chaillot, 26, pet. banl.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+298bf3f3-4685-5a5d-a338-7e62d6a2a2a9,181.16.9,"<SUBJ>24</SUBJ>. <ADDR>Quai de Chaillot, 64.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+ac82db0f-427f-50d7-b492-26d592020e39,181.16.10,"<SUBJ>25</SUBJ>. <ADDR>Rue Neuve-des-Petits-Champs, 60.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+3989ac84-ca8b-5445-ab83-a794ab136233,181.16.11,"<SUBJ>26</SUBJ>. <ADDR>Rue Neuve-des-Petits-Champs, 24.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+dbbcd8a0-7146-5c79-9ad2-86a06c0a0ccf,181.16.12,"<SUBJ>27</SUBJ>. <ADDR>Rue Neuve-des-Petits-Champs, 8.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+fc4914e2-c443-57b0-a789-57af06e87e89,181.16.13,"<SUBJ>28</SUBJ>. <ADDR>Rue de Richelieu, près la fontaine, 41.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+eb0e3020-d05d-5008-a356-0a76c2b5f9c3,181.16.14,"<SUBJ>29</SUBJ>. <ADDR>Rue de Richelieu, près celle Feydeau.</ADDR>",2f9a884d-8433-5bd8-a081-d76c53b795c3
+ee5f7d71-51aa-592d-9320-1f6546532190,181.16.15,<SUBJ>30</SUBJ>. <ADDR>Rue de Duphot.</ADDR>,2f9a884d-8433-5bd8-a081-d76c53b795c3
+7c92322c-aa20-5d91-956a-c2647271da47,"181.18.1,181.19.1","<SUBJ>M. Roux</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue de Verneuil, 20.</ADDR> <DESC>Ce bureau comprend les quartiers de la majeure partie du faubourg Saint-Germain, du côté des barrières</DESC>.",9ba7cdb2-9924-514a-835b-85040825a65b
+21d8d5bf-4f60-5422-aeea-d5eb3b44c02e,181.21.1,"<SUBJ>1</SUBJ>. <ADDR>Quai Voltaire, 7.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+70fc1b46-2ac8-5fe4-9fb3-0c3c2c41fd23,181.21.2,"<SUBJ>2</SUBJ>. <ADDR>Rue de Lille, 51.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+f1487c25-d4ee-5285-ac4c-f56620eda27a,181.21.3,"<SUBJ>3</SUBJ>. <ADDR>Rue de Courti, 8.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+82b695e6-684b-5bb5-bdc7-96026deae696,181.21.4,"<SUBJ>4</SUBJ>. <ADDR>Rue du Bacq, 49.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+dc159ea1-10ea-5703-8126-d161cf417dee,181.21.5,"<SUBJ>5</SUBJ>. <ADDR>Rue du Bacq, près celle de Babylone.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+58759733-099c-5026-96db-c06c8098a795,181.21.6,"<SUBJ>6</SUBJ>. <ADDR>Rue Taranne, 2.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+74677641-58aa-5973-ae2a-4a1840cdd873,181.21.7,"<SUBJ>7</SUBJ>. <ADDR>Rue des Saints-Pères, 22.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+51821d38-41e2-5bf3-95e8-beb7ec123633,181.21.8,"<SUBJ>8</SUBJ>. <ADDR>Rue St.-Dominique, 33.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+e8db486e-dafa-5bfd-bd5e-00cc8a3490bd,181.21.9,"<SUBJ>9</SUBJ>. <ADDR>Rue St.-Dominique-St.-Germain, 94.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+9c1ac507-7095-518b-a612-055f79c66784,181.21.10,"<SUBJ>10</SUBJ>. <ADDR>Rue de l'Université, 45.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+d9de4879-ede5-563e-b810-228cbb4d6f41,181.21.11,<SUBJ>11</SUBJ>. <ADDR>Au palais du Corps législatif.</ADDR>,bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+1eed1d78-eb1d-5f60-b9d9-338b2f0d932c,181.22.1,"<SUBJ>12</SUBJ>. <ADDR>Rue de Grenelle-St.-Germain, 104.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+613f0a5b-d519-5a79-b58f-7233fce48267,181.22.2,"<SUBJ>13</SUBJ>. <ADDR>Rue de Varennes, 18.—Ouest.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+f72b9c18-2172-5a3d-9bef-e36713d9dec3,181.22.3,"<SUBJ>14</SUBJ>. <ADDR>Rue de Sèvres, 28.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+de34a505-fd4d-5dc3-b6a2-75187b5b3da8,181.22.4,"<SUBJ>15</SUBJ>. <ADDR>Rue de Sèvres, 66.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+d7369cd6-e55a-5bf4-8808-e66ced07f3cf,181.22.5,"<SUBJ>16</SUBJ>. <ADDR>Rue des Vieilles-Tuileries, 4.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+47829a7d-5c8b-5f33-8fee-c16e88f64db0,181.22.6,"<SUBJ>17</SUBJ>. <ADDR>Rue du Petit-Vaugirard, 4.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+e905635c-ae6f-573b-a109-cc19a0d79000,181.22.7,"<SUBJ>18</SUBJ>. <ADDR>Au Gros-Caillou, 60.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+2987aaf4-1ee1-5e4c-820f-2ce8b53fc00f,181.22.8,<SUBJ>19</SUBJ>. <ADDR>Les portiers de l'Hôtel des Invalides.</ADDR>,bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+cb1b7958-515d-5337-aea7-46a432dd4731,181.22.9,"<SUBJ>20</SUBJ>. <ADDR>A l'Ecole militaire, petite banlieue.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+2e34efda-d331-567b-b625-683d5fde4485,181.22.10,"<SUBJ>21</SUBJ>. <ADDR>Rue et Chaussée de Sèvres, petite banlieue, 25.</ADDR>",bf13b4ed-fc4e-5ca7-b156-a5593e7ec96b
+603a78d8-a890-5f4c-88ef-f70a061d85cc,"182.4.1,182.5.1","<SUBJ>M. Lepreux</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue de Condé.</ADDR> <DESC>Ce bureau comprend les quartiers St.-André-des-Arcs, du Luxembourg, St.-Michel, et une partie du faubourg Saint-Germain</DESC>.",6ee886c0-90c3-54bb-842c-9b5922b639a8
+e5df548b-d492-537e-a681-1f4b3ecf02c2,182.7.1,<SUBJ>1</SUBJ>. <ADDR>Rue des Boucheries.</ADDR>,1d83d11d-9d51-5016-950b-31a5e59acfac
+e0010a79-bd59-576e-9687-b562f7ba8c77,182.7.2,"<SUBJ>2</SUBJ>. <ADDR>Rue de Bussy, 15.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+79a08723-274f-5b5c-9246-00fdf130e101,182.7.3,"<SUBJ>3</SUBJ>. <ADDR>Rue des Fossés-St.-Germ.-des-Prés, 3.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+64ba09cb-1061-576d-9ee4-59866be1f49b,182.7.4,<SUBJ>4</SUBJ>. <ADDR>Rue St.-André-des-Arcs.</ADDR>,1d83d11d-9d51-5016-950b-31a5e59acfac
+2660060c-4274-505b-a95a-4d0176cb256a,182.7.5,<SUBJ>5</SUBJ>. <ADDR>Rue St.-André-des-Arcs.</ADDR>,1d83d11d-9d51-5016-950b-31a5e59acfac
+67d3dd01-afbc-536e-b429-87dfb22879c7,182.7.6,"<SUBJ>6</SUBJ>. <ADDR>Rue St.-Severin, 15.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+f621a76f-72d0-574f-9de3-d82a91d52e2e,182.7.7,"<SUBJ>7</SUBJ>. <ADDR>Place St.-Michel, 14.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+107e5616-3169-5944-b296-ff62f9b1058a,182.7.8,"<SUBJ>8</SUBJ>. <ADDR>Rue de la Harpe, 79.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+04ead6e2-3ae8-5b6a-bef5-2c9f945dbb05,182.7.9,"<SUBJ>9</SUBJ>. <ADDR>Rue Hautefeuille, 10.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+a06e388f-6d0b-5279-9089-a6094d4fe7a0,182.7.10,<SUBJ>10</SUBJ>. <ADDR>Au coin de la rue de Thionville et du quai.</ADDR>,1d83d11d-9d51-5016-950b-31a5e59acfac
+eccbc0aa-ccd5-5613-b0b6-152d7e72ee61,182.8.1,"<SUBJ>11</SUBJ>. <ADDR>Quai des Augustins, 45.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+af3bb651-1227-5647-9c50-a741ee840117,182.8.2,"<SUBJ>12</SUBJ>. <ADDR>Rue Mazarine, 40.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+e9f0bec0-9e5e-5b79-9b70-753f3470a91d,182.8.3,<SUBJ>13</SUBJ>. <ADDR>Pavillon des Quatre-Nations.</ADDR>,1d83d11d-9d51-5016-950b-31a5e59acfac
+b6233826-c81d-56e5-9607-d467bcbe8f6b,182.8.4,"<SUBJ>14</SUBJ>. <ADDR>Rue du Colombier, 16.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+0455af86-a332-5ff2-90c4-3c1263375243,182.8.5,"<SUBJ>15</SUBJ>. <ADDR>Rue du Four-St.-Germain, 37.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+b9fcb154-92d9-51ee-914f-4d1c7788fae6,182.8.6,<SUBJ>16</SUBJ>. <ADDR>Barrière d'Enfer.</ADDR>,1d83d11d-9d51-5016-950b-31a5e59acfac
+b20d9d09-f533-5e0a-a541-d6393c2e8d8f,182.8.7,"<SUBJ>17</SUBJ>. <ADDR>Rue du Four, 9.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+ec006828-071f-5f14-8c65-cfe4a70e8747,182.8.8,"<SUBJ>18</SUBJ>. <ADDR>Au Sénat Conservateur, rue de Vaugirard, 31.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+a8f91bd0-287b-5814-af5a-ca41c9d5b412,182.8.9,"<SUBJ>19</SUBJ>. <ADDR>Rue de Vaugirard, 61.</ADDR>",1d83d11d-9d51-5016-950b-31a5e59acfac
+b1477c84-97bf-5b18-9154-798c9877058f,"182.10.1,182.11.1","<SUBJ>M. Gagnée</SUBJ>, <DESC>*chef de distribution*</DESC>, <ADDR>rue Contrescarpe-Saint-Marcel, 9.</ADDR> <DESC>Ce bureau comprend les quartiers Saint-Jacques, Saint-Marcel, Saint-Victor, Panthéon et de la Place Maubert</DESC>.",dcd0f068-e2ae-5c80-aeaf-d9b640e5849f
+6391b0b8-817d-5fa8-b891-a6dd4fdd6824,182.13.1,"<SUBJ>1</SUBJ>. <ADDR>Rue du Petit-Pont, 8.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+d256eb47-e2e7-5e85-a757-541a1129c102,182.13.2,"<SUBJ>2</SUBJ>. <ADDR>Rue St.-Jacques, vis-à-vis la rue des Noyers.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+da405f28-e9c5-5e7a-bffc-496939d0f2ae,182.13.3,"<SUBJ>3</SUBJ>. <ADDR>Rue St.-Jacques, 123, au Lycée.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+38c6b36f-1f45-5681-8505-73e36946e367,182.13.4,"<SUBJ>4</SUBJ>. <ADDR>Rue du Faub.-St.-Jacques, 308.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+93148c87-9e29-5521-be03-1c0a2bd6e743,182.13.5,<SUBJ>5</SUBJ>. <ADDR>Vis-à-vis le Val-de-Grâce.</ADDR>,039c4156-ea07-5d61-9ab2-843682ba7529
+cf158229-3352-55cc-b39b-14acf8b01c87,182.13.6,"<SUBJ>6</SUBJ>. <ADDR>Rue du Faub. St.-Jacques, vis-à-vis la rue de la Bourbe.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+88b88d8c-e7b7-5b6e-bb7f-e765508d31f5,182.13.7,"<SUBJ>7</SUBJ>. <ADDR>Rue des Charbonniers, 8.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+edfad80e-73f8-5f2e-ab9d-177197c03f4e,182.13.8,"<SUBJ>8</SUBJ>. <ADDR>Rue de l'Oursine, 11.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+c9fe7d48-f7a9-51c1-826e-92d1b5b82134,182.13.9,"<SUBJ>9</SUBJ>. <ADDR>Rue Mouffetard, 61.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+285fd0d0-02b1-51c3-a726-ed4c729f8982,182.13.10,<SUBJ>10</SUBJ>. <ADDR>Vis-à-vis la rue de l'Arbalète.</ADDR>,039c4156-ea07-5d61-9ab2-843682ba7529
+94e2800f-e67e-5642-94fc-f47d04923b88,182.13.11,"<SUBJ>11</SUBJ>. <ADDR>Rue Mouffetard, 222.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+01f256fe-a0b7-5abe-a64b-e2954f3e1ce5,182.14.1,"<SUBJ>12</SUBJ>. <ADDR>Rue Mouffetard, 270, aux Gobelins.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+1974c80c-af01-5c1d-b77e-8fd8242430df,182.14.2,"<SUBJ>13</SUBJ>. <ADDR>Rue de la Clef, 23.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+cbab6f4c-dbbd-5a07-b502-8e9df5801f0b,182.14.3,"<SUBJ>14</SUBJ>. <ADDR>Rue St.-Victor, 156.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+e1ced64f-7dc3-5785-b7ae-8acc620fb8b1,182.14.4,"<SUBJ>15</SUBJ>. <ADDR>Rue St.-Victor, 94.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+4bc818fb-c6c8-5a2b-aaf1-d379186030ca,182.14.5,"<SUBJ>16</SUBJ>. <ADDR>Rue St.-Victor, 170.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+b83f7bf5-1c44-566f-9cdb-18b7759276ca,182.14.6,"<SUBJ>17</SUBJ>. <ADDR>Quai St.-Bernard, 33.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+a70ed75e-da23-5229-afb0-f322064278d9,182.14.7,"<SUBJ>18</SUBJ>. <ADDR>Porte St.-Bernard, 1.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+0440ec61-2610-598f-b28c-0d1bfb645d45,182.14.8,<SUBJ>19</SUBJ>. <ADDR>Quai des Miramiones.</ADDR>,039c4156-ea07-5d61-9ab2-843682ba7529
+cf9831ba-28e5-5a9f-aeb2-3b6f868608fd,182.14.9,"<SUBJ>20</SUBJ>. <ADDR>Place Maubert, 28.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+d3b26b50-8903-51ee-a123-38ea852f5d6c,182.14.10,"<SUBJ>21</SUBJ>. <ADDR>Enclos de St.-Jean-de-Latranc, 2.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+12b3f1b5-5dcc-5e7e-9ef0-fdb016344ac9,182.14.11,"<SUBJ>22</SUBJ>. <ADDR>Au Panthéon Français, 3.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529
+4bdc1f85-e99b-5a2e-9814-90f0e6012520,182.14.12,"<SUBJ>23</SUBJ>. <ADDR>A l'Hospice des Femmes, petite banlieue, 7.</ADDR>",039c4156-ea07-5d61-9ab2-843682ba7529

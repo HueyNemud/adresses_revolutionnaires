@@ -1,0 +1,17 @@
+uuid,uid,tagged_text,parent_uuid
+56599321-1fa4-5fc9-a012-bec9282e7267,211.7.7,"<SUBJ>Henry</SUBJ>, <DESC>*secrétaire-greffier*</DESC>, <ADDR>quai de la Tournelle, 27.</ADDR>",29f5b769-d18d-596a-86ac-3f437c628ada
+2f152daa-8901-5701-ba4a-d329f24b3df9,211.9.1,"<SUBJ>Beaufils</SUBJ>, <DESC>*directeur*</DESC>, <ADDR>rue des Blancs-Manteaux. — Homme-Armé, 20.</ADDR>",3ca23494-9173-567e-82b0-c04a04f95efd
+d8c55e41-c7a5-5417-911e-204ca2f22b56,211.9.2,"<SUBJ>Cochius</SUBJ>, <DESC>*sous-directeur*</DESC>, <ADDR>rue de Cléry, 18.</ADDR>",3ca23494-9173-567e-82b0-c04a04f95efd
+6548f44a-cb29-5c0c-835c-b4bc5f60889e,211.9.3,"<SUBJ>D'Ysarn de Villefort</SUBJ>, <DESC>*sous-directeur*</DESC>, <ADDR>rue des Trois-Pavillons.</ADDR>",3ca23494-9173-567e-82b0-c04a04f95efd
+f90d4f7b-4b9a-504c-9378-07abd562b2e3,211.9.4,"<SUBJ>Baron</SUBJ>, <DESC>*sous-directeur*</DESC>, <ADDR>rue des Filles-Saint-Thomas, 20.</ADDR>",3ca23494-9173-567e-82b0-c04a04f95efd
+f46f6504-c4b6-545c-b9d3-e410be108642,"211.10.1,211.10.2","<DESC>*Gardes-Magasins.*</DESC> { <SUBJ>Delorme</SUBJ>. <SUBJ>Paillet</SUBJ>,
+{ <SUBJ>Daigremont</SUBJ>. <SUBJ>Delaroche</SUBJ>.",3ca23494-9173-567e-82b0-c04a04f95efd
+2033f261-098e-5b14-9751-b4c4cd02e927,211.11.1,"<SUBJ>Coupay</SUBJ>, <DESC>*caissier*</DESC>, <ADDR>rue de Thionville, 63.</ADDR>",3ca23494-9173-567e-82b0-c04a04f95efd
+c47bf539-6e4c-5dae-8bcf-18c99256d833,211.11.2,"<SUBJ>Noël</SUBJ>, <DESC>*contrôleur de la caisse*.</DESC>",3ca23494-9173-567e-82b0-c04a04f95efd
+cf5ffc53-1d7f-5283-9743-1e604ac7bd62,211.11.3,"<SUBJ>Marlet</SUBJ>, <DESC>*chef de la comptabilité*.</DESC>",3ca23494-9173-567e-82b0-c04a04f95efd
+20c14301-4152-59c2-9103-eaaf77d2ead7,211.11.4,"<SUBJ>Grimperel</SUBJ>, <DESC>*chef des vérifications et appositions*.</DESC>",3ca23494-9173-567e-82b0-c04a04f95efd
+c3cec0b7-bee1-5c9e-ac65-0d8dfa1c62b0,211.11.5,"<SUBJ>Meghon</SUBJ>, <DESC>*inspecteur des commissionnaires*.</DESC>",3ca23494-9173-567e-82b0-c04a04f95efd
+2560dd23-9b54-5abf-a699-3130576c2cd2,211.11.6,"<SUBJ>Thomas</SUBJ>, <DESC>*premier commis de la direction*.</DESC>",3ca23494-9173-567e-82b0-c04a04f95efd
+77f6ba8b-09d0-5906-9e1c-607e1dfe8485,211.15.1,"<SUBJ>Berrier</SUBJ>, <DESC>jurisconsulte, *conseil*</DESC>, <ADDR>rue des Moulins, 19.</ADDR>",0121c5fb-2c7f-59d0-854e-e5e97ef74769
+3095af7e-dc5d-5e32-b899-ec8ec7b22681,211.15.2,"<SUBJ>Preau</SUBJ>, <DESC>notaire</DESC> <ADDR>rue de la Monnaie 19.</ADDR>",0121c5fb-2c7f-59d0-854e-e5e97ef74769
+c139133c-39ed-5a50-bcb2-730769727d4b,212.4.4,"<SUBJ>Pousset (M.e) l'aînée</SUBJ>, <ADDR>rue du Temple, 91.</ADDR>",54143a3f-76e7-5825-9e6c-446118b01375

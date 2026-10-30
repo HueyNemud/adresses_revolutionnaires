@@ -1,0 +1,88 @@
+uuid,uid,tagged_text,parent_uuid
+da4fd46b-5c11-5196-a135-064d85269686,185.3.46,"<SUBJ>Corvisard</SUBJ>, <DESC>*prem. médecin de l'Empereur*</DESC>, <ADDR>rue S.-Dominique-S.-Germain, 87.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+78d3e38d-2de6-5b58-b8be-dcc62560b62d,185.4.7,"<SUBJ>Demours</SUBJ>, <DESC>*ocul.*</DESC>, <ADDR>rue de l'Université, 19.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+f3278088-f0a5-5352-960d-e26d78ff5ff0,185.4.31,"<SUBJ>Evesque</SUBJ>, <DESC>*et accoucheur*</DESC>, <ADDR>rue des Fossés-Montmartre, 23.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+5b06f487-e24f-555d-9008-121f0fd38da1,185.4.32,"<SUBJ>Fabré</SUBJ>, <DESC>*et acc.*</DESC>, <ADDR>rue de l'Arbre-sec, 35.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+3c27ae03-6198-50ba-a45d-59e177015e4e,185.4.45,"<SUBJ>Fourcroy</SUBJ>, <DESC>*conseiller d'état*</DESC>, <ADDR>au Jardin des Plantes.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+53e73983-556a-522b-8d45-d3e64b123076,186.3.7,"<SUBJ>Gras</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue Beaubourg, 50.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+a934b09c-ddd7-5512-a521-f1e3e7b68517,186.3.16,"<SUBJ>Hallé</SUBJ>, <DESC>*prem. médecin ordin. de l'Empereur*</DESC>, <ADDR>rue Pierre-Sarrazin, 10.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+4f21919c-cf56-5c71-ae9d-cdf5a6a9bb4b,186.3.35,"<SUBJ>Kéraudren</SUBJ>, <DESC>*médecin de la marine*</DESC>, <ADDR>rue de la Place-Vendôme, 16.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+1e5c7abe-991b-5970-bf61-3b5b85bddf76,187.3.6,"<SUBJ>Pinel</SUBJ> <DESC>(*médecin de l'hospice de la Salpétrière*)</DESC>, <ADDR>à l'hospice.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+8ea66adf-15df-5a88-b0ad-c2a9179d7073,187.4.15,"<SUBJ>Thouret</SUBJ> <DESC>(*direct. de l'Ecole de Médecine*)</DESC>, <ADDR>à l'Ecole de Médecine.</ADDR>",af0b371f-ec82-5f3e-ba51-3cae67a54de2
+7e7f3cd9-cb2c-5433-93dd-a5f65d7d07aa,187.6.2,"<SUBJ>Ané</SUBJ>, <DESC>*chir. de la princesse Pauline*</DESC>, <ADDR>rue S.-Guillaume, 7.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+3557403f-605e-557a-8bf8-d4f5497f56ae,187.6.4,"<SUBJ>Asseling</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>quai de l'Ecole, 8.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+3a686cc0-1e4b-546a-8e44-cb57ef7d1e85,187.6.10,"<SUBJ>Balin</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>place de l'Hôtel-de-Ville, 7.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+ac4a2162-1369-5229-ab36-11d5edae4263,187.6.14,"<SUBJ>Baronat</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>place de la colonnade du Louvre, 22.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+d9686aa2-abe2-5f4b-ad0f-fc34e0aa0b88,187.6.16,"<SUBJ>Beaudelocque</SUBJ>, <DESC>*accouch.*</DESC>, <ADDR>rue Jacob, 16.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+4591c2bf-3a88-5018-b12c-d23625b822b6,187.6.18,"<SUBJ>Becquet</SUBJ>, <DESC>*ocul.*</DESC>, <ADDR>rue des Prouvaires, 33.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+2896a0f5-d5e8-5ad2-b9ed-0bbf96599995,187.7.12,"<SUBJ>Boyer</SUBJ>, <DESC>*premier chir. de l'Empereur et de l'Impératrice*</DESC>, <ADDR>rue des SS.-Pères, 45.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+fdfcfe31-b572-56ad-9704-ff1835ac013a,187.7.13,"<SUBJ>Brézillon</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue Montorgueil, 17.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+2cf902c7-1ee1-5de0-ab8e-7eaae905c631,187.7.21,"<SUBJ>Caron</SUBJ>, <DESC>*chirurgien à l'hospice du Val-de-Grâce*</DESC>, <ADDR>rue de la Harpe, 117.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+c1821a53-40a8-5d6f-8b79-ef53bbeeebdd,188.3.1,"<SUBJ>Catalan</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue de Thionville, 33.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+5edc514d-39fc-59d2-8a75-8adbfe45e960,188.3.3,"<SUBJ>Cavalan</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue de Lille, 68.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+48c9861e-68e2-582a-bc88-f266c9e8ba99,"188.3.6,188.3.7","<SUBJ>Chabanette</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>cour du Commerce. — Th.-Fr</ADDR>.",b343476b-5851-51ff-bfb8-04cd1283776c
+a04afc23-4b10-52ae-9336-1251ea96aff2,188.3.31,"<SUBJ>Deschamps</SUBJ>, <DESC>*chir. en chef de l'hospice de l'Unité*</DESC>, <ADDR>rue des SS.-Pères, 45.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+eddafda0-58fb-54af-92ff-c8a6f53b05d6,188.3.34,"<SUBJ>Dewaldt</SUBJ>, <DESC>*oculiste*</DESC>, <ADDR>rue du Temple.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+c6d5b95b-181a-558b-829e-67cc1a810f60,188.3.39,"<SUBJ>Dubois-Foucou</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue des Bons-Enfans, 1.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+b06aa2ad-0639-5e2d-acef-4150657cb616,188.3.48,"<SUBJ>Duval</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>place des Vosges, 5.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+6d0010e3-5ef5-5943-81a4-171948f54329,188.3.50,"<SUBJ>Elisse</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue S.-Sauveur, 6.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+8d3ee4cd-a43e-5524-afc3-af4cebac7982,188.3.51,"<SUBJ>Evrat</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue de Sèvres, 23.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+a131bad3-5714-5ae4-b2df-9fe5a52afb66,188.4.5,"<SUBJ>Forestier</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue des Moulins, 1.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+b2c0e695-cf6d-520a-9dbb-e9f6c3f0cd22,188.4.6,"<SUBJ>Forlence</SUBJ>, <DESC>*oculiste*</DESC>, <ADDR>rue des SS.-Pères, 46.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+9b4ea75c-79cd-5ca6-8761-05fefbe5e865,188.4.19,"<SUBJ>Gratereau</SUBJ>, <DESC>*accouch.*</DESC>, <ADDR>rue Baillette, 3.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+5ad5a007-1ac9-53ef-9e66-b60b98c90197,188.4.21,"<SUBJ>Guérin (Claude)</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue du Montceau, 12.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+1505a943-468a-5bf8-aaf4-e28e29d4b5b6,188.4.31,"<SUBJ>Jourdain</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>quai des Augustins, 37.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+f91f4612-2f44-59bd-ab22-da00ad8410bb,188.4.32,"<SUBJ>Jouve</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue Montmartre, 145.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+f58fa6f7-809f-5238-b832-bcfbdf25958c,188.4.33,"<SUBJ>Laborde père</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue et île Saint-Louis, 74.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+fe3024d1-38ed-5923-95ba-4efdbbbabcc9,188.4.35,"<SUBJ>Lacaze-Pélarroy</SUBJ>, <DESC>*chir. en chef de l'hospice Baujon*</DESC>, <ADDR>boulevard de la Magdeleine, 17.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+c4596adf-edc7-5658-8969-b7980fe05f30,188.4.38,"<SUBJ>Lafond</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>palais du Tribunat, 72.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+bbb003b1-1d35-5fc6-941c-d96684fbb304,188.4.43,"<SUBJ>Lamblin</SUBJ>, <DESC>*accouch.*</DESC>, <ADDR>rue des SS.-Pères, 59.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+cb7e7640-8087-506e-91a9-ec4da4f94622,188.4.50,"<SUBJ>Lebrun</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue des Fossés-S.-Germain-des-Prés, 18.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+c56ccc3f-2d04-582c-afdf-61da1e93b5e1,188.4.52,"<SUBJ>Legros</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue de l'Arbre-Sec, 22.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+3e84a274-49dc-5f0c-a25a-1bdc7618dbfd,188.4.53,"<SUBJ>Lemaitre</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue Croix-des-Petits-Champs, 33.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+2782c825-3b10-5c55-85ab-0cac9b2542a1,189.3.5,"<SUBJ>Loquin</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>place Maubert, 37.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+4fa4a70d-52a8-564f-8ab9-33d7a479f10c,189.3.11,"<SUBJ>Marmont</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue de Richelieu, 4.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+118b3d6c-1d07-5e4a-a66b-d9ab3088c600,189.3.22,"<SUBJ>Millot</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue J.-J.-Rousseau, 3.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+0a4aa04d-657b-5c38-9729-2713dded6000,189.3.32,"<SUBJ>Nicolle</SUBJ>, <DESC>*accoucheur*</DESC>, <ADDR>rue St.-Martin, 78.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+9a0d51f3-d785-5eec-8033-a61a962bb0ab,189.3.33,"<SUBJ>Pé de la Borde</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue J.-J.-Rousseau, 21.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+5aad6306-7158-5d75-9225-dad1e7df7a04,189.3.34,"<SUBJ>Pelletan</SUBJ>, <DESC>*en chef de l'Hôtel-Dieu*</DESC>, <ADDR>rue S.-Christophe, 10.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+db68717a-8579-5bc1-8728-758ec5a7d21d,189.3.39,"<SUBJ>Picard</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue aux Fers, 18.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+1c46e743-7f4f-561f-ad2d-c49dd84e3bf8,189.3.43,"<SUBJ>Pommez</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue Regnault-Lefevre, 6.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+e70d7506-627b-5bc9-aea9-e586f65f87ab,189.4.4,"<SUBJ>Ricci</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>r. des Fos.-Montmartre, 27.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+6f6f10cb-2afc-518c-83dc-cfdc63e1c053,189.4.9,"<SUBJ>Roblot</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>palais du Tribunat, 45.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+3f4f9370-7f38-571a-8d99-223257d4a793,189.4.10,"<SUBJ>Ronsil</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>rue Tiquetonne, 20.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+c8cd23c0-19d1-5911-9f56-41e4fd4be1b7,189.4.15,"<SUBJ>Sallé</SUBJ>, <DESC>*bandagiste*</DESC>, <ADDR>place Thionville, 5.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+d79afa97-f661-5ff2-b154-42e8f3479d18,189.4.18,"<SUBJ>Sellez</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>place du Carrousel, 22.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+0fe89b74-2eda-5253-818b-50232f2dcf36,189.4.23,"<SUBJ>Stinville</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>passage du Saumon, 46.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+a81d1b5d-a4f9-5031-a3f9-532089f97f93,189.4.24,"<SUBJ>Sue aîné</SUBJ>, <DESC>*professeur et bibliothécaire de l'Ecole de Médecine*.</DESC>",b343476b-5851-51ff-bfb8-04cd1283776c
+e3ffa9b5-88ce-5141-883a-7a247736d88c,189.4.26,"<SUBJ>Talma</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>rue J.-J.-Rousseau, 3.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+5c12ca92-9060-5d50-8d8a-2584ae12f445,189.4.34,"<SUBJ>Verdier</SUBJ>, <DESC>*bandagiste*</DESC>, <ADDR>place de Grève, 3.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+f16d69ab-8ae4-532c-8353-1f6a4a24899a,189.4.44,"<SUBJ>Yvan</SUBJ>, <DESC>*premier chir. ordinaire de l'Empereur*</DESC>, <ADDR>hôtel des Invalides.</ADDR>",b343476b-5851-51ff-bfb8-04cd1283776c
+473a5d64-b78f-5718-b68b-e56c56ee0241,189.6.1,"<SUBJ>Absil</SUBJ>, <DESC>*bandagiste*</DESC>, <ADDR>rue Mandar, 2.</ADDR>",9b8e1858-91af-5656-8074-56de12e92e55
+673fe64d-d62a-5c30-b2e4-5233696d10eb,189.6.9,"<SUBJ>Audibran</SUBJ>, <DESC>*dentiste*</DESC>, <ADDR>pal. du Tribunat, 101.</ADDR>",9b8e1858-91af-5656-8074-56de12e92e55
+a56cd0cb-5959-5b57-ae9b-671972ad880c,"190.4.58,191.3.1","<SUBJ>Mottenberg</SUBJ>, <DESC>officier de santé de la garde *et de la maison du Sénat conservateur*</DESC>, <ADDR>rue Saint-Dominique-d'Enfer, 20.</ADDR>",9b8e1858-91af-5656-8074-56de12e92e55
+d374e321-2655-5ba0-97b7-2f8e9af4868e,191.3.2,"<SUBJ>Millet (J. F.)</SUBJ>, <DESC>*herniaire*</DESC>, <ADDR>quai Le Pelletier, 28.</ADDR>",9b8e1858-91af-5656-8074-56de12e92e55
+146af5ac-7de3-5ff6-8065-dc2e39ed76ad,191.3.24,"<SUBJ>Regent</SUBJ>, <DESC>*occuliste*</DESC>, <ADDR>rue Saint-Denis, 247.</ADDR>",9b8e1858-91af-5656-8074-56de12e92e55
+6a4be057-064a-5aa0-8383-e595d8e50600,"191.5.28,191.5.29,191.5.30","<DESC>*Fabricans d'instrumens de gomme élastique pour la chirurgie,*</DESC> { <SUBJ>Bernard</SUBJ>, <ADDR>rue des Fossés-S.-Germain, 21.</ADDR>
+{ <SUBJ>Salmer</SUBJ>, <ADDR>rue Pierre-Sarrazin, 6.</ADDR>
+{ <SUBJ>Vangameren</SUBJ>, <DESC>*bougies élastiques*</DESC>, <ADDR>rue....</ADDR>",9b8e1858-91af-5656-8074-56de12e92e55
+be7fcb36-3ad6-5b1a-b624-1d7f6edb5d45,191.8.1,"<SUBJ>Bourru</SUBJ>, <DESC>*président*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+4a92ffcd-4f3d-5ef4-9a80-25e6b4e6a03a,191.8.2,"<SUBJ>Guillotin</SUBJ>, <DESC>*directeur*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+d93f2644-b4d1-5b81-a1c0-b9495453c2aa,191.8.3,"<SUBJ>Descemet</SUBJ>, <DESC>*vice-président*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+8811ec2b-cc74-5de4-a032-ad85860aa938,191.8.4,"<SUBJ>Menuret</SUBJ>, <DESC>*vice-directeur*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+c94e3d69-6b19-500e-98e6-0b2432c18407,191.9.1,"<SUBJ>Petit (M. A.)</SUBJ>, <DESC>*secrétaires*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+b2500f64-d5e4-58dd-ab8e-aa64e670fc89,191.9.2,"<SUBJ>Fabré</SUBJ>, <DESC>*secrétaire-adjoint*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+ed9599c4-f039-5e5b-b388-b1c35ce7178b,191.9.3,"<SUBJ>Ledru</SUBJ>, <DESC>*trésorier*.</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+a394b32f-671b-52bf-abe5-7c9d12568cff,191.9.4,"<SUBJ>Bonnet</SUBJ>, <DESC>*archiv.*</DESC>",90224dde-de86-52d9-b1a4-e9ce73e5dc41
+04e3d914-9f43-5aa1-b863-46b69a6b9c5f,191.11.1,<SUBJ>Desessart</SUBJ>.—<SUBJ>Delaporte</SUBJ>.—<SUBJ>Legallois</SUBJ>.—<SUBJ>Léveillé</SUBJ>.—<SUBJ>Pagès</SUBJ>.,4e7310b9-4a07-5901-8017-95f97f2917d4
+8afd629e-9beb-51de-9ef9-be46621f4f61,191.14.1,"<SUBJ>Gondret et Perey</SUBJ>, <DESC>*secrétaires annuels de cette commission*.</DESC>",83134b3a-93f7-58ac-a973-0d525f305a2b
+05f25086-6afd-5077-9e89-99bc83db169c,191.14.2,"<SUBJ>Venier</SUBJ>, <DESC>*greffier de l'académie*</DESC>, <ADDR>rue Saint-Roch-Poissonnière, 12.</ADDR>",83134b3a-93f7-58ac-a973-0d525f305a2b
+4f4b599c-ac47-5b6f-8c17-f84242894ba1,191.14.3,"<SUBJ>Ogier</SUBJ>, <DESC>*imprimeur de l'académie*</DESC>, <ADDR>rue Saint-Louis-Saint-Honoré, 6.</ADDR>",83134b3a-93f7-58ac-a973-0d525f305a2b
+15520075-472e-58c2-bb8a-c49fe7f15c7e,191.18.1,"<SUBJ>MM. Abrial</SUBJ>, <DESC>sénateur, *président*</DESC>, <ADDR>rue Plumet, au coin du boulevard.</ADDR>",8a2ac645-668e-5d86-a43b-e23a71118d06
+971b2c5b-181e-5e6f-ace5-ef92495d98b7,191.18.2,"<SUBJ>Nauche</SUBJ>, <DESC>*vice-président*</DESC>, <ADDR>rue du Bouloy, 8.</ADDR>",8a2ac645-668e-5d86-a43b-e23a71118d06
+fc2d5e2b-5f08-5731-9f26-445e26b785b4,191.18.3,"<SUBJ>Forestier jeune</SUBJ>, <DESC>*secrétaire*</DESC>, <ADDR>rue de Richelieu, près la fontaine.</ADDR>",8a2ac645-668e-5d86-a43b-e23a71118d06
+bb4aea65-c93f-5ad6-8571-0c44866cdd14,191.18.4,"<SUBJ>Bonnet</SUBJ>, <DESC>*secrétaire perpétuel*</DESC>, <ADDR>rue Christine, 3.</ADDR>",8a2ac645-668e-5d86-a43b-e23a71118d06
+825b6488-9530-56f9-b2b1-34d289789825,192.4.1,"<SUBJ>Chompré</SUBJ>, <DESC>*président*.</DESC>",94b1beed-72ea-5d3e-98bb-97c9e56b8aa3
+ac788e19-d36f-54d6-bdb4-df70daef312b,192.4.2,"<SUBJ>Riffaut</SUBJ>, <DESC>*secrétaire*.</DESC>",94b1beed-72ea-5d3e-98bb-97c9e56b8aa3
+c5e681c1-30c4-5e14-a3a5-ff5aa0f507a0,192.7.1,"<SUBJ>Guillotin</SUBJ>, <DESC>*président*.</DESC>",d5ef778b-a285-59ec-ae2f-1128e2182064
+d158b549-011e-5180-8b45-3c5eda91ad40,192.7.2,"<SUBJ>Forestier aîné</SUBJ>, <DESC>*secrétaire*.</DESC>",d5ef778b-a285-59ec-ae2f-1128e2182064
