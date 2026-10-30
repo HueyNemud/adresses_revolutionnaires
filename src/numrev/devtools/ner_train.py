@@ -1,54 +1,22 @@
-"""Entraîne un modèle GLiNER-bi (bi-encoder) sur des annotations NER
-SUBJ/DESC/ADDR au format Label Studio (jeu construit par
-`numrev train-set`, ou export Label Studio relu), avec un split
-de validation par page et un rapport d'évaluation .txt.
+"""`numrev train` · entraîne un modèle GLiNER-bi (bi-encodeur) sur des
+annotations NER au format Label Studio (`numrev train-set`, ou un export
+relu), et écrit un rapport d'évaluation.
 
-Conversion des annotations
---------------------------
-Le JSON d'entrée est au format Label Studio : chaque exemple porte un texte
-(`data.text`) et des empans en **caractères** (`predictions[0].result[]` ou,
-si le fichier a été relu dans Label Studio, `annotations[0].result[]`).
-GLiNER attend au contraire une tokenisation par espaces avec des empans en
-**indices de mots inclusifs** (`{"tokenized_text": [...], "ner": [[start,
-end, label], ...]}`) : ce script fait cette conversion lui-même (pas de
-dépendance à une fonction interne de la bibliothèque `gliner` dont le
-format d'entrée exact n'est pas garanti), et journalise tout exemple ou
-empan qu'il ne peut pas convertir plutôt que de le perdre en silence.
-
-Longueur des empans (GLiNER `max_width`)
------------------------------------------
-`max_width` (nombre max. de mots par empan candidat) vaut 12 par défaut
-dans GLiNER — trop court pour ce jeu de données, où certains DESC dépassent
-50 mots. Ce script calcule automatiquement la largeur maximale réellement
-observée dans les données et charge le modèle avec ce `max_width` (override
-documenté de `GLiNER.from_pretrained`), sauf si `--max-width` est fourni
-explicitement.
-
-Labels
-------
-GLiNER-bi encode sémantiquement le *texte* de chaque label (bi-encoder :
-encodeur de texte + encodeur de label séparés) : utiliser tel quel les
-codes courts SUBJ/DESC/ADDR prive le modèle de sens exploitable. Ce script
-les fait correspondre par défaut à des libellés descriptifs en anglais
-(l'encodeur de labels de `knowledgator/gliner-bi-base-v2.0` est pré-entraîné
-en anglais), configurables via `--label-subj`/`--label-desc`/`--label-addr`.
-Ces libellés sont enregistrés dans `<modèle>/ner_config.json`, relu par
-`numrev tag` et `numrev audit ner`.
-
-Texte d'entrée
---------------
-Le modèle apprend sur le texte normalisé (emphase Markdown retirée,
-`numrev.ner.spans.normalize_markdown`), comme le gold : aucune frontière ne
-tombe dans une paire de marqueurs `**…**`. Garder l'emphase n'apportait rien
-de mesurable sur le gold.
-
-Jeu gold et validation
-----------------------
-Les textes du gold (`data/ner/gold.ls.json`, dev et test) sont exclus des données, quelle
-que soit leur source. Le split de validation se fait **par page** (les
-entrées d'une même page ne se répartissent pas entre entraînement et
-validation). Ce split ne sert qu'au suivi de l'entraînement ; la mesure qui
-compte est `numrev audit ner --model <modèle>` sur le gold.
+- **Conversion** : les empans en caractères (`annotations`, à défaut
+  `predictions`) deviennent des empans de mots (découpage par espaces,
+  indices inclusifs), conversion faite ici ; un exemple ou un empan non
+  convertible est compté dans le rapport, jamais perdu en silence.
+- **`max_width`** (mots par empan candidat ; 12 par défaut dans GLiNER, trop
+  peu : certains DESC dépassent 50 mots) est calculé sur les données, sauf
+  `--max-width`.
+- **Libellés** : le bi-encodeur encode le texte de chaque libellé ; SUBJ /
+  DESC / ADDR sont donc donnés au modèle sous des libellés descriptifs en
+  anglais (`--label-subj`…), enregistrés dans `<modèle>/ner_config.json`
+  (relu par `numrev tag` et `numrev audit ner`).
+- **Texte** : sans Markdown (`normalize_markdown`), comme le gold.
+- **Validation** : textes du gold exclus ; découpage par page (une page
+  entière d'un côté), pour le seul suivi de l'entraînement ; la mesure qui
+  compte est `numrev audit ner --model <modèle>`.
 """
 
 import argparse
@@ -74,9 +42,7 @@ from numrev.ner.spans import (
 )
 from numrev.paths import MODELS_DIR
 
-DESCRIPTION = (
-    "Entraîne un modèle GLiNER-bi sur des pré-annotations NER " "SUBJ/DESC/ADDR (format Label Studio) et évalue sur un split 80/20."
-)
+DESCRIPTION = "Entraîne un modèle GLiNER-bi sur des pré-annotations NER SUBJ/DESC/ADDR (format Label Studio) et évalue sur un split 80/20."
 
 DEFAULT_MODEL = "knowledgator/gliner-bi-base-v2.0"
 DEFAULT_TEST_RATIO = 0.2
@@ -390,11 +356,11 @@ def format_report(
             continue
         display_name = reverse_label_text.get(gliner_label, gliner_label)
         lines.append(
-            f"{display_name:<30}{score.precision:>12.1%}{score.recall:>12.1%}" f"{score.f1:>10.1%}{score.tp:>8}{score.fp:>8}{score.fn:>8}"
+            f"{display_name:<30}{score.precision:>12.1%}{score.recall:>12.1%}{score.f1:>10.1%}{score.tp:>8}{score.fp:>8}{score.fn:>8}"
         )
     micro = scores["__micro__"]
     lines.append(
-        f"{'MICRO (global)':<30}{micro.precision:>12.1%}{micro.recall:>12.1%}" f"{micro.f1:>10.1%}{micro.tp:>8}{micro.fp:>8}{micro.fn:>8}"
+        f"{'MICRO (global)':<30}{micro.precision:>12.1%}{micro.recall:>12.1%}{micro.f1:>10.1%}{micro.tp:>8}{micro.fp:>8}{micro.fn:>8}"
     )
     lines.append("")
     lines.append(
@@ -539,7 +505,7 @@ def run(args: argparse.Namespace) -> None:
         f"{conversion_report.max_span_width_words} mots) ; {conversion_report.excluded_gold} exemple(s) du gold exclu(s)."
     )
     if conversion_report.skipped_examples:
-        console.print(f"[yellow]{len(conversion_report.skipped_examples)} exemple(s) écarté(s) " "— détail dans le rapport final.[/yellow]")
+        console.print(f"[yellow]{len(conversion_report.skipped_examples)} exemple(s) écarté(s) — détail dans le rapport final.[/yellow]")
 
     train_examples, test_examples = split_train_test(examples, args.test_ratio, args.seed)
     console.print(f"Split : [cyan]{len(train_examples)}[/cyan] entraînement / [cyan]{len(test_examples)}[/cyan] évaluation.")
@@ -576,7 +542,7 @@ def run(args: argparse.Namespace) -> None:
     steps_per_epoch = max(1, math.ceil(len(train_dataset) / args.batch_size))
     max_steps = max(1, round(steps_per_epoch * args.epochs))
     console.print(
-        f"Entraînement : {args.epochs} époque(s) ≈ {max_steps} steps " f"({steps_per_epoch} steps/époque, batch={args.batch_size})..."
+        f"Entraînement : {args.epochs} époque(s) ≈ {max_steps} steps ({steps_per_epoch} steps/époque, batch={args.batch_size})..."
     )
 
     try:

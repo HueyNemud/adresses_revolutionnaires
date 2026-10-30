@@ -1,58 +1,27 @@
 """Étape 5 · empans SUBJ / DESC / ADDR des entrées (`<document>.entities.csv`
 → `<document>.ner.csv`, corrigé à la main).
 
-Exécute un modèle GLiNER-bi entraîné (`numrev train`) sur les lignes ENTRY
-des entités (`numrev assemble`), et ajoute au CSV le rendu balisé des empans
-détectés ainsi que leurs comptes.
+Le modèle GLiNER (`numrev train`) découpe chaque ENTRY ; colonnes ajoutées
+après `entity` :
 
-Colonnes ajoutées (insérées juste après la colonne `entity`) :
-  - `tagged_text` : le texte intégral de la ligne, avec les empans détectés
-    entourés de balises à leur position exacte, ex.
-        "<SUBJ>Dupont</SUBJ>, <DESC>boulanger</DESC>, <ADDR>12 rue de la Paix</ADDR>."
-    Le texte non couvert par un empan (ponctuation de liaison, espaces) est
-    conservé tel quel : c'est l'ENTRY entière qui est annotée, rien n'est
-    retiré. Les balises respectent l'ordre du texte source.
-  - `subject_count`, `description_count`, `address_count` : nombre
-    d'empans de chaque classe dans `tagged_text` ;
-  - `ner_confidence` : score minimal des empans de l'entrée (0 sans empan) ;
-  - `ner_suspect` : motifs de relecture prioritaire, séparés par « | »
-    (vide : rien à signaler) : `aucun empan`, `score bas` (sous
-    `--min-score`), `texte non couvert`, `SUBJ absent en tête`,
-    `signature inhabituelle` (voir numrev/ner/suspicion.py). Trier ou filtrer
-    sur cette colonne donne la file de relecture.
+- `tagged_text` : le texte de l'entrée, chaque empan entre ses balises
+  (`<SUBJ>Dupont</SUBJ>, <ADDR>rue A, 1.</ADDR>`), rien de retiré ;
+- `subject_count`, `description_count`, `address_count` ;
+- `ner_confidence` : score du moins sûr des empans (0 sans empan) ;
+- `ner_suspect` : motifs de relecture prioritaire, séparés par « | »
+  (`numrev/ner/suspicion.py`).
 
-Ces colonnes restent vides pour les lignes qui ne sont pas de type
-ENTRY (`OUT OF SCOPE`, `TITLE`, ...) ou dont le texte est vide : ce sont des
-lignes non traitées, pas des lignes traitées sans résultat. Une ligne ENTRY
-traitée mais sans aucun empan détecté obtient son texte sans balise, des
-compteurs à 0 et le motif `aucun empan` — une distinction volontaire entre
-« non applicable » et « traité, rien trouvé ».
+Vides hors ENTRY et pour une entrée sans texte (non traitées) ; une entrée
+traitée sans empan a son texte sans balise, des comptes à 0 et le motif
+`aucun empan`. Le modèle voit le texte sans Markdown, ses empans sont
+reportés sur le texte d'origine ; ses libellés viennent de
+`<modèle>/ner_config.json`. Un lot qui échoue est retenté texte par texte.
 
-Labels et texte d'entrée
-------------------------
-Le modèle prédit les libellés descriptifs utilisés lors de l'entraînement,
-pas les codes courts SUBJ/DESC/ADDR : la correspondance est lue dans
-`<modèle>/ner_config.json`, écrit par numrev train (obligatoire).
-Le modèle voit le texte normalisé (emphase Markdown retirée) ; les empans
-sont ramenés sur le texte d'origine de la colonne pour `tagged_text`.
-
-Corrections humaines
---------------------
-Le CSV produit est aussi le fichier qu'on corrige à la main (`tagged_text`,
-`parent_uuid` : rattachement d'une entrée à sa rubrique). Il suit le
-protocole de `numrev/curation.py` : les lignes `corrige = oui` du CSV existant
-sont capturées (avant de charger le modèle) dans
-`data/curation/<document>.ner.patch.csv` (versionné), puis réappliquées sur
-la nouvelle inférence, par `uuid` d'entité. Une correction dont l'entité a
-disparu, dont le texte a changé en amont (le `tagged_text` débalisé ne
-redonne plus le texte) ou dont le titre parent n'existe plus fait paniquer
-(`--force` : l'abandonner).
-
-Inférence
----------
-Par lots (`numrev.ner.gliner.predict_spans`) : un lot qui échoue est retenté
-texte par texte, et une ligne qui échoue encore est signalée sans perdre le
-reste du lot.
+Le CSV est aussi le fichier corrigé à la main (`tagged_text`, `parent_uuid`),
+selon le protocole de `numrev/curation.py`, par `uuid` : corrections
+capturées avant le chargement du modèle, réappliquées après l'inférence.
+Une correction dont l'entité a disparu, dont le texte a changé en amont ou
+dont le titre parent n'existe plus fait paniquer.
 """
 
 import argparse
@@ -144,17 +113,8 @@ def recount(row: dict[str, str]) -> None:
         row[COUNT_COLUMN_FOR_LABEL[label]] = str(counts[label])
 
 
-# --------------------------------------------------------------------------
-# CSV : lecture, insertion de colonnes, sélection des lignes à traiter
-# --------------------------------------------------------------------------
-
-
 def insert_columns_after(fieldnames: list[str], after: str, new_columns: list[str]) -> list[str]:
-    """Insère `new_columns` juste après la colonne `after`, sans dupliquer
-    une colonne déjà présente (ré-exécution idempotente sur un fichier déjà
-    traité : les colonnes existantes gardent leur position, leur contenu
-    sera simplement écrasé pour les lignes retraitées).
-    """
+    """Colonnes `new_columns` insérées juste après `after` ; une colonne déjà présente garde sa place."""
     if after not in fieldnames:
         raise ValueError(f"La colonne '{after}' est introuvable dans le CSV.")
     result = list(fieldnames)
@@ -166,8 +126,7 @@ def insert_columns_after(fieldnames: list[str], after: str, new_columns: list[st
 
 
 def select_entries(rows: list[dict[str, str]]) -> tuple[list[int], list[str], list[int]]:
-    """Retourne (indices à traiter, textes correspondants, indices ENTRY
-    écartés faute de texte)."""
+    """(rangs des ENTRY à traiter, leurs textes, rangs des ENTRY sans texte, écartées)."""
     indices: list[int] = []
     texts: list[str] = []
     empty_text_indices: list[int] = []
@@ -181,11 +140,6 @@ def select_entries(rows: list[dict[str, str]]) -> tuple[list[int], list[str], li
         else:
             empty_text_indices.append(index)
     return indices, texts, empty_text_indices
-
-
-# --------------------------------------------------------------------------
-# CLI
-# --------------------------------------------------------------------------
 
 
 DESCRIPTION = """Étape 5 · découpage des entrées en SUBJ (qui ?), DESC (quoi ?) et ADDR (où ?) par le modèle NER
@@ -223,8 +177,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def apply_corrections(curation: Curation, rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Réapplique le patch (lève CurationConflict) et recompte les empans
-    des lignes corrigées."""
+    """Réapplique le patch (CurationConflict s'il ne s'applique pas) et recompte les empans des lignes corrigées."""
     rows = curation.apply(rows, check=correction_check(rows))
     for row in rows:
         if is_corrected(row):
@@ -233,8 +186,7 @@ def apply_corrections(curation: Curation, rows: list[dict[str, str]]) -> list[di
 
 
 def write_output(curation: Curation, rows: list[dict[str, str]], output_path: Path, fieldnames: list[str], writes: Writes) -> None:
-    """Corrections réappliquées puis écriture (si `--apply`) ; en cas de
-    panique (CurationConflict), rien n'est écrit."""
+    """Corrections réappliquées, puis patch et sortie ajoutés au plan d'écriture."""
     rows = apply_corrections(curation, rows)
     curation.save_patch(writes)
     writes.add(output_path, lambda: write_csv(output_path, fieldnames, rows))

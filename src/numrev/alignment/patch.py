@@ -1,36 +1,29 @@
-"""Corrections manuelles d'un alignement : le fichier patch.
+"""Patch des entrées d'un alignement : les décisions humaines,
+`data/alignment/<gauche>__<droite>.patch.csv` (versionné, édité à la main).
 
-`numrev align dedupe` peut être relancé à chaque amélioration des étapes
-amont ; les décisions humaines vivent donc à part, dans
-`data/alignment/<gauche>__<droite>.patch.csv` (versionné), et sont
-réappliquées après chaque inférence. Une ligne du patch est :
+Une ligne est une **paire** (`left_uuid` et `right_uuid` : ces deux entrées
+se correspondent) ou un **uuid seul** (cette entrée n'a pas de
+correspondance). Le patch gagne : tout lien automatique qui touche un de ses
+uuid est écarté, puis ses paires sont ajoutées (source `manuel`, ou
+`manuel-incertain` si `certitude = incertaine`). Colonne `certitude`
+facultative.
 
-- une **paire** (`left_uuid` et `right_uuid`) : ces deux entrées se
-  correspondent ;
-- un **uuid seul** (l'autre vide) : cette entrée n'a pas de correspondance.
+Rubrique et texte balisé sont recopiés pour la relecture et le
+**réancrage** : un uuid disparu (entrée re-segmentée en amont) est
+remplacé par celui de l'entrée unique de même texte dans la même rubrique ;
+faute de quoi la ligne est **orpheline** (jamais appliquée ; les commandes
+qui produisent un alignement paniquent, sauf `--force`).
 
-Le patch gagne : tout lien Dedupe qui touche un uuid du patch est écarté,
-puis les paires du patch sont ajoutées (source `manuel`). Valider une paire
-trouvée par Dedupe la protège des relances.
-
-La colonne facultative `certitude` vaut `incertaine` quand la relecture n'a
-pas permis de trancher (homonymes, graphies trop éloignées…) : la paire est
-appliquée, mais avec la source `manuel-incertain`, qui reste visible dans
-l'export ; pour un uuid seul, « probablement sans correspondance »
-(appliqué comme les autres). Un patch sans cette colonne reste valide.
-
-Rubrique et texte balisé sont recopiés dans le patch pour la relecture et
-pour le **réancrage** : si une étape amont re-segmente une entrée, son uuid
-change ; on cherche alors l'entrée unique de même texte normalisé dans la
-même rubrique. Faute de candidat unique, la ligne est **orpheline** :
-jamais appliquée, et les scripts qui produisent un alignement paniquent
-(`--force` pour l'ignorer), comme pour les autres étapes curées
-(numrev/curation.py).
+Ce module porte aussi ce que partagent les deux patchs d'alignement
+(entrées, et rubriques : `numrev/alignment/sections.py`) : `PatchLine`,
+`Resolution`, `resolve_lines`.
 """
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
+from typing import Generic, TypeVar
 
 from numrev.alignment.records import SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text, clean_title, display_text
 from numrev.curation import read_dataclasses, write_csv
@@ -40,8 +33,66 @@ SIDES = ("left", "right")
 UNCERTAIN = "incertaine"
 
 
+class PatchLine:
+    """Ligne d'un patch d'alignement (dataclass à champs `left_uuid` et `right_uuid`)."""
+
+    def uuids(self) -> list[tuple[str, str]]:
+        """(côté, uuid) renseignés."""
+        return [(side, getattr(self, f"{side}_uuid")) for side in SIDES if getattr(self, f"{side}_uuid")]
+
+    @property
+    def is_pair(self) -> bool:
+        return bool(self.left_uuid and self.right_uuid)
+
+
+Line = TypeVar("Line", bound=PatchLine)
+
+
+@dataclass
+class Resolution(Generic[Line]):
+    """Lignes d'un patch confrontées aux volumes : applicables (uuid à jour), réancrées, orphelines."""
+
+    entries: list[Line] = field(default_factory=list)
+    reanchored: list[tuple[Line, Line]] = field(default_factory=list)  # (avant, après)
+    orphans: list[Line] = field(default_factory=list)
+
+    def updated(self, lines: list[Line]) -> list[Line]:
+        """Le patch à réécrire : lignes réancrées remplacées, orphelines gardées (à corriger à la main), ordre conservé."""
+        after = {id(before): new for before, new in self.reanchored}
+        return [after.get(id(line), line) for line in lines]
+
+
+Target = TypeVar("Target")
+
+
+def resolve_lines(
+    lines: list[Line],
+    locate: Callable[[str, str, Line], tuple[Target, bool] | None],
+    refresh: Callable[[Line, str, Target], Line],
+) -> Resolution[Line]:
+    """Confronte chaque ligne aux volumes. `locate(côté, uuid, ligne)` rend
+    (cible, réancrée) ou None (introuvable) ; `refresh(ligne, côté, cible)`
+    remet à jour l'uuid et l'instantané de ce côté."""
+    resolution: Resolution[Line] = Resolution()
+    for line in lines:
+        updated, moved = line, False
+        for side, uuid in line.uuids():
+            found = locate(side, uuid, line)
+            if found is None:
+                resolution.orphans.append(line)
+                break
+            target, reanchored = found
+            moved |= reanchored
+            updated = refresh(updated, side, target)
+        else:
+            if moved:
+                resolution.reanchored.append((line, updated))
+            resolution.entries.append(updated)
+    return resolution
+
+
 @dataclass(frozen=True)
-class PatchEntry:
+class PatchEntry(PatchLine):
     left_file: str = ""
     left_uuid: str = ""  # vide : pas de décision sur ce côté
     right_uuid: str = ""
@@ -53,14 +104,6 @@ class PatchEntry:
     note: str = ""
     certitude: str = ""  # vide : décision sûre ; UNCERTAIN : relecture sans conclusion ferme
 
-    def uuids(self) -> list[tuple[str, str]]:
-        """(côté, uuid) renseignés."""
-        return [(side, getattr(self, f"{side}_uuid")) for side in SIDES if getattr(self, f"{side}_uuid")]
-
-    @property
-    def is_pair(self) -> bool:
-        return bool(self.left_uuid and self.right_uuid)
-
     @property
     def is_uncertain(self) -> bool:
         return self.certitude.lower() == UNCERTAIN
@@ -70,37 +113,26 @@ PATCH_FIELDS = [f.name for f in fields(PatchEntry)]
 
 
 @dataclass
-class Resolution:
-    entries: list[PatchEntry]  # lignes applicables (uuid présents dans les annuaires)
-    reanchored: list[tuple[PatchEntry, PatchEntry]] = field(default_factory=list)  # (avant, après)
-    orphans: list[PatchEntry] = field(default_factory=list)
-
-
-@dataclass
 class PatchStats:
-    overridden: int = 0  # liens Dedupe écartés par le patch
+    overridden: int = 0  # liens automatiques écartés par le patch
     manual_pairs: int = 0
     unmatched_left: int = 0  # uuid de gauche déclarés sans correspondance
     unmatched_right: int = 0
 
 
-# ----------------------------------------------------------------------
-# Lecture / écriture
-# ----------------------------------------------------------------------
 def read_patch(path: Path) -> list[PatchEntry]:
     """Lignes du patch, dans l'ordre du fichier (vide s'il n'existe pas)."""
     return read_dataclasses(path, PatchEntry)
 
 
 def write_patch(path: Path, entries: list[PatchEntry]) -> None:
-    """Écriture atomique (numrev/curation.py)."""
     write_csv(path, PATCH_FIELDS, (asdict(entry) for entry in entries))
 
 
 def validate(entries: list[PatchEntry]) -> None:
-    """Lève ValueError si une ligne n'a aucun uuid, si sa `certitude` n'est
-    ni vide ni `incertaine`, ou si un uuid apparaît dans plusieurs lignes
-    (numéros de ligne du CSV, en-tête = 1)."""
+    """ValueError si une ligne n'a aucun uuid, si sa `certitude` n'est ni vide
+    ni `incertaine`, ou si un uuid figure sur plusieurs lignes (numéros de
+    ligne du CSV, en-tête = 1)."""
     problems = [f"ligne {number} : aucun uuid" for number, entry in enumerate(entries, start=2) if not entry.uuids()]
     problems += [
         f"ligne {number} : certitude « {entry.certitude} » (attendu : vide ou « {UNCERTAIN} »)"
@@ -118,29 +150,27 @@ def validate(entries: list[PatchEntry]) -> None:
         raise ValueError("Patch incohérent :\n- " + "\n- ".join(problems))
 
 
-# ----------------------------------------------------------------------
-# Construction
-# ----------------------------------------------------------------------
+def side_snapshot(side: str, record: Record) -> dict[str, str]:
+    """Colonnes d'un côté d'une ligne de patch : fichier, uuid, rubrique, texte balisé."""
+    return {
+        f"{side}_file": record.document,
+        f"{side}_uuid": record.uuid,
+        f"{side}_section": record.section_title,
+        f"{side}_tagged_text": display_text(record),
+    }
+
+
 def entry_from_records(left: Record | None, right: Record | None, note: str = "", certitude: str = "") -> PatchEntry:
-    """Ligne de patch pour une paire (deux entrées) ou une entrée sans
-    correspondance (l'autre à None), avec l'instantané texte + rubrique."""
+    """Ligne de patch pour une paire, ou une entrée sans correspondance (l'autre à None)."""
     values = {"note": note, "certitude": certitude}
     for side, record in (("left", left), ("right", right)):
         if record is not None:
-            values |= {
-                f"{side}_file": record.document,
-                f"{side}_uuid": record.uuid,
-                f"{side}_section": record.section_title,
-                f"{side}_tagged_text": display_text(record),
-            }
+            values |= side_snapshot(side, record)
     return PatchEntry(**values)
 
 
-# ----------------------------------------------------------------------
-# Réancrage
-# ----------------------------------------------------------------------
 def anchor_key(section: str, tagged_text: str) -> tuple[str, str]:
-    """(rubrique, texte) normalisés comme dans `numrev/alignment/records.py`."""
+    """(rubrique, texte) d'une ligne de patch, normalisés comme `Record.section` et `Record.text`."""
     try:
         text, _ = parse_tagged_text(tagged_text)
     except ValueError:
@@ -148,66 +178,44 @@ def anchor_key(section: str, tagged_text: str) -> tuple[str, str]:
     return clean_title(section), clean_text(normalize_markdown(text).text)
 
 
-def _index(records: dict[str, Record]) -> dict[tuple[str, str], list[Record]]:
-    index: dict[tuple[str, str], list[Record]] = defaultdict(list)
-    for record in records.values():
-        index[(record.section, record.text)].append(record)
-    return index
-
-
-def resolve(entries: list[PatchEntry], left: dict[str, Record], right: dict[str, Record]) -> Resolution:
-    """Vérifie que les uuid du patch existent ; réancre par (rubrique, texte)
-    ceux qui ont disparu ; met à jour l'instantané des autres."""
+def resolve(entries: list[PatchEntry], left: dict[str, Record], right: dict[str, Record]) -> Resolution[PatchEntry]:
+    """Uuid du patch confrontés aux volumes ; un uuid disparu est réancré par
+    (rubrique, texte), jamais sur une entrée déjà présente dans le patch."""
     records = {"left": left, "right": right}
-    indexes: dict[str, dict] = {}
     used = {(side, uuid) for entry in entries for side, uuid in entry.uuids() if uuid in records[side]}
-    resolution = Resolution(entries=[])
-    for entry in entries:
-        updated, moved, orphan = entry, False, False
-        for side, uuid in entry.uuids():
-            record = records[side].get(uuid)
-            if record is None:
-                if side not in indexes:
-                    indexes[side] = _index(records[side])
-                key = anchor_key(getattr(entry, f"{side}_section"), getattr(entry, f"{side}_tagged_text"))
-                candidates = [c for c in indexes[side].get(key, []) if (side, c.uuid) not in used]
-                if len(candidates) != 1:
-                    orphan = True
-                    break
-                record, moved = candidates[0], True
-                used.add((side, record.uuid))
-            updated = replace(
-                updated,
-                **{
-                    f"{side}_file": record.document,
-                    f"{side}_uuid": record.uuid,
-                    f"{side}_section": record.section_title,
-                    f"{side}_tagged_text": display_text(record),
-                },
-            )
-        if orphan:
-            resolution.orphans.append(entry)
-            continue
-        if moved:
-            resolution.reanchored.append((entry, updated))
-        resolution.entries.append(updated)
-    return resolution
+    indexes: dict[str, dict[tuple[str, str], list[Record]]] = {}
+
+    def locate(side: str, uuid: str, entry: PatchEntry) -> tuple[Record, bool] | None:
+        if uuid in records[side]:
+            return records[side][uuid], False
+        if side not in indexes:
+            indexes[side] = defaultdict(list)
+            for record in records[side].values():
+                indexes[side][(record.section, record.text)].append(record)
+        key = anchor_key(getattr(entry, f"{side}_section"), getattr(entry, f"{side}_tagged_text"))
+        candidates = [record for record in indexes[side].get(key, []) if (side, record.uuid) not in used]
+        if len(candidates) != 1:
+            return None
+        used.add((side, candidates[0].uuid))
+        return candidates[0], True
+
+    return resolve_lines(entries, locate, lambda entry, side, record: replace(entry, **side_snapshot(side, record)))
 
 
-def load_patch(path: Path, left: dict[str, Record], right: dict[str, Record]) -> tuple[list[PatchEntry], Resolution]:
-    """Lit, valide (ValueError) et résout le patch, avant tout calcul."""
+def load_patch(path: Path, left: dict[str, Record], right: dict[str, Record]) -> tuple[list[PatchEntry], Resolution[PatchEntry]]:
+    """Lit, valide (ValueError) et résout le patch."""
     entries = read_patch(path)
     validate(entries)
     return entries, resolve(entries, left, right)
 
 
-def declared_unmatched(resolution: Resolution) -> set[str]:
-    """uuid déclarés sans correspondance par le patch (jamais proposés comme candidates)."""
+def declared_unmatched(resolution: Resolution[PatchEntry]) -> set[str]:
+    """Uuid déclarés sans correspondance par le patch (jamais proposés comme candidates)."""
     return {uuid for entry in resolution.entries if not entry.is_pair for _, uuid in entry.uuids()}
 
 
-def orphan_descriptions(resolution: Resolution) -> list[str]:
-    """Lignes orphelines, lisibles (côté, uuid, rubrique, texte)."""
+def orphan_descriptions(resolution: Resolution[PatchEntry]) -> list[str]:
+    """Lignes orphelines, lisibles : côté, uuid, rubrique et texte."""
     return [
         " ↔ ".join(
             f"{side} {getattr(entry, f'{side}_uuid')} · {getattr(entry, f'{side}_section')} · {getattr(entry, f'{side}_tagged_text')}"
@@ -217,21 +225,9 @@ def orphan_descriptions(resolution: Resolution) -> list[str]:
     ]
 
 
-def updated_patch(entries: list[PatchEntry], resolution: Resolution) -> list[PatchEntry]:
-    """Le patch à réécrire : lignes réancrées remplacées, orphelines gardées
-    telles quelles (à corriger à la main), ordre conservé."""
-    after = {id(before): new for before, new in resolution.reanchored}
-    return [after.get(id(entry), entry) for entry in entries]
-
-
-# ----------------------------------------------------------------------
-# Application
-# ----------------------------------------------------------------------
 def apply_patch(links: list[Link], entries: list[PatchEntry]) -> tuple[list[Link], PatchStats]:
-    """Liens Dedupe + patch (voir la docstring du module). Une paire validée
-    telle que Dedupe l'avait trouvée garde son score ; une paire marquée
-    incertaine prend la source `manuel-incertain`."""
-    stats = PatchStats()
+    """Liens automatiques + patch (voir la docstring du module). Une paire
+    validée telle que la machine l'avait trouvée garde son score."""
     patched_left = {entry.left_uuid for entry in entries if entry.left_uuid}
     patched_right = {entry.right_uuid for entry in entries if entry.right_uuid}
     scores = {(link.left_uuid, link.right_uuid): link.score for link in links}
@@ -247,8 +243,10 @@ def apply_patch(links: list[Link], entries: list[PatchEntry]) -> tuple[list[Link
     ]
     kept = [link for link in links if link.left_uuid not in patched_left and link.right_uuid not in patched_right]
     validated = sum(1 for link in manual if (link.left_uuid, link.right_uuid) in scores)
-    stats.overridden = len(links) - len(kept) - validated  # une paire validée n'est pas écartée
-    stats.manual_pairs = len(manual)
-    stats.unmatched_left = sum(1 for entry in entries if entry.left_uuid and not entry.right_uuid)
-    stats.unmatched_right = sum(1 for entry in entries if entry.right_uuid and not entry.left_uuid)
+    stats = PatchStats(
+        overridden=len(links) - len(kept) - validated,  # une paire validée n'est pas écartée
+        manual_pairs=len(manual),
+        unmatched_left=sum(1 for entry in entries if entry.left_uuid and not entry.right_uuid),
+        unmatched_right=sum(1 for entry in entries if entry.right_uuid and not entry.left_uuid),
+    )
     return kept + manual, stats

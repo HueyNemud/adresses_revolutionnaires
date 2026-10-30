@@ -111,9 +111,12 @@ si les plages du volume sont redécoupées.
   signalée.
 - **Empans** : hors des entrées marquées `corrige = oui`, le découpage est
   celui du modèle ; `ner_suspect` signale les entrées les plus douteuses.
-- **Accolades** : quand l'annuaire groupe plusieurs lignes par une accolade,
-  le texte commun au groupe n'est écrit que sur la première ligne ; il n'est
-  pas recopié sur les autres entrées du groupe.
+- **Accolades** : quand l'annuaire relie plusieurs personnes par une
+  accolade à un texte commun, le `….ner.csv` et la jointure en font une
+  seule entrée (une ligne par personne, jointes par un saut de ligne), où le
+  texte commun n'est écrit qu'une fois. Seul le livrable JSON du volume
+  donne chaque personne avec le texte commun dont elle hérite
+  ([`format_export.md`](format_export.md#groupes-à-accolade)).
 - **Entrées en début de plage** : le volume est traité par plages de pages,
   et l'arbre des titres est propre à chaque plage. Quand une plage commence
   au milieu d'une rubrique, le curateur restitue le titre de cette rubrique

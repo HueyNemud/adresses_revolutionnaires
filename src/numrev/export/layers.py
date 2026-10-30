@@ -25,7 +25,7 @@ from numrev.document import iter_line_locations
 from numrev.export.braces import Zone, group_members
 from numrev.ner.spans import Span, normalize_markdown, parse_tagged_text
 from numrev.ner.suspicion import SEPARATOR
-from numrev.pipeline.tabulate import CLASS_COLUMN, KEY_COLUMN, OCR_DOUBTFUL_THRESHOLD
+from numrev.pipeline.tabulate import CLASS_COLUMN, KEY_COLUMN, OCR_DOUBTFUL_THRESHOLD, lowest_word_score
 from numrev.titles import ROOT_UUID, title_level, title_text
 
 DOCUMENT_SCHEMA = "numrev-document/1"
@@ -95,13 +95,11 @@ def _optional_float(value: str | None) -> float | None:
 
 
 def _ocr_quality(line: dict[str, Any]) -> dict[str, Any] | None:
-    """Mots et confiances d'une ligne OCR ; `confidence` = plus faible score de mot,
-    `doubtful` sous `OCR_DOUBTFUL_THRESHOLD` (comme les colonnes de `numrev tabulate`)."""
-    words = line.get("word_confidence")
-    if not words:
+    """Mots et confiances d'une ligne OCR, comme les colonnes `confiance` et `douteuse` de `numrev tabulate`."""
+    lowest = lowest_word_score(line)
+    if lowest is None:
         return None
-    lowest = min(score for _, score in words)
-    return {"confidence": lowest, "doubtful": lowest < OCR_DOUBTFUL_THRESHOLD, "words": words}
+    return {"confidence": lowest, "doubtful": lowest < OCR_DOUBTFUL_THRESHOLD, "words": line["word_confidence"]}
 
 
 def document_pages(

@@ -1,22 +1,14 @@
-"""Chargement d'un annuaire complet pour l'alignement entre éditions
-(`numrev align dedupe`, `numrev view alignment`).
+"""Les ENTRY d'un annuaire complet, pour l'aligner avec une autre édition ;
+les liens d'alignement et leur CSV.
 
-Un annuaire `annuaires/<volume>/` est découpé en plages de pages traitées
-séparément (`<volume>/<première>-<dernière>/`). On lit, dans chaque plage, son
-propre `<volume>.<plage>….ner.csv` et on concatène les plages
-dans l'ordre des pages, pour comparer des annuaires entiers.
+Un annuaire `annuaires/<volume>/` est lu plage par plage, dans l'ordre des
+pages, depuis le `<volume>.<plage>.ner.csv` de chacune. Chaque ENTRY devient
+un `Record`, comparé sur trois champs :
 
-Chaque ENTRY devient un `Record` décrit par trois champs de comparaison :
-
-- `section` : la rubrique, c'est-à-dire le titre ancêtre de niveau `##`, à
-  défaut celui de niveau `#` (d'une édition à l'autre, une même rubrique
-  change parfois de niveau). L'arbre des titres est celui de `parent_uuid`
-  (`numrev assemble`), propre à chaque fichier : une plage n'hérite pas
-  des titres de la précédente. Une rubrique coupée par une frontière de
-  plage reste une seule rubrique quand son titre est recopié à la main en
-  tête de la plage suivante (`continue_sections`). `section` est la clé
-  comparée (sans accents ni ponctuation) ; `section_title` garde le titre
-  lisible, pour l'affichage et la relecture ;
+- `section` : la rubrique, titre ancêtre de niveau `##`, à défaut `#` (selon
+  `parent_uuid` : une plage n'hérite pas des titres de la précédente, sauf
+  titre restitué à la main, `continue_sections`), en clé sans accents ni
+  ponctuation (`clean_title`) ; `section_title` garde le titre lisible ;
 - `text` : le texte complet, sans Markdown ;
 - `subj` : le texte des empans SUBJ, sans Markdown.
 """
@@ -33,7 +25,7 @@ from rapidfuzz.distance import Indel, JaroWinkler
 from rapidfuzz.process import cdist
 
 from numrev.curation import is_inserted, read_csv
-from numrev.ner.spans import normalize_markdown, parse_tagged_text, project_spans
+from numrev.ner.spans import label_texts, normalize_markdown
 from numrev.paths import NER, range_dirs, range_document
 from numrev.titles import title_level, title_text
 
@@ -81,17 +73,8 @@ def clean_title(markdown: str) -> str:
 
 
 def subject_text(tagged_text: str) -> str:
-    """Texte des empans SUBJ (joints par une espace), sans Markdown ; vide si
-    aucun SUBJ ou balisage invalide."""
-    if not tagged_text:
-        return ""
-    try:
-        text, spans = parse_tagged_text(tagged_text)
-    except ValueError:
-        return ""
-    normalized = normalize_markdown(text)
-    subjects = [span for span in project_spans(spans, normalized) if span.label == "SUBJ"]
-    return clean_text(" ".join(normalized.text[span.start : span.end] for span in subjects))
+    """Texte des empans SUBJ, joints par une espace, sans Markdown ; vide sans SUBJ ou si le balisage est invalide."""
+    return " ".join(label_texts(tagged_text)["SUBJ"])
 
 
 def section_of(parent_uuid: str, titles: dict[str, tuple[str, str]]) -> tuple[str, str]:
@@ -111,7 +94,8 @@ def section_of(parent_uuid: str, titles: dict[str, tuple[str, str]]) -> tuple[st
     return "", ""
 
 
-def load_document(path: Path, start: int = 0) -> list[Record]:
+def read_entries(path: Path, start: int = 0) -> list[Record]:
+    """ENTRY d'un CSV NER, numérotées (`order`) à partir de `start`."""
     rows = read_csv(path)[1]
     titles = {row["uuid"]: (row.get("parent_uuid", ""), row.get("markdown", "")) for row in rows if row.get("entity") == "TITLE"}
     # `cle` d'une entité : clés de ses lignes, celle de la ligne racine en premier.
@@ -164,7 +148,7 @@ def load_volume(volume_dir: Path) -> list[Record]:
         raise FileNotFoundError(f"Aucun dossier de plage (`<début>-<fin>`) dans {volume_dir}")
     records: list[Record] = []
     for range_dir in ranges:
-        records += load_document(ner_csv(range_dir), start=len(records))
+        records += read_entries(ner_csv(range_dir), start=len(records))
     continue_sections(records)
     duplicates = len(records) - len({record.uuid for record in records})
     if duplicates:
@@ -222,6 +206,7 @@ SOURCE_CANDIDATE = "candidate"  # paire non retenue proposée à la relecture (`
 SOURCE_NW = "nw"  # `numrev align nw` : alignement ordonné
 SOURCE_NW_CONTEXT = "nw-contexte"  # idem, décidée par le pair-HMM entre deux ancres
 SOURCE_NW_RESIDUAL = "nw-residuel"  # idem, passe résiduelle (inversions locales)
+LINK_SOURCES = (SOURCE_DEDUPE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_NW_RESIDUAL)
 LINK_FIELDS = [
     "left_file",
     "left_uuid",

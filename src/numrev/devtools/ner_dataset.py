@@ -1,24 +1,16 @@
-"""Construit un jeu d'entraînement NER (SUBJ/DESC/ADDR) au format Label
-Studio attendu par `numrev train`.
+"""`numrev train-set` · jeu d'entraînement NER, `data/ner/train.ls.json`
+(tâches Label Studio pour `numrev train`) et son manifeste
+`train.ls.manifest.json` (paramètres, effectifs par volume, signature, forme).
 
-Source : les ENTRY de `annuaires/` avec leur annotation NER (`*.ner.csv`,
-où les lignes corrigées à la main portent `corrige = oui`), ramenée sur le
-texte normalisé. Ces CSV doivent venir du modèle courant
-(`numrev tag`) et suivre `docs/guide_annotation_ner.md` : un modèle
-réapprend les écarts de convention de ses données.
-
-Filtres : textes du jeu gold exclus (dev **et** test, comparaison sur le
-texte normalisé) ; textes dédoublonnés ; entrées sans empan, ou qui ne
-commencent pas par un SUBJ, écartées.
-
-Tirage par forme typographique (`numrev.ner.shapes.coarse_shape`) : quota ∝
-√effectif de la forme, plafonné à l'effectif. Le cas de base (`w , w , 9`,
-un tiers du corpus) est réduit ; les formes rares sont prises en entier.
-Sur le gold, ce tirage a nettement battu un tirage uniforme.
-
-Sorties : `<sortie>.json` (tâches avec `annotations`, `data.text` normalisé
-et `data.raw_text` d'origine) et `<sortie>.manifest.json` (paramètres,
-effectifs par volume, signature, forme).
+Source : les ENTRY de `annuaires/` avec l'annotation de leur `.ner.csv`
+(corrigée là où `corrige = oui`), ramenée sur le texte sans Markdown. Ces
+CSV doivent suivre `docs/guide_annotation_ner.md` : un modèle réapprend les
+écarts de convention de ses données. Textes du gold exclus (dev et test,
+comparaison sur le texte normalisé), textes dédoublonnés, entrées sans
+empan ou sans SUBJ en tête écartées. Tirage par forme typographique
+(`numrev.ner.shapes`) : quota ∝ √effectif, plafonné à l'effectif — le cas
+de base (`w , w , 9`, un tiers du corpus) est réduit, les formes rares
+prises en entier ; sur le gold, ce tirage bat un tirage uniforme.
 """
 
 import argparse

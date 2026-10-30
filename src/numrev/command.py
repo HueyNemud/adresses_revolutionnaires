@@ -69,6 +69,16 @@ def require_ranges(folder: Path) -> list[Path]:
         raise CommandError(str(error)) from error
 
 
+def require_volume(folder: Path, command: str) -> Path:
+    """Dossier d'un volume entier ; CommandError s'il n'existe pas ou si c'est une plage."""
+    from numrev.paths import RANGE_PATTERN
+
+    require_dir(folder)
+    if RANGE_PATTERN.match(folder.name):
+        raise CommandError(f"{folder} est une plage : numrev {command} prend un volume entier ({folder.parent}).")
+    return folder
+
+
 def require_input(range_dir: Path, suffix: str, previous_command: str) -> Path:
     """Fichier d'entrée d'une étape pour une plage ; CommandError s'il n'existe pas."""
     from numrev.paths import range_document

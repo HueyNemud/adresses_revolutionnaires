@@ -1,59 +1,22 @@
-"""Étape 7 · alignement de deux éditions d'un annuaire avec Dedupe.
+"""Étape 7 · alignement de deux éditions d'un annuaire avec Dedupe (`RecordLink`, un-à-un).
 
     uv run numrev align dedupe annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
 
-Chaque annuaire est lu en entier (`numrev/alignment/records.py` : toutes ses plages
-de pages, dans l'ordre, depuis leurs `*.ner.csv`). Les ENTRY sont
-comparées sur trois champs :
+Compare les ENTRY des deux annuaires (`numrev/alignment/records.py`) sur la
+rubrique, le SUBJ et le texte complet (DESC et ADDR, trop variables d'une
+édition à l'autre, n'y entrent que par le texte). La rubrique est comparée
+par sa clé canonique : deux rubriques appariées (`numrev/alignment/sections.py`)
+ont la même clé, y compris dans les paires d'entraînement, réécrites à la
+lecture. Un lien entre rubriques qui ne se correspondent pas est toujours
+écarté, qu'il vienne de Dedupe ou du patch des entrées.
 
-- `section` : la rubrique (titre `##`, à défaut `#`) ;
-- `subj` : le texte des empans SUBJ, sans Markdown ;
-- `text` : le texte complet de l'entrée, sans Markdown.
-
-La rubrique est comparée par sa **clé canonique** : les rubriques des deux
-annuaires qui se correspondent (`numrev/alignment/sections.py`, alignement
-partagé avec `numrev align nw` et corrigé par le patch des rubriques
-`data/alignment/<gauche>__<droite>.sections.csv`) reçoivent la même clé, y
-compris dans les paires du fichier d'entraînement, réécrites à la lecture.
-
-Dedupe ne compare la rubrique que comme un champ parmi d'autres : il peut
-donc lier deux entrées de rubriques qui ne se correspondent pas. Ces liens
-sont **toujours écartés** (`restrict_to_corresponding`), dans la sortie
-brute comme dans la sortie finale, y compris les paires du patch des
-entrées (lier d'abord les rubriques dans le patch des rubriques).
-
-DESC et ADDR ne sont pas comparés séparément : ils varient d'une édition à
-l'autre, même pour une même personne, et restent présents dans `text`.
-
-Dedupe apprend ses poids sur des paires étiquetées. À la première exécution
-(ou avec `--label`), l'étiquetage se fait en console (`y` : même entrée,
-`n` : entrées différentes, `u` : incertain, `f` : terminer) ; les paires
-sont enregistrées aussitôt dans le fichier d'entraînement JSON
-`data/alignment/<gauche>__<droite>.training.json` (à versionner), que les
-exécutions suivantes réutilisent sans interaction.
-
-L'appariement est un-à-un : chaque entrée a au plus une correspondance dans
-l'autre annuaire. Deux sorties, triées dans l'ordre de l'annuaire de gauche :
-
-- `<gauche>__<droite>.dedupe.csv` : les correspondances brutes de Dedupe ;
-- `<gauche>__<droite>.csv` : les mêmes après application du **patch** de
-  corrections manuelles (`data/alignment/<gauche>__<droite>.patch.csv`,
-  voir `numrev/alignment/patch.py`), le résultat final.
-
-Colonnes : `left_file`, `left_uuid`, `right_uuid`, `right_file` (identification
-des deux entrées), `score` (probabilité estimée par Dedupe, vide pour une paire
-saisie à la main), `source` (`dedupe` / `manuel`), puis un instantané pour la
-relecture : `left_section`, `right_section`, `left_tagged_text`,
-`right_tagged_text`.
-
-Le patch s'édite à la main ; `numrev view alignment` affiche le
-résultat et copie uuid ou lignes de patch prêtes à coller. `--patch-only`
-réapplique le patch à la sortie Dedupe existante, sans relancer Dedupe.
-
-Simulation par défaut (`numrev/command.py`) : `--apply` écrit les sorties, le
-fichier d'entraînement et les patchs réancrés. L'étiquetage en console
-exige `--apply`, pour ne pas perdre les paires étiquetées. Les
-entrées absentes du CSV final n'ont pas de correspondance.
+Dedupe apprend sur des paires étiquetées en console (première exécution ou
+`--label` ; exige `--apply`), enregistrées aussitôt dans
+`data/alignment/<gauche>__<droite>.training.json` et réutilisées ensuite.
+Sorties, dans l'ordre de l'annuaire de gauche : `<gauche>__<droite>.dedupe.csv`
+(liens bruts) et `<gauche>__<droite>.csv` (liens + patch des entrées,
+`numrev/alignment/patch.py`). `--patch-only` réapplique le patch à la sortie
+brute existante, sans relancer Dedupe.
 """
 
 import argparse
@@ -61,10 +24,9 @@ import io
 from pathlib import Path
 
 import dedupe
-from rich.table import Table
 
-from numrev.alignment.pair import load_entry_patch, load_pair, pair_of_dirs, print_matched, print_sections
-from numrev.alignment.patch import PatchStats, Resolution, apply_patch, orphan_descriptions
+from numrev.alignment.pair import load_entry_patch, load_pair, pair_of_dirs, print_matched, print_scores, print_sections
+from numrev.alignment.patch import PatchStats, apply_patch
 from numrev.alignment.records import Link, Record, dedupe_records, read_links, write_links
 from numrev.alignment.sections import SectionAlignment, canonical_keys, canonical_training_text, restrict_to_corresponding
 from numrev.command import APPLY_FLAG, CommandError, Writes, add_apply_argument, add_force_argument, console, fine_tuning
@@ -74,7 +36,7 @@ DESCRIPTION = (
     "Met en correspondance (un-à-un) les ENTRY de deux annuaires complets avec Dedupe, "
     "sur la rubrique, le SUBJ et le texte de l'entrée, puis applique le patch des corrections manuelles."
 )
-SCORE_BINS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+SCORE_BOUNDS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -129,9 +91,7 @@ def train(
         linker.prepare_training(left, right)
 
     if needs_labelling(training_path, label):
-        console.print(
-            "[bold]Étiquetage :[/bold] y = même entrée, n = différentes, u = incertain, " "f = terminer, p = annuler la précédente."
-        )
+        console.print("[bold]Étiquetage :[/bold] y = même entrée, n = différentes, u = incertain, f = terminer, p = annuler la précédente.")
         dedupe.console_label(linker)
 
         def write() -> None:
@@ -178,37 +138,15 @@ def read_raw_links(raw_path: Path, left_records: dict[str, Record], right_record
     return links
 
 
-def print_patch_summary(patch_path: Path, resolution: Resolution, stats: PatchStats) -> None:
-    n_entries = len(resolution.entries) + len(resolution.orphans)
-    if not n_entries:
+def print_patch_summary(patch_path: Path, lines: int, stats: PatchStats) -> None:
+    if not lines:
         console.print(f"Aucune correction manuelle ([yellow]{patch_path}[/yellow] absent ou vide).")
         return
     console.print(
-        f"Patch [yellow]{patch_path}[/yellow] : {n_entries} ligne(s) — {stats.manual_pairs} paire(s) manuelle(s), "
+        f"Patch [yellow]{patch_path}[/yellow] : {lines} ligne(s) — {stats.manual_pairs} paire(s) manuelle(s), "
         f"{stats.unmatched_left} gauche et {stats.unmatched_right} droite sans correspondance, "
         f"{stats.overridden} lien(s) Dedupe écarté(s)."
     )
-    if resolution.reanchored:
-        console.print(f"[yellow]↻ {len(resolution.reanchored)} ligne(s) réancrée(s) par le texte (patch à réécrire).[/yellow]")
-    if resolution.orphans:
-        console.print(f"[bold red]⚠ {len(resolution.orphans)} ligne(s) orpheline(s), non appliquée(s) :[/bold red]")
-        for description in orphan_descriptions(resolution):
-            console.print(f"  {description}", markup=False)
-
-
-def print_scores(links: list[Link]) -> None:
-    scores = [link.score for link in links if link.score is not None]
-    bins = Table(title="Scores des correspondances", show_header=True)
-    bins.add_column("Score")
-    bins.add_column("Paires", justify="right")
-    edges = [*SCORE_BINS, float("inf")]
-    for low, high in zip(edges, edges[1:]):
-        label = f"[{low:.2f} ; {high:.2f}[" if high != float("inf") else f"≥ {low:.2f}"
-        bins.add_row(label, str(sum(low <= score < high for score in scores)))
-    below = sum(score < SCORE_BINS[0] for score in scores)
-    if below:
-        bins.add_row(f"< {SCORE_BINS[0]:.2f}", str(below))
-    console.print(bins)
 
 
 def run(args: argparse.Namespace) -> None:
@@ -218,7 +156,7 @@ def run(args: argparse.Namespace) -> None:
     writes = Writes(args.apply)
     if not args.patch_only and needs_labelling(pair.training, args.label) and not args.apply:
         raise CommandError(
-            f"l'étiquetage en console écrit {pair.training} : relancez avec {APPLY_FLAG} " "(sinon les paires étiquetées seraient perdues)."
+            f"l'étiquetage en console écrit {pair.training} : relancez avec {APPLY_FLAG} (sinon les paires étiquetées seraient perdues)."
         )
 
     loaded = load_pair(pair, force=args.force, writes=writes)
@@ -226,21 +164,16 @@ def run(args: argparse.Namespace) -> None:
     entries, resolution = load_entry_patch(loaded, force=args.force, writes=writes)
 
     if args.patch_only:
-        links, dropped = restrict_to_corresponding(
-            read_raw_links(raw_path, left_records, right_records), left_records, right_records, sections
-        )
+        raw_links = read_raw_links(raw_path, left_records, right_records)
     else:
         print_sections(sections)
-        links, dropped = restrict_to_corresponding(
-            infer_links(left_records, right_records, args, pair.training, sections, writes), left_records, right_records, sections
-        )
-        raw_links = links
+        raw_links = infer_links(left_records, right_records, args, pair.training, sections, writes)
+    raw_links, dropped = restrict_to_corresponding(raw_links, left_records, right_records, sections)
+    if not args.patch_only:
         writes.add(raw_path, lambda: write_links(raw_path, raw_links, left_records, right_records))
-
-    links, stats = apply_patch(links, resolution.entries)
+    links, stats = apply_patch(raw_links, resolution.entries)
     links, manual_dropped = restrict_to_corresponding(links, left_records, right_records, sections)
-    final_links = links
-    writes.add(output_path, lambda: write_links(output_path, final_links, left_records, right_records))
+    writes.add(output_path, lambda: write_links(output_path, links, left_records, right_records))
 
     if dropped:
         console.print(f"[yellow]{len(dropped)} lien(s) Dedupe entre rubriques non appariées écarté(s).[/yellow]")
@@ -251,7 +184,7 @@ def run(args: argparse.Namespace) -> None:
             f"{left_record.section_title} / {left_record.text} ↔ {right_record.section_title} / {right_record.text}",
             markup=False,
         )
-    print_patch_summary(pair.entry_patch, resolution, stats)
+    print_patch_summary(pair.entry_patch, len(entries), stats)
     print_matched(pair.left, pair.right, len(left_records), len(right_records), len(links))
-    print_scores(links)
+    print_scores(links, SCORE_BOUNDS)
     writes.finish(console)

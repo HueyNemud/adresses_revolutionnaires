@@ -14,7 +14,7 @@ from numrev.curation import (
     write_csv,
 )
 from numrev.pipeline.extract import assign_line_keys
-from numrev.pipeline.tabulate import process_json_to_csv
+from numrev.pipeline.tabulate import tabulate_document
 from numrev.pipeline.tag import NER_STEP, apply_corrections
 from numrev.titles import ROOT_UUID as ROOT
 
@@ -73,7 +73,7 @@ class LineKeyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             json_path, csv_path = Path(tmp) / "doc.json", Path(tmp) / "doc.csv"
             json_path.write_text(json.dumps(DOCUMENT), encoding="utf-8")
-            process_json_to_csv(json_path, csv_path, Path(tmp) / "doc.patch.csv", capture=False)
+            tabulate_document(json_path, csv_path, Path(tmp) / "doc.patch.csv", capture=False)
             self.assertEqual([row["cle"] for row in read_csv(csv_path)[1]], line_keys(texts))
 
     def test_fingerprint_ignores_whitespace_changes(self):
@@ -99,7 +99,7 @@ class LinesCurationTests(unittest.TestCase):
         assign_line_keys(document)
         json_path = self.dir / "doc.json"
         json_path.write_text(json.dumps(document), encoding="utf-8")
-        return process_json_to_csv(json_path, self.csv, self.patch, **options)
+        return tabulate_document(json_path, self.csv, self.patch, **options)
 
     def rows(self) -> list[dict[str, str]]:
         return read_csv(self.csv)[1]

@@ -96,6 +96,21 @@ def parse_tagged_text(tagged: str) -> tuple[str, list[Span]]:
     return "".join(text_parts), spans
 
 
+def label_texts(tagged_text: str) -> dict[str, list[str]]:
+    """Texte de chaque empan d'un `tagged_text`, par classe et dans l'ordre du
+    texte, sans Markdown ni blancs superflus ; listes vides sans balisage ou
+    si le balisage est invalide."""
+    texts: dict[str, list[str]] = {label: [] for label in LABELS}
+    try:
+        text, spans = parse_tagged_text(tagged_text)
+    except ValueError:
+        return texts
+    normalized = normalize_markdown(text)
+    for span in project_spans(spans, normalized):
+        texts[span.label].append(" ".join(normalized.text[span.start : span.end].split()))
+    return texts
+
+
 def signature(spans: Iterable[Span]) -> str:
     """Suite des classes dans l'ordre du texte, ex. « SUBJ,DESC,ADDR »."""
     return ",".join(span.label for span in sorted(spans, key=lambda span: span.start))

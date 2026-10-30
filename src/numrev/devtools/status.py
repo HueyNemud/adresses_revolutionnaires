@@ -44,6 +44,7 @@ DONE, MISSING, STALE = "✓", "—", "périmé"
 class ChainStep:
     command: str  # commande numrev qui écrit la sortie
     suffix: str  # sortie
+    inputs: tuple[str, ...] = ()  # suffixes possibles de l'entrée, le premier qui existe ; aucun : le PDF du volume
     apply: bool = True  # la commande simule sans --apply
     replace: str = ""  # option sans laquelle la commande refuse de remplacer une sortie existante
 
@@ -51,11 +52,11 @@ class ChainStep:
 # Dans l'ordre de la chaîne.
 STEPS = (
     ChainStep("ocr", OCR, replace="--force"),
-    ChainStep("extract", LINES),
-    ChainStep("label", LABELED, apply=False),
-    ChainStep("tabulate", LINES_CSV),
-    ChainStep("assemble", ENTITIES),
-    ChainStep("tag", NER),
+    ChainStep("extract", LINES, (OCR,)),
+    ChainStep("label", LABELED, (LINES,), apply=False),
+    ChainStep("tabulate", LINES_CSV, (LABELED, LINES)),  # le JSON annoté s'il existe, sinon le brut
+    ChainStep("assemble", ENTITIES, (LINES_CSV,)),
+    ChainStep("tag", NER, (ENTITIES,)),
 )
 
 
@@ -70,22 +71,15 @@ class RangeStatus:
 
 
 def step_input(range_dir: Path, step: ChainStep) -> Path:
-    """Entrée dont dépend la sortie d'une étape (`tabulate` lit le JSON annoté s'il existe, sinon le brut)."""
-    inputs = {
-        "ocr": volume_pdf(range_dir.parent),
-        "extract": range_document(range_dir, OCR),
-        "label": range_document(range_dir, LINES),
-        "tabulate": range_document(range_dir, LABELED),
-        "assemble": range_document(range_dir, LINES_CSV),
-        "tag": range_document(range_dir, ENTITIES),
-    }
-    path = inputs[step.command]
-    if step.command == "tabulate" and not path.exists():
-        return range_document(range_dir, LINES)
-    return path
+    """Entrée dont dépend la sortie d'une étape pour une plage."""
+    if not step.inputs:
+        return volume_pdf(range_dir.parent)
+    candidates = [range_document(range_dir, suffix) for suffix in step.inputs]
+    return next((path for path in candidates if path.exists()), candidates[-1])
 
 
 def step_state(range_dir: Path, step: ChainStep) -> str:
+    """DONE, MISSING, ou STALE (sortie plus ancienne que son entrée)."""
     output = range_document(range_dir, step.suffix)
     if not output.exists():
         return MISSING
@@ -94,6 +88,7 @@ def step_state(range_dir: Path, step: ChainStep) -> str:
 
 
 def range_status(range_dir: Path) -> RangeStatus:
+    """États des étapes d'une plage, comptes de corrections et prochaine commande."""
     status = RangeStatus(range_dir)
     for step in STEPS:
         status.states[step.command] = step_state(range_dir, step)

@@ -1,27 +1,20 @@
 """Étape 3 · table des lignes, corrigée à la main (`<document>.labeled.json`
 → `<document>.lines.csv`).
 
-Accepte aussi le JSON brut de `numrev extract` (`<document>.lines.json`) :
-classes vides, aucun patch lu ni écrit, pour inspecter l'extraction. Chaque
-ligne du CSV correspond à une ligne Markdown d'un bloc de données,
-avec sa clé stable (`cle`), sa provenance (page, chunk, bloc de données,
-position), sa confiance OCR (`confiance`, drapeau `douteuse` pour filtrer
-les lignes à relire ; ni l'une ni l'autre n'est éditable) et, si le JSON en dispose, l'annotation produite par
-`numrev label` (`classe`, provenance, probability, timestamp).
+Une ligne CSV par ligne du JSON : clé `cle`, position (page, chunk, bloc,
+ligne), texte, confiance OCR (`confiance` = plus faible score de ses mots,
+`douteuse` = `oui` sous `OCR_DOUBTFUL_THRESHOLD` ; ni l'une ni l'autre
+éditable) et annotation de `numrev label` (`classe`, provenance,
+probabilité, horodatage). Un document pas encore annoté (`<document>.lines.json`)
+est exporté sans patch, classes vides, pour inspecter l'extraction.
 
-Le CSV d'un document annoté est aussi le fichier qu'on corrige à la main
-(classe, texte, niveaux `#`) : il suit le protocole de `numrev/curation.py`.
-Les lignes marquées `corrige = oui` du CSV existant sont capturées dans
-`data/curation/<document>.lines.patch.csv` (versionné), puis réappliquées
-sur le nouvel export. Une ligne se supprime en lui donnant la classe
-`SUPPRIMÉE` ; une ligne ajoutée (ou dupliquée) dans le tableur est gardée à
-sa place, y compris avant la première ligne (titre restitué en tête de
-plage), avec `confiance`, `douteuse` et l'annotation du modèle vides. Une correction dont la classe est vide ou inconnue (`b-entry`)
-fait paniquer, comme toute correction inapplicable.
+Pour un document annoté, ce CSV est aussi le fichier corrigé à la main
+(classe, texte, niveaux `#`), selon le protocole de `numrev/curation.py` :
+corrections capturées dans `data/curation/<document>.lines.patch.csv` puis
+réappliquées. Une correction de classe vide ou inconnue fait paniquer.
 """
 
 import argparse
-import json
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -47,7 +40,7 @@ from numrev.curation import (
     print_report,
     write_csv,
 )
-from numrev.document import iter_line_locations
+from numrev.document import iter_line_locations, load_pages
 from numrev.paths import LABELED, LINES, LINES_CSV, range_document
 
 KEY_COLUMN = "cle"
@@ -95,13 +88,17 @@ def class_check(correction: dict[str, str], row: dict[str, str]) -> str | None:
     return f"{observed} (classes possibles : {', '.join(CORRECTION_CLASSES)})"
 
 
+def lowest_word_score(line: dict[str, Any]) -> float | None:
+    """Plus faible score OCR des mots d'une ligne du JSON, None sans scores."""
+    scores = [score for _, score in line.get("word_confidence") or []]
+    return min(scores) if scores else None
+
+
 def confidence_columns(line: dict[str, Any]) -> dict[str, str]:
-    """`confiance` = plus faible score OCR des mots de la ligne (`0,44`) ;
-    `douteuse` = `oui` sous `OCR_DOUBTFUL_THRESHOLD`. Vides sans scores."""
-    scores = [score for _, score in line.get("word_confidence", [])]
-    if not scores:
+    """`confiance` (`0,44`) et `douteuse` (`oui` sous `OCR_DOUBTFUL_THRESHOLD`), vides sans scores."""
+    lowest = lowest_word_score(line)
+    if lowest is None:
         return {CONFIDENCE_COLUMN: "", DOUBTFUL_COLUMN: ""}
-    lowest = min(scores)
     return {
         CONFIDENCE_COLUMN: f"{lowest:.2f}".replace(".", ","),
         DOUBTFUL_COLUMN: "oui" if lowest < OCR_DOUBTFUL_THRESHOLD else "",
@@ -109,10 +106,7 @@ def confidence_columns(line: dict[str, Any]) -> dict[str, str]:
 
 
 def iter_csv_rows(document: list[dict[str, Any]]) -> Iterator[dict[str, str]]:
-    """Yield one CSV row per Markdown line found in the JSON document.
-
-    La clé est celle écrite par numrev extract ; un JSON qui n'en
-    a pas est refusé."""
+    """Une ligne CSV par ligne du JSON, dans l'ordre ; ValueError sur une ligne sans clé `cle`."""
     for location in iter_line_locations(document):
         if not location.line.get(KEY_COLUMN):
             raise ValueError(f"ligne {location.line.get('uid', '?')} sans clé `{KEY_COLUMN}` : relancez numrev extract.")
@@ -139,7 +133,7 @@ def is_annotated(document: list[dict[str, Any]]) -> bool:
     return any("prediction" in location.line for location in iter_line_locations(document))
 
 
-def process_json_to_csv(
+def tabulate_document(
     json_path: Path,
     csv_path: Path,
     patch_file: Path | None = None,
@@ -148,17 +142,10 @@ def process_json_to_csv(
     capture: bool = True,
     writes: Writes | None = None,
 ) -> Curation | None:
-    """Aplatit un JSON Chandra (extraction ou annotation) en CSV.
-
-    Pour un document annoté, applique le protocole de curation (lève
-    CurationConflict sans rien écrire) et retourne la Curation ; None pour
-    un document brut, exporté tel quel. `writes` : plan d'écriture de la
-    commande (numrev/command.py) ; sans lui, les fichiers sont écrits aussitôt.
-    """
-    document: Any = json.loads(json_path.read_text(encoding="utf-8"))
-    if not isinstance(document, list):
-        raise ValueError("Le document JSON doit être une liste de pages.")
-
+    """Écrit (ou planifie, via `writes`) la table des lignes d'un JSON. Pour un
+    document annoté, applique le protocole de curation (CurationConflict :
+    rien n'est écrit) et rend la `Curation` ; None pour un document brut."""
+    document = load_pages(json_path)
     rows = list(iter_csv_rows(document))
     curation = None
     if is_annotated(document):
@@ -196,10 +183,10 @@ def run(args: argparse.Namespace) -> None:
         annotated = input_path.name.endswith(LABELED)
         console.print(f"Entrée : [yellow]{input_path}[/yellow]" + ("" if annotated else " (lignes non annotées : export brut, sans patch)"))
         try:
-            curation = process_json_to_csv(
+            curation = tabulate_document(
                 input_path, range_document(range_dir, LINES_CSV), force=args.force, capture=not args.no_capture, writes=writes
             )
-        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
+        except (UnicodeDecodeError, ValueError) as error:
             raise CommandError(f"JSON {input_path} : {error}") from error
         if curation is not None:
             print_report(console, curation)

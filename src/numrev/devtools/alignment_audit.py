@@ -105,7 +105,7 @@ def run(args: argparse.Namespace) -> None:
     alignment_path = require_file(args.alignment or pair.output(NW_SUFFIX))
     links = read_links(alignment_path)
     params = Params()
-    found = review(links, left, right, sections, params.threshold, params.residual_threshold, params.subj_weight, args.margin)
+    found = review(links, left, right, sections, params, args.margin)
     retained = {(link.left_uuid, link.right_uuid) for link in links}
     candidate_pairs = {(link.left_uuid, link.right_uuid) for link in found.candidates}
 

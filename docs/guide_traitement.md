@@ -211,16 +211,15 @@ uv run numrev view directory annuaires/<volume>
 ```
 
 Le navigateur s'ouvre sur le volume : à gauche la page du PDF avec ses
-lignes, à droite les titres et les entrées de cette page, avec leurs empans
-`SUBJ` / `DESC` / `ADDR` en couleur. Cliquer une entrée la montre sur la
-page, et cliquer une ligne de la page ouvre la fiche de son entrée : sa
-rubrique, ses confiances, ses lignes telles que l'OCR les a lues. On
-y trouve aussi des filtres pour organiser la relecture (entrées suspectes,
-confiance basse, groupes à accolade…), l'arbre des rubriques, une vue en
-tableau des entrées filtrées (téléchargeable en CSV), des statistiques et le
-rapport d'export, dont chaque cas mène à sa ligne sur la page. L'export ne
-prend que quelques secondes : après une correction, on le relance pour voir
-le résultat. La commande s'arrête par Ctrl+C dans le terminal.
+lignes, à droite les titres et les entrées de la page, empans en couleur.
+Cliquer une entrée la montre sur la page ; cliquer une ligne ouvre la fiche
+de son entrée (rubrique, confiances, lignes telles que l'OCR les a lues).
+Des filtres organisent la relecture (entrées suspectes, confiance basse,
+groupes à accolade…), à côté de l'arbre des rubriques, d'un tableau des
+entrées (téléchargeable en CSV), de statistiques et du rapport d'export,
+dont chaque cas mène à sa ligne. Après une correction, relancer l'export
+(quelques secondes) pour la voir. Ctrl+C dans le terminal arrête la
+commande.
 
 ## Étape 7 · Alignement de deux éditions
 
@@ -261,14 +260,10 @@ dans [`donnees.md`](donnees.md).
 ## Sauvegarder son travail
 
 Les fichiers de `annuaires/` ne sont pas suivis par git ; les corrections le
-sont, dans les patchs de `data/`. Après une séance de corrections : relancer
-la commande de l'étape (elle met le patch à jour), puis commiter les
-patchs, à part du code :
-
-```bash
-git add data/
-git commit -m "données: curation des lignes de 1808, pages 100 à 120"
-```
+sont, dans les patchs de `data/`. Après une séance : relancer la commande de
+l'étape (elle met le patch à jour), puis commiter les patchs, à part du code
+(`git add data/ && git commit -m "données: …"` ; voir le
+[guide de la curation](guide_curation.md#où-sont-gardées-les-corrections-et-comment-les-sauvegarder)).
 
 ## Ce qui survit à une relance
 

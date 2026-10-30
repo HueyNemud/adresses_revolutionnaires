@@ -79,7 +79,7 @@ def get_heuristic_label(line: str, prev_line: str = "") -> str:
 
 
 def normalize_ocr_label(label: str) -> str:
-    """Normalize an OCR block class so equivalent spellings share one feature."""
+    """Classe de bloc OCR normalisée (« List-Group » → « list_group ») : une seule feature par graphie."""
     normalized = re.sub(r"[^\w]+", "_", label.strip().casefold())
     return normalized.strip("_") or "missing"
 
@@ -667,5 +667,5 @@ def extract_features(
     ocr_labels: list[str] | None = None,
     page_positions: list[int] | None = None,
 ) -> FeatureSequence:
-    """Features de production (API historique de numrev label)."""
+    """Features de production d'une suite de lignes (raccourci pour les tests)."""
     return extract_features_from_context(SequenceContext(lines, source_line_numbers, ocr_labels, page_positions))

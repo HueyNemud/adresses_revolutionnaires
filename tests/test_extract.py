@@ -6,7 +6,7 @@ from pathlib import Path
 
 from numrev.command import CommandError
 from numrev.pipeline import extract
-from numrev.pipeline.extract import load_document, process_json_to_json
+from numrev.pipeline.extract import extract_document
 
 
 def span(text: str, confidence: str | None = None, bbox: str | None = None) -> str:
@@ -43,7 +43,7 @@ class ExtractLatynnaLinesTests(unittest.TestCase):
 
     def export(self, pages: list[dict]) -> list[dict]:
         output_path = self.directory / "document.lines.json"
-        process_json_to_json(self.write(pages), output_path)
+        extract_document(self.write(pages), output_path)
         return json.loads(output_path.read_text(encoding="utf-8"))
 
     def lines(self, raw: str) -> list[dict]:
@@ -154,7 +154,7 @@ class ExtractLatynnaLinesTests(unittest.TestCase):
     def test_exports_an_empty_chunk_index_when_no_chunk_contains_a_block(self) -> None:
         document = [page('<div data-bbox="0 0 1000 1000" data-label="Text">' + span("Texte") + "</div>", chunks=0)]
 
-        self.assertIsNone(load_document(self.write(document))[0].data_blocks[0].chunk_index)
+        self.assertIsNone(self.export(document)[0]["data_blocks"][0]["chunk_index"])
 
 
 class ExtractVolumeTests(unittest.TestCase):

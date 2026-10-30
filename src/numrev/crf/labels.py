@@ -4,7 +4,7 @@ from enum import StrEnum
 
 
 class AnnotationLabel(StrEnum):
-    """Labels supported by the sequence classifier and persisted sessions."""
+    """Classes de lignes (annotateur, sessions, table des lignes) ; `UNK` = incertain, à trancher à la curation."""
 
     BENTRY = "B-ENTRY"
     IENTRY = "I-ENTRY"

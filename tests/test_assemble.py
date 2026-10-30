@@ -5,10 +5,10 @@ from pathlib import Path
 
 from numrev.pipeline.assemble import (
     alpha_sort_key,
+    assemble_document,
     assign_entity_ids,
     format_report,
     format_title_tree,
-    process_csv,
 )
 from numrev.titles import ROOT_UUID
 
@@ -37,7 +37,7 @@ def merge(directory: Path, rows=ROWS) -> list[dict[str, str]]:
     source = directory / "Vol.1-9.lines.csv"
     write_source(source, rows)
     output = directory / "out.csv"
-    process_csv(source, output)
+    assemble_document(source, output)
     with output.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
@@ -79,7 +79,7 @@ class EntityIdTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "Vol.1-9.lines.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv")
+            report = assemble_document(source, Path(tmp) / "out.csv")
             with (Path(tmp) / "out.csv").open(encoding="utf-8", newline="") as handle:
                 reader = csv.DictReader(handle)
                 out = list(reader)
@@ -103,7 +103,7 @@ class EntityIdTests(unittest.TestCase):
                 writer = csv.writer(handle)
                 writer.writerow(fields)
                 writer.writerows(rows)
-            process_csv(source, Path(tmp) / "out.csv")
+            assemble_document(source, Path(tmp) / "out.csv")
             with (Path(tmp) / "out.csv").open(encoding="utf-8", newline="") as handle:
                 out = list(csv.DictReader(handle))
         self.assertEqual([(row["confiance"], row["douteuse"]) for row in out], [("0,60", "oui"), ("0,95", "")])
@@ -114,7 +114,7 @@ class EntityIdTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "Vol.1-9.lines.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv")
+            report = assemble_document(source, Path(tmp) / "out.csv")
         self.assertEqual(report.unknown_labels, [("1.1.2", "¯\\_(ツ)_/¯")])
         self.assertIn("incertaine ou inconnue (1)", format_report(report, source, Path(tmp) / "out.csv"))
 
@@ -137,7 +137,7 @@ class AlphaSortKeyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "Vol.1-9.lines.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv")
+            report = assemble_document(source, Path(tmp) / "out.csv")
         self.assertEqual([uid for uid, *_ in report.alpha_violations], ["1.1.2"])
 
 
@@ -190,7 +190,7 @@ class TitleTreeReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "Vol.1-9.lines.csv"
             write_source(source, rows)
-            report = process_csv(source, Path(tmp) / "out.csv")
+            report = assemble_document(source, Path(tmp) / "out.csv")
         self.assertEqual(
             format_title_tree(report),
             [

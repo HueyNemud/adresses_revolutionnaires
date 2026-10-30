@@ -1,5 +1,6 @@
 import unittest
 
+from numrev.alignment.nw import Params
 from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_NW, SOURCE_NW_CONTEXT, Link, Record
 from numrev.alignment.review import REASON_CANDIDATE, REASON_CONTEXT, REASON_HOMONYM, review
 from numrev.alignment.sections import align_sections
@@ -27,7 +28,8 @@ def records(side: str, texts: list[str]) -> list[Record]:
 
 def run(left, right, links, **options):
     sections = align_sections(left, right)
-    return review(links, left, right, sections, low=options.pop("low", 0.6), high=0.85, subj_weight=0.5, **options)
+    params = Params(threshold=options.pop("low", 0.6), residual_threshold=0.85, subj_weight=0.5)
+    return review(links, left, right, sections, params, **options)
 
 
 class ReviewTests(unittest.TestCase):

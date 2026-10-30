@@ -1,5 +1,6 @@
-"""Moteur d'apprentissage actif : lignes sources, sélection des lignes à
-annoter, réentraînement et export des prédictions dans le JSON Chandra."""
+"""Moteur de l'annotateur (`numrev label`) : lignes annotables, choix des
+lignes à proposer, réentraînement du CRF et export des classes dans le JSON
+des lignes."""
 
 import copy
 import hashlib
@@ -29,7 +30,7 @@ from numrev.crf.model import (
     posterior_decode,
     train_tagger,
 )
-from numrev.document import LineLocation, iter_line_locations
+from numrev.document import LineLocation, iter_line_locations, parse_pages
 
 AnnotationHistory: TypeAlias = list[int]
 LabelTimestamps: TypeAlias = dict[int, str]
@@ -45,37 +46,28 @@ def current_timestamp() -> str:
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
 class SourceLine:
-    """Une ligne Markdown annotable et sa provenance dans le JSON Chandra."""
+    """Une ligne annotable (non vide) et sa place dans le JSON des lignes."""
 
     uid: str
-    source_row: int
+    source_row: int  # rang parmi les lignes annotables, à partir de 1 (affiché à l'annotateur)
     text: str
     cle: str = ""  # clé stable de la ligne (numrev/curation.py)
     page_index: str = ""
-    chunk_index: str = ""
-    data_block_index: str = ""
-    line_index: str = ""
     data_block_bbox: str = ""
     data_block_label: str = ""
     page_pos: int = 0
     block_pos: int = 0
     line_pos: int = 0
-    # La ligne qui la précède dans l'ordre du document (ignorée par le CRF
-    # car vide) était blanche.
-    follows_blank: bool = False
+    follows_blank: bool = False  # la ligne précédente du document, vide, n'est pas annotable
 
     @classmethod
     def from_location(cls, location: LineLocation, source_row: int, text: str, follows_blank: bool = False) -> "SourceLine":
-        """Create an annotatable record from a validated Chandra line location."""
         return cls(
             uid=str(location.line.get("uid", "")),
             source_row=source_row,
             text=text,
             cle=str(location.line.get("cle", "")),
             page_index=str(location.page.get("page_index", "")),
-            chunk_index=str(location.block.get("chunk_index", "")),
-            data_block_index=str(location.block.get("index", "")),
-            line_index=str(location.line.get("line_index", "")),
             data_block_bbox=str(location.block.get("bbox", "")),
             data_block_label=str(location.block.get("label", "")),
             page_pos=location.page_pos,
@@ -86,12 +78,9 @@ class SourceLine:
 
 
 def load_json_lines(input_path: Path) -> tuple[list[SourceLine], Any, str]:
-    """Charge les lignes Markdown non vides et leur provenance depuis un JSON
-    produit par numrev extract (ou par numrev label)."""
+    """(lignes annotables, document, sha256 du fichier) d'un JSON de `numrev extract` (ou de `numrev label`)."""
     raw_text = input_path.read_text(encoding="utf-8")
-    document = json.loads(raw_text)
-    if not isinstance(document, list):
-        raise ValueError("Le JSON doit être une liste de pages.")
+    document = parse_pages(raw_text)
 
     records: list[SourceLine] = []
     source_row = 0
@@ -111,7 +100,7 @@ def load_json_lines(input_path: Path) -> tuple[list[SourceLine], Any, str]:
 
 
 def context_from_records(records: Sequence[SourceLine]) -> SequenceContext:
-    """Contexte de séquence complet (production + groupes candidats)."""
+    """Observations des lignes pour le calcul des features (groupes de production et candidats)."""
     return SequenceContext(
         lines=[record.text for record in records],
         source_line_numbers=[record.source_row for record in records],
@@ -124,7 +113,7 @@ def context_from_records(records: Sequence[SourceLine]) -> SequenceContext:
 
 
 # ----------------------------------------------------------------------
-# Validation des labels / historiques (sessions)
+# Validation d'une session reprise
 # ----------------------------------------------------------------------
 def annotated_indices(labels: list[str | None]) -> set[int]:
     return {index for index, label in enumerate(labels) if label is not None}
@@ -161,11 +150,11 @@ def parse_label_timestamps(raw_timestamps: object, annotated: set[int]) -> Label
 
 
 # ----------------------------------------------------------------------
-# Moteur CRF Active Learning
+# Moteur
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
 class LineAnnotation:
-    """Prediction metadata written back to an OCR line."""
+    """Ce que l'export écrit sur une ligne : classe, provenance (`human`, `model`, `unclassified`), probabilité, horodatage."""
 
     prediction: str
     provenance: str
@@ -174,6 +163,8 @@ class LineAnnotation:
 
 
 class ActiveCRF:
+    """Classes humaines d'un document, CRF réentraîné à chaque changement, et choix de la prochaine ligne à proposer."""
+
     def __init__(
         self,
         records: list[SourceLine],
@@ -201,7 +192,7 @@ class ActiveCRF:
         self.known_classes: set[str] = set()
 
     def close(self) -> None:
-        """Remove the temporary CRF model file when it is no longer needed."""
+        """Supprime le fichier temporaire du modèle CRF."""
         self._model_file_finalizer()
 
     @property
@@ -214,6 +205,7 @@ class ActiveCRF:
         annotation_history: list[int] | None = None,
         label_timestamps: dict[int, str] | None = None,
     ) -> None:
+        """Reprend les classes d'une session enregistrée (ValueError si elles ne vont pas avec ce document)."""
         if len(labels) != len(self.labels):
             raise ValueError("Le nombre de labels de session ne correspond pas au document.")
         annotated = validate_labels(labels)
@@ -257,14 +249,9 @@ class ActiveCRF:
         return index
 
     def mark_page_out_of_scope(self, page_pos: int) -> list[int]:
-        """Marque en une fois toutes les lignes non annotées d'une page en OUT OF SCOPE.
-
-        Pratique pour écarter rapidement des pages entières non pertinentes
-        (ex. une table des matières, une page de publicité) sans repasser
-        ligne par ligne. Chaque ligne est ajoutée individuellement à
-        l'historique (via `set_labels`) : `undo_last_label` peut donc
-        toujours défaire ce geste, une ligne à la fois.
-        """
+        """Toutes les lignes non annotées d'une page passent OUT OF SCOPE (table
+        des matières, publicité…) ; chacune entre dans l'historique, et
+        `undo_last_label` les défait une à une."""
         indices = [index for index, position in enumerate(self.page_positions) if position == page_pos and self.labels[index] is None]
         if indices:
             self.set_labels({index: AnnotationLabel.OOS.value for index in indices})
@@ -276,7 +263,7 @@ class ActiveCRF:
         self.tagger = train_tagger(self.features, self.labels, self.model_path, self.training_config)
 
     def _next_exploration_index(self, unannotated: list[int]) -> int:
-        """Échantillonne des strates heuristiques sous-représentées au démarrage."""
+        """Graine : une ligne de la classe heuristique la moins annotée jusqu'ici, pour diversifier le départ."""
         observed = Counter(self.heuristic_labels[index] for index, label in enumerate(self.labels) if label is not None)
         return min(
             unannotated,
@@ -288,7 +275,7 @@ class ActiveCRF:
         )
 
     def _annotation_block(self, target_index: int, unannotated: list[int]) -> list[int]:
-        """Retourne le candidat et un voisin non annoté, si disponible."""
+        """La ligne choisie et, si elle n'est pas annotée, sa voisine (de préférence la précédente)."""
         available = set(unannotated)
         neighbours = [index for index in (target_index - 1, target_index + 1) if index in available]
         if not neighbours:
@@ -298,6 +285,9 @@ class ActiveCRF:
         return sorted([target_index, neighbour])
 
     def next_block(self, preferred_index: int | None = None) -> tuple[int, list[int]] | None:
+        """(ligne choisie, lignes du bloc à annoter), None quand tout est annoté : la ligne
+        `preferred_index` seule si elle est libre (reproposée après une annulation), une
+        ligne de la graine, puis la ligne la plus incertaine du CRF."""
         unannotated = [i for i, label in enumerate(self.labels) if label is None]
         if not unannotated:
             return None
@@ -313,32 +303,21 @@ class ActiveCRF:
         return target_index, self._annotation_block(target_index, unannotated)
 
     def _prediction_margin(self, index: int) -> float:
-        """Return the gap between the two most likely labels for one line."""
+        """Écart entre les deux classes les plus probables d'une ligne (petit : le CRF hésite)."""
         probabilities = sorted(self.get_marginals(index).values(), reverse=True)
         return probabilities[0] - probabilities[1]
 
     def get_marginals(self, idx: int) -> dict[str, float]:
-        """Retourne des marginales normalisées, toujours comprises entre 0 et 1."""
+        """Probabilité de chaque classe pour une ligne (marginales normalisées ; toutes à 0 sans modèle)."""
         if not self.tagger:
             return {label: 0.0 for label in CLASSES}
         return normalized_marginals(self.tagger, idx, self.known_classes, CLASSES)
 
     def _model_prediction(self, index: int) -> tuple[str | None, float]:
-        """Décodage postérieur pour une ligne : renvoie l'étiquette de plus
-        forte probabilité marginale ainsi que cette probabilité elle-même.
-
-        On utilise volontairement l'argmax des marginales plutôt que
-        `tagger.tag()` (décodage de Viterbi). Le Viterbi optimise la
-        séquence globale et peut donc choisir, à une position donnée, une
-        étiquette différente de celle qui a la plus forte probabilité
-        marginale à cette même position : le libellé exporté et la
-        confiance affichée pouvaient alors ne pas correspondre (une
-        confiance basse pour une étiquette qui n'était pas la plus
-        probable). Avec l'argmax des marginales, la probabilité exportée
-        est toujours exactement celle de l'étiquette exportée. Cela évite
-        aussi tout appel à `tagger.tag()` après `tagger.set()`, qui corrompt
-        les marginales dans python-crfsuite (cf. `train_tagger`).
-        """
+        """(classe, probabilité) la plus probable d'une ligne, par l'argmax des
+        marginales et non par Viterbi : la probabilité exportée est toujours
+        celle de la classe exportée (et `tagger.tag()`, qui corrompt les
+        marginales après `set()`, n'est jamais appelé)."""
         if not self.tagger:
             return None, 0.0
         return posterior_decode(self.get_marginals(index))
@@ -358,6 +337,7 @@ class ActiveCRF:
         return LineAnnotation("", "unclassified", 0.0, "")
 
     def export_json(self, output_path: str | Path) -> None:
+        """Copie du document où chaque ligne annotable porte `prediction`, `provenance`, `probability` et `timestamp`."""
         export_timestamp = current_timestamp()
 
         output_document = copy.deepcopy(self.raw_document)

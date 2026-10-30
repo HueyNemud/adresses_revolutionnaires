@@ -24,8 +24,8 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import quote, urlencode
 
-from numrev.command import CommandError, console, fine_tuning, require_dir, require_file, require_input
-from numrev.paths import DOCUMENT_JSON, EXPORT_REPORT, OCR, RANGE_PATTERN, STRUCTURE_JSON, page_range, range_dirs, volume_file, volume_pdf
+from numrev.command import CommandError, console, fine_tuning, require_file, require_input, require_volume
+from numrev.paths import DOCUMENT_JSON, EXPORT_REPORT, OCR, STRUCTURE_JSON, page_range, range_dirs, volume_file, volume_pdf
 
 VIEWERS = ("directory", "alignment", "ocr")
 
@@ -107,9 +107,7 @@ def ocr_files(range_dir: Path) -> tuple[dict[str, Path], str]:
 def directory_files(volume_dir: Path) -> dict[str, Path]:
     """Fichiers servis à `directory.html` (paramètre d'URL → fichier) : les deux JSON du livrable, et s'ils existent
     le rapport d'export et le PDF du volume."""
-    require_dir(volume_dir)
-    if RANGE_PATTERN.match(volume_dir.name):
-        raise CommandError(f"{volume_dir} est une plage : numrev view directory prend un volume ({volume_dir.parent}).")
+    require_volume(volume_dir, "view directory")
     files = {"document": volume_file(volume_dir, DOCUMENT_JSON), "structure": volume_file(volume_dir, STRUCTURE_JSON)}
     for path in files.values():
         if not path.exists():

@@ -45,9 +45,6 @@ class Zone:
     def contains(self, start: int, end: int) -> bool:
         return self.start <= start and end <= self.end
 
-    def overlaps(self, start: int, end: int) -> bool:
-        return start < self.end and self.start < end
-
 
 @dataclass
 class Member:
@@ -60,6 +57,8 @@ class Member:
 
 @dataclass
 class Grouping:
+    """Résultat de la règle sur une entrée groupée."""
+
     members: list[Member]
     problems: list[tuple[int, str]]  # (rang du segment, message)
     commons: list[Zone]  # textes communs, chacun une fois

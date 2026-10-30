@@ -1,21 +1,22 @@
 """Chargement d'une paire d'annuaires pour les commandes qui l'alignent ou
 la lisent (`numrev align`, `numrev join`, `numrev gold alignment`,
-`numrev audit alignment`) : les deux volumes en entier, puis la
-correspondance des rubriques avec son patch (`numrev/alignment/sections.py`).
+`numrev audit alignment`) : les deux volumes, la correspondance de leurs
+rubriques et le patch des entrées ; et leurs bilans en console.
 
-Une ligne orpheline du patch des rubriques ou du patch des entrées fait
-paniquer, sauf `--force` (`numrev/curation.py`) ; un patch n'est réécrit
-(lignes réancrées) que si la commande passe ses `writes`.
+Une ligne orpheline d'un des deux patchs fait paniquer, sauf `--force`
+(`numrev/curation.py`) ; un patch n'est réécrit (lignes réancrées) que si la
+commande passe ses `writes`.
 """
 
 import csv
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from rich.table import Table
 
-from numrev.alignment.patch import PatchEntry, Resolution, load_patch, orphan_descriptions, updated_patch, write_patch
-from numrev.alignment.records import Record, load_volume
+from numrev.alignment.patch import PatchEntry, Resolution, load_patch, orphan_descriptions, write_patch
+from numrev.alignment.records import LINK_SOURCES, Link, Record, load_volume
 from numrev.alignment.sections import DEFAULT_THRESHOLD, SOURCE_AUTO, SectionAlignment, load_section_alignment, section_orphans
 from numrev.command import CommandError, Writes, console, require_dir, require_file
 from numrev.curation import refuse_orphans
@@ -53,15 +54,6 @@ def pair_of_file(path: Path) -> Pair:
         raise CommandError(str(error)) from error
 
 
-def load_volumes(pair: Pair) -> tuple[list[Record], list[Record]]:
-    try:
-        left, right = load_volume(require_dir(pair.left_dir)), load_volume(require_dir(pair.right_dir))
-    except (OSError, csv.Error) as error:
-        raise CommandError(f"lecture des annuaires : {error}") from error
-    console.print(f"{pair.left} : {len(left)} entrées ; {pair.right} : {len(right)} entrées")
-    return left, right
-
-
 def load_pair(
     pair: Pair,
     *,
@@ -70,9 +62,13 @@ def load_pair(
     section_threshold: float = DEFAULT_THRESHOLD,
     refuse: bool = True,
 ) -> LoadedPair:
-    """`refuse=False` (gold, audit : lecteurs qui ne produisent pas
-    d'alignement) : orphelins laissés de côté sans paniquer."""
-    left, right = load_volumes(pair)
+    """Les deux volumes et la correspondance de leurs rubriques. `refuse=False`
+    (gold, audit : ils ne produisent pas d'alignement) : orphelins laissés de côté sans paniquer."""
+    try:
+        left, right = load_volume(require_dir(pair.left_dir)), load_volume(require_dir(pair.right_dir))
+    except (OSError, csv.Error) as error:
+        raise CommandError(f"lecture des annuaires : {error}") from error
+    console.print(f"{pair.left} : {len(left)} entrées ; {pair.right} : {len(right)} entrées")
     try:
         sections = load_section_alignment(left, right, pair.section_patch, section_threshold, writes)
     except (OSError, csv.Error, ValueError) as error:
@@ -82,18 +78,31 @@ def load_pair(
     return LoadedPair(pair, left, right, sections)
 
 
-def load_entry_patch(loaded: LoadedPair, *, force: bool = False, writes: Writes | None = None) -> tuple[list[PatchEntry], Resolution]:
+def load_entry_patch(
+    loaded: LoadedPair, *, force: bool = False, writes: Writes | None = None
+) -> tuple[list[PatchEntry], Resolution[PatchEntry]]:
     """Patch des entrées de la paire, résolu sur ses volumes : une ligne
-    orpheline fait paniquer, sauf `force` ; des lignes réancrées réécrivent le
-    patch via `writes` (sans `writes`, jamais : `numrev join`)."""
+    orpheline fait paniquer, sauf `force` (elle est alors signalée) ; des
+    lignes réancrées réécrivent le patch via `writes` (sans `writes`, jamais :
+    `numrev join`)."""
     path = loaded.pair.entry_patch
     try:
         entries, resolution = load_patch(path, loaded.left, loaded.right)
     except (OSError, csv.Error, ValueError) as error:
         raise CommandError(f"patch {path} : {error}") from error
-    refuse_orphans(orphan_descriptions(resolution), force, "ligne orpheline du patch")
-    if writes is not None and resolution.reanchored:
-        writes.add(path, lambda: write_patch(path, updated_patch(entries, resolution)))
+    orphans = orphan_descriptions(resolution)
+    refuse_orphans(orphans, force, "ligne orpheline du patch")
+    if resolution.reanchored:
+        rewrite = "le patch sera réécrit" if writes is not None else "numrev align nw (ou align dedupe) --apply réécrira le patch"
+        console.print(
+            f"[yellow]↻ {len(resolution.reanchored)} ligne(s) du patch des entrées réancrée(s) par le texte ; {rewrite}.[/yellow]"
+        )
+        if writes is not None:
+            writes.add(path, lambda: write_patch(path, resolution.updated(entries)))
+    if orphans:
+        console.print(f"[bold red]⚠ {len(orphans)} ligne(s) orpheline(s) du patch, non appliquée(s) (--force) :[/bold red]")
+        for description in orphans:
+            console.print(f"  {description}", markup=False)
     return entries, resolution
 
 
@@ -108,6 +117,24 @@ def print_matched(left_name: str, right_name: str, n_left: int, n_right: int, ma
     table.add_column("Non appariées", justify="right")
     for name, total in ((left_name, n_left), (right_name, n_right)):
         table.add_row(name, str(total), f"{matched} ({matched / total:.1%})", str(total - matched))
+    console.print(table)
+
+
+def print_scores(links: list[Link], bounds: Sequence[float]) -> None:
+    """Nombre de liens par tranche de score (bornes basses `bounds`), une colonne par source.
+    Les paires saisies à la main, sans score, n'y figurent pas."""
+    sources = [source for source in LINK_SOURCES if any(link.source == source and link.score is not None for link in links)]
+    table = Table(title="Scores des correspondances", show_header=True)
+    table.add_column("Score")
+    for source in sources:
+        table.add_column(source, justify="right")
+    edges = [0.0, *bounds, float("inf")]
+    for low, high in zip(edges, edges[1:]):
+        label = f"[{low:.2f} ; {high:.2f}[" if high != float("inf") else f"≥ {low:.2f}"
+        counts = [
+            sum(link.source == source and link.score is not None and low <= link.score < high for link in links) for source in sources
+        ]
+        table.add_row(label, *map(str, counts))
     console.print(table)
 
 

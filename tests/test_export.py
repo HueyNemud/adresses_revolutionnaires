@@ -14,7 +14,7 @@ from numrev.export.layers import ORIGIN_ADDED, ExportReport, build_range, volume
 from numrev.ner.spans import Span, render_tagged_text
 from numrev.paths import DOCUMENT_JSON, STRUCTURE_JSON, volume_file
 from numrev.pipeline import export
-from numrev.pipeline.assemble import process_csv
+from numrev.pipeline.assemble import assemble_document
 from numrev.pipeline.tabulate import CSV_FIELDS, iter_csv_rows
 from numrev.titles import ROOT_UUID
 
@@ -87,7 +87,7 @@ def write_range(range_dir: Path) -> None:
     added = {**rows[0], "cle": "debut+1", "uid": "", "markdown": "# CONSEIL", "classe": "B-TITLE", CORRECTED_COLUMN: CORRECTED}
     added |= dict.fromkeys(("confiance", "douteuse", "provenance", "probability", "timestamp"), "")
     write_csv(range_dir / f"{document}.lines.csv", CSV_FIELDS, [added, *rows])
-    process_csv(range_dir / f"{document}.lines.csv", range_dir / f"{document}.entities.csv")
+    assemble_document(range_dir / f"{document}.lines.csv", range_dir / f"{document}.entities.csv")
     fieldnames, entities = read_csv(range_dir / f"{document}.entities.csv")
     for row in entities:
         entry = row["entity"] == "ENTRY"

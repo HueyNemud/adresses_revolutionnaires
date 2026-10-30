@@ -25,9 +25,9 @@ import io
 from collections import defaultdict
 from dataclasses import dataclass
 
-from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record, clean_text
+from numrev.alignment.records import SOURCE_CANDIDATE, SOURCE_MANUAL, SOURCE_MANUAL_UNCERTAIN, Link, Record
 from numrev.alignment.review import LEVEL_LABELS, SEPARATOR, Review
-from numrev.ner.spans import normalize_markdown, parse_tagged_text, project_spans
+from numrev.ner.spans import label_texts
 
 PAIR, LEFT_ONLY, RIGHT_ONLY, CANDIDATE = "pair", "left", "right", "candidate"
 STATUS_LABELS = {PAIR: "apparié", LEFT_ONLY: "gauche seulement", RIGHT_ONLY: "droite seulement", CANDIDATE: "candidate"}
@@ -100,20 +100,8 @@ def natural_rows(links: list[Link], left: dict[str, Record], right: dict[str, Re
 # Export CSV
 # ----------------------------------------------------------------------
 def span_texts(tagged_text: str) -> dict[str, str]:
-    """Texte des empans de chaque classe, sans Markdown, joints par
-    `SPAN_SEPARATOR` ; vides si aucun balisage ou balisage invalide."""
-    texts: dict[str, list[str]] = {label: [] for label in SPAN_COLUMNS}
-    if tagged_text:
-        try:
-            text, spans = parse_tagged_text(tagged_text)
-        except ValueError:
-            spans = []
-        if spans:
-            normalized = normalize_markdown(text)
-            for span in sorted(project_spans(spans, normalized), key=lambda span: span.start):
-                if span.label in texts:
-                    texts[span.label].append(clean_text(normalized.text[span.start : span.end]))
-    return {label: SPAN_SEPARATOR.join(values) for label, values in texts.items()}
+    """Texte des empans de chaque classe, sans Markdown, joints par `SPAN_SEPARATOR` (vide si aucun)."""
+    return {label: SPAN_SEPARATOR.join(texts) for label, texts in label_texts(tagged_text).items()}
 
 
 def side_values(record: Record | None) -> dict[str, str]:

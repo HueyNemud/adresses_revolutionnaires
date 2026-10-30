@@ -14,7 +14,6 @@ from numrev.alignment.patch import (
     entry_from_records,
     read_patch,
     resolve,
-    updated_patch,
     validate,
     write_patch,
 )
@@ -119,7 +118,7 @@ class ResolveTests(unittest.TestCase):
         stale = PatchEntry(left_uuid="ancien", left_section="AGENS DE CHANGE", left_tagged_text="Durand, rue B.")
         entries = [orphan, stale]
         resolution = resolve(entries, self.left, self.right)
-        self.assertEqual([e.left_uuid or e.right_uuid for e in updated_patch(entries, resolution)], ["perdu", "b"])
+        self.assertEqual([e.left_uuid or e.right_uuid for e in resolution.updated(entries)], ["perdu", "b"])
 
     def test_reanchoring_never_reuses_an_uuid_already_in_the_patch(self):
         taken = PatchEntry(left_uuid="b")

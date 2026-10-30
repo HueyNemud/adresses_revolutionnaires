@@ -1,50 +1,24 @@
-"""Alignement ordonné des entrées de deux éditions d'un annuaire
-(Needleman-Wunsch + pair-HMM), sans apprentissage : algorithme de
-`numrev align nw`, alternative à `numrev align dedupe`.
+"""Alignement ordonné des entrées de deux éditions (`numrev align nw`), sans
+apprentissage supervisé ; méthode et évaluation : `docs/alignement_ordonne.md`.
 
 D'une édition à l'autre, l'ordre des rubriques est stable et, dans une
-rubrique, celui des entrées l'est presque (ajouts, suppressions, quelques
-inversions locales du tri alphabétique). L'alignement se fait donc en trois
-temps :
+rubrique, celui des entrées l'est presque. Par segment (groupe de rubriques
+appariées, `numrev/alignment/sections.py`) :
 
-1. **rubriques** : `numrev/alignment/sections.py` (partagé avec Dedupe et le
-   viewer) aligne les deux suites de rubriques par Needleman-Wunsch sur la
-   similarité Jaro-Winkler de leur clé (« liste » / « listes de
-   non-commerçans », « sellieres » / « selliers »), après application du
-   patch des rubriques (`data/alignment/<gauche>__<droite>.sections.csv`) :
-   groupes imposés à la main, éventuellement 1-N ou N-1, et rubriques
-   déclarées sans correspondance ;
-2. **entrées** : dans chaque groupe de rubriques appariées — entrées des N
-   rubriques d'un groupe manuel concaténées dans l'ordre de chaque annuaire
-   — les deux suites d'entrées sont alignées par Needleman-Wunsch, dont les paires très
-   sûres servent d'**ancres** ; entre deux ancres, un **pair-HMM**
-   (`numrev/alignment/pair_hmm.py`) décide des autres paires selon leur probabilité a
-   posteriori, qui tient compte du contexte : une paire encadrée par deux
-   paires est plus probable qu'une paire isolée au milieu d'ajouts et de
-   suppressions (voir `docs/alignement_ordonne.md`) ;
-3. **passe résiduelle** : dans chaque segment, les entrées restées seules
-   sont appariées sans contrainte d'ordre (affectation optimale), à un seuil
-   plus strict, pour récupérer les inversions locales.
+1. Needleman-Wunsch (`sequence.py`) maximise Σ (similarité − seuil) sur les
+   paires qui respectent l'ordre, sans pénalité de trou ; ses paires de
+   similarité ≥ `anchor_threshold` sont des **ancres** ;
+2. une **passe résiduelle** (affectation optimale, seuil plus strict) apparie
+   hors de l'ordre les entrées restées seules : les inversions locales ;
+3. entre deux ancres, un **pair-HMM** (`pair_hmm.py`) garde les paires de
+   probabilité a posteriori > 0,5 : une paire encadrée par des paires sûres
+   est plus probable qu'une paire isolée. Émissions estimées sans
+   étiquettes, transitions par EM ; `--no-context` s'en passe.
 
-On n'apparie jamais deux entrées de rubriques qui ne se correspondent pas :
-une rubrique sans correspondance (renommée au-delà du seuil, scindée…) ne
-s'aligne qu'une fois liée dans le patch des rubriques.
-
-Similarité de deux entrées, sur les mêmes champs que Dedupe
-(`dedupe_records`, en minuscules) : `w · JaroWinkler(subj) + (1 − w) ·
-Indel(text)` (distance d'édition normalisée), le texte seul si l'une des deux
-n'a pas de SUBJ. Jaro-Winkler convient au SUBJ (court, le nom en tête) mais
-sature sur le texte complet, long et dont l'adresse varie.
-
-Needleman-Wunsch maximise Σ (similarité − seuil) sur les appariements qui
-respectent l'ordre, sans pénalité de trou : une paire sous le seuil n'est
-jamais retenue, et ajouts ou suppressions ne coûtent rien. Les paramètres du
-pair-HMM sont estimés sans étiquettes (EM) sur l'ensemble des fenêtres entre
-ancres. `--no-context` s'en tient au Needleman-Wunsch seul.
-
-`source` et sens de `score` des liens : `nw` (ancre, ou toute paire
-Needleman-Wunsch avec `--no-context`) : similarité ; `nw-contexte` (décidée
-par le pair-HMM) : probabilité a posteriori ; `nw-residuel` : similarité.
+Similarité (`records.similarity_matrix`) : `w · JaroWinkler(subj) + (1 − w) ·
+Indel(text)`, le texte seul sans SUBJ. Sources des liens : `nw` (score =
+similarité), `nw-contexte` (score = probabilité a posteriori), `nw-residuel`
+(similarité).
 """
 
 from collections import Counter

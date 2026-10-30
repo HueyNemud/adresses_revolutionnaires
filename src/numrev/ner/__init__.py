@@ -1,14 +1,11 @@
-"""Segmentation NER des entrées d'annuaire en SUBJ / DESC / ADDR.
+"""NER des entrées : découpage en SUBJ (qui ?), DESC (quoi ?) et ADDR (où ?)
+(conventions : `docs/guide_annotation_ner.md`).
 
-Conventions : `docs/guide_annotation_ner.md`.
-
-- `spans` : empans en caractères, rendu / lecture de `tagged_text`, format
-  Label Studio, normalisation Markdown, tokens GLiNER ;
-- `shapes` : « forme » typographique d'une entrée (sans étiquette), pour
-  l'échantillonnage et la ventilation des résultats ;
-- `suspicion` : entrées à relire en priorité (score du modèle, structure
-  des empans) ;
-- `corpus` : lecture des CSV `*.merged.ner*.csv` du dossier `annuaires/` ;
-- `metrics` : comparaison entrée par entrée, agrégats pondérés, bootstrap
-  par page.
+- `spans` : empans, `tagged_text`, format Label Studio, texte sans Markdown, tokens GLiNER ;
+- `gliner` : chargement d'un modèle et prédiction ;
+- `suspicion` : motifs de relecture prioritaire (`ner_suspect`) ;
+- `corpus` : lecture des CSV NER de `annuaires/` ;
+- `shapes` : forme typographique d'une entrée (tirages, ventilation de l'audit) ;
+- `metrics` : comparaison au gold, agrégats pondérés, bootstrap par page ;
+- `html` : rendu des empans pour le viewer d'alignement.
 """

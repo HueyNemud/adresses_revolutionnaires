@@ -1,24 +1,16 @@
 """Étape 6 · livrable final d'un volume (toutes ses plages →
-`<volume>.document.json`, `<volume>.structure.json` et
-`<volume>.export.report.txt`).
+`<volume>.document.json`, `<volume>.structure.json`, `<volume>.export.report.txt`).
 
-Rassemble les plages d'un volume en deux fichiers JSON (format :
-`docs/format_export.md`, construction : `numrev/export/layers.py`) :
-
-- la **couche documentaire** : pages, blocs et lignes, chaque ligne avec sa
-  boîte estimée, son texte OCR, son texte retenu après correction, sa classe
-  et ses confiances ;
-- la **couche structurée** : titres et entrées, avec leurs empans SUBJ /
-  DESC / ADDR et les membres des groupes à accolade, chacun renvoyant aux
-  lignes de la couche documentaire et à ses positions dans ces lignes.
-
-Étape purement dérivée : rien ne s'y corrige à la main, elle se recalcule à
-l'identique (date d'export mise à part) à partir des sorties des étapes 1 à 5
-et de leurs corrections. Elle refuse une plage dont une étape manque ou est
-périmée (`numrev status`) ; un volume dont seules certaines pages sont
-traitées est exporté avec la liste de ses plages. Le rapport liste les cas
-de groupes à accolade que la règle ne résout pas, à corriger dans la table
-des lignes ou le CSV NER, et les lignes OCR sans boîte.
+Deux fichiers JSON (format : `docs/format_export.md`, construction :
+`numrev/export/layers.py`) : la couche documentaire (pages, blocs, lignes,
+boîtes, texte OCR et texte retenu) et la couche structurée (titres, entrées,
+empans, membres des groupes à accolade), reliées par les identifiants de
+lignes. Étape dérivée, sans correction propre : elle se recalcule à
+l'identique (date d'export mise à part) depuis les sorties des étapes 1 à 5.
+Elle refuse une plage dont une étape manque ou est périmée ; un volume
+partiellement traité est exporté avec la liste de ses plages. Le rapport
+liste les groupes à accolade que la règle ne résout pas et les lignes OCR
+sans boîte.
 """
 
 import argparse
@@ -31,9 +23,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from numrev.command import CommandError, Writes, add_apply_argument, console, require_dir
+from numrev.command import CommandError, Writes, add_apply_argument, add_folder_argument, console, require_volume
 from numrev.curation import read_csv
 from numrev.devtools.status import DONE, range_status
+from numrev.document import load_pages
 from numrev.export.layers import ExportReport, build_range, volume_layers
 from numrev.paths import (
     DOCUMENT_JSON,
@@ -41,7 +34,6 @@ from numrev.paths import (
     LINES,
     LINES_CSV,
     NER,
-    RANGE_PATTERN,
     STRUCTURE_JSON,
     page_range,
     range_dirs,
@@ -65,11 +57,12 @@ Refuse une plage dont une étape manque ou est périmée (voir numrev status). F
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("folder", type=Path, metavar="dossier", help="Un volume, annuaires/<volume> (toutes ses plages).")
+    add_folder_argument(parser, "Un volume, annuaires/<volume> (toutes ses plages).")
     add_apply_argument(parser)
 
 
 def sha256(path: Path) -> str:
+    """Empreinte d'un fichier, lu par blocs (le PDF d'un volume fait des centaines de Mo)."""
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
@@ -115,6 +108,8 @@ def write_json(path: Path, content: dict[str, Any]) -> None:
 
 
 def format_report(volume_dir: Path, report: ExportReport) -> str:
+    """Texte de `<volume>.export.report.txt` : comptes, puis cas à vérifier (au plus `REPORT_LIST_LIMIT` par liste)."""
+
     def listing(title: str, items: list[str]) -> list[str]:
         if not items:
             return [f"{title} : aucun.", ""]
@@ -145,9 +140,7 @@ def format_report(volume_dir: Path, report: ExportReport) -> str:
 
 
 def run(args: argparse.Namespace) -> None:
-    volume_dir = require_dir(args.folder)
-    if RANGE_PATTERN.match(volume_dir.name):
-        raise CommandError(f"{volume_dir} est une plage : numrev export prend un volume entier ({volume_dir.parent}).")
+    volume_dir = require_volume(args.folder, "export")
     ranges = range_dirs(volume_dir)
     if not ranges:
         raise CommandError(f"{volume_dir} : aucune plage (<première page>-<dernière page>) dans ce dossier.")
@@ -159,11 +152,11 @@ def run(args: argparse.Namespace) -> None:
     for range_dir in ranges:
         files = [range_document(range_dir, suffix) for suffix in (LINES, LINES_CSV, NER)]
         try:
-            json_pages = json.loads(files[0].read_text(encoding="utf-8"))
+            json_pages = load_pages(files[0])
             line_rows = read_csv(files[1])[1]
             ner_rows = read_csv(files[2])[1]
             layers.append(build_range(range_dir.name, json_pages, line_rows, ner_rows, report))
-        except (json.JSONDecodeError, csv.Error, ValueError) as error:
+        except (csv.Error, ValueError) as error:
             raise CommandError(f"{range_dir} : {error}") from error
         except KeyError as error:
             raise CommandError(f"{range_dir} : colonne ou champ absent : {error}") from error

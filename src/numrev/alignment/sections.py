@@ -1,49 +1,31 @@
-"""Correspondance des rubriques de deux annuaires, partagée par
-`numrev align dedupe` (Dedupe), `numrev align nw` et
-`numrev view alignment`.
+"""Correspondance des rubriques de deux annuaires (`numrev align`, `numrev join`,
+`numrev view alignment`) : les entrées ne sont jamais appariées qu'entre
+rubriques qui se correspondent.
 
-Une **rubrique** est la suite contiguë des ENTRY de même rubrique
-(`Record.section`, `numrev/alignment/records.py`) ; elle est identifiée par l'uuid de
-son TITLE (`Record.section_uuid` ; pour une rubrique coupée par une frontière
-de plage et continuée par son titre recopié à la main, celui de son premier
-titre : `records.continue_sections`).
+Une **rubrique** est une suite contiguë d'ENTRY de même rubrique
+(`Record.section`), identifiée par l'uuid de son TITLE. L'ordre des
+rubriques étant stable d'une édition à l'autre, elles sont alignées par
+Needleman-Wunsch sur la similarité Jaro-Winkler de leur clé. Le **patch**
+`data/alignment/<gauche>__<droite>.sections.csv` (édité à la main) gagne :
+une ligne à deux uuid lie deux rubriques (les composantes connexes forment
+des groupes 1-1, 1-N ou N-M), une ligne à un uuid déclare une rubrique sans
+correspondance. Un uuid disparu est réancré sur la rubrique de même clé de
+titre, unique, sinon la ligne est orpheline (`numrev/alignment/patch.py`).
 
-L'ordre des rubriques est stable d'une édition à l'autre ; elles sont donc
-alignées par Needleman-Wunsch sur la similarité Jaro-Winkler de leur clé
-(« liste » / « listes de non-commerçans »). Ce qui échappe à l'ordre ou au
-seuil se corrige dans un **patch** versionné et édité à la main,
-`data/alignment/<gauche>__<droite>.sections.csv` :
-
-- une ligne à deux uuid lie deux rubriques ; un même uuid peut figurer dans
-  plusieurs lignes : les composantes connexes forment des **groupes** 1-1,
-  1-N, N-1 ou N-M (« Jardiniers-fleuristes, pépiniéristes, marchands
-  d'arbres » ↔ « Marchands d'arbres », hors ordre alphabétique) ;
-- une ligne à un seul uuid déclare une rubrique sans correspondance.
-
-Une suite d'entrées **sans rubrique** (avant le premier titre d'une plage,
-ou sous des titres sans `#` de niveau 1 ou 2) n'a pas d'uuid de titre : elle
-n'est jamais appariée automatiquement, car rien ne dit qu'elle continue la
-rubrique qui la précède (deux plages successives ne sont souvent pas
-contiguës). Elle figure parmi les rubriques seules, sous un libellé qui dit
-où elle commence ; pour l'apparier, on restitue son titre en tête de la
-table des lignes de sa plage.
-
-Le patch gagne : ses rubriques sont retirées de l'alignement automatique.
-Les titres recopiés servent à la relecture et au **réancrage** : si un uuid
-disparaît (re-segmentation amont), on cherche la rubrique de même clé,
-unique dans l'annuaire ; faute de quoi la ligne est orpheline (non
-appliquée ; les scripts d'alignement paniquent, sauf `--force` :
-numrev/curation.py).
+Une suite d'entrées **sans rubrique** (avant le premier titre d'une plage)
+n'a pas d'uuid : jamais appariée, ni inscriptible au patch ; on restitue son
+titre dans la table des lignes (`docs/guide_annotation_lignes.md`).
 """
 
 import json
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field, fields, replace
+from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 
 from rapidfuzz.distance import JaroWinkler
 from rapidfuzz.process import cdist
 
+from numrev.alignment.patch import SIDES, PatchLine, Resolution, resolve_lines
 from numrev.alignment.records import SOURCE_MANUAL, Link, Record, clean_title
 from numrev.alignment.sequence import needleman_wunsch
 from numrev.command import Writes
@@ -52,8 +34,6 @@ from numrev.paths import NER
 
 SOURCE_AUTO = "auto"
 DEFAULT_THRESHOLD = 0.8  # similarité Jaro-Winkler minimale de deux clés alignées
-SECTION_PATCH_SUFFIX = ".sections.csv"
-SIDES = ("left", "right")
 
 
 @dataclass
@@ -69,7 +49,7 @@ def untitled_label(record: Record) -> str:
     return f"(sans rubrique : {record.document.removesuffix(NER)}, à partir de la p. {record.page})"
 
 
-def sections(records: list[Record]) -> list[Section]:
+def split_sections(records: list[Record]) -> list[Section]:
     """Rubriques d'un annuaire, dans l'ordre : suites contiguës d'entrées de
     même rubrique."""
     result: list[Section] = []
@@ -85,20 +65,12 @@ def sections(records: list[Record]) -> list[Section]:
 # Patch
 # ----------------------------------------------------------------------
 @dataclass(frozen=True)
-class SectionPatchEntry:
+class SectionPatchEntry(PatchLine):
     left_uuid: str = ""
     right_uuid: str = ""
     left_title: str = ""
     right_title: str = ""
     note: str = ""
-
-    def uuids(self) -> list[tuple[str, str]]:
-        """(côté, uuid) renseignés."""
-        return [(side, getattr(self, f"{side}_uuid")) for side in SIDES if getattr(self, f"{side}_uuid")]
-
-    @property
-    def is_pair(self) -> bool:
-        return bool(self.left_uuid and self.right_uuid)
 
 
 SECTION_PATCH_FIELDS = [f.name for f in fields(SectionPatchEntry)]
@@ -146,56 +118,28 @@ def validate_section_patch(entries: list[SectionPatchEntry]) -> None:
         raise ValueError("Patch des rubriques incohérent :\n- " + "\n- ".join(problems))
 
 
-def section_patch_line(left: Section | None, right: Section | None, note: str = "") -> SectionPatchEntry:
-    """Ligne de patch pour deux rubriques, ou une seule (l'autre à None)."""
-    values = {"note": note}
-    for side, section in (("left", left), ("right", right)):
-        if section is not None:
-            values |= {f"{side}_uuid": section.uuid, f"{side}_title": section.title}
-    return SectionPatchEntry(**values)
-
-
-@dataclass
-class SectionResolution:
-    entries: list[SectionPatchEntry]  # lignes applicables
-    reanchored: list[tuple[SectionPatchEntry, SectionPatchEntry]] = field(default_factory=list)  # (avant, après)
-    orphans: list[SectionPatchEntry] = field(default_factory=list)
-
-
-def resolve_section_patch(entries: list[SectionPatchEntry], left: list[Section], right: list[Section]) -> SectionResolution:
-    """Vérifie que les uuid du patch existent ; réancre par la clé du titre
-    (unique dans l'annuaire) ceux qui ont disparu ; met à jour les titres."""
-    available = {"left": left, "right": right}
-    by_uuid = {side: {section.uuid: section for section in available[side] if section.uuid} for side in SIDES}
-    by_key: dict[str, dict[str, list[Section]]] = {side: defaultdict(list) for side in SIDES}
-    for side in SIDES:
-        for section in available[side]:
+def resolve_section_patch(entries: list[SectionPatchEntry], left: list[Section], right: list[Section]) -> Resolution[SectionPatchEntry]:
+    """Uuid du patch confrontés aux rubriques ; un uuid disparu est réancré
+    sur la rubrique de même clé de titre, si elle est unique ; les titres
+    recopiés sont mis à jour."""
+    by_uuid: dict[str, dict[str, Section]] = {}
+    by_key: dict[str, dict[str, list[Section]]] = {}
+    for side, side_sections in zip(SIDES, (left, right)):
+        by_uuid[side] = {section.uuid: section for section in side_sections if section.uuid}
+        by_key[side] = defaultdict(list)
+        for section in side_sections:
             by_key[side][section.key].append(section)
-    resolution = SectionResolution(entries=[])
-    for entry in entries:
-        updated, moved, orphan = entry, False, False
-        for side, uuid in entry.uuids():
-            section = by_uuid[side].get(uuid)
-            if section is None:
-                candidates = by_key[side].get(clean_title(getattr(entry, f"{side}_title")), [])
-                if len(candidates) != 1 or not candidates[0].uuid:
-                    orphan = True
-                    break
-                section, moved = candidates[0], True
-            updated = replace(updated, **{f"{side}_uuid": section.uuid, f"{side}_title": section.title})
-        if orphan:
-            resolution.orphans.append(entry)
-            continue
-        if moved:
-            resolution.reanchored.append((entry, updated))
-        resolution.entries.append(updated)
-    return resolution
 
+    def locate(side: str, uuid: str, entry: SectionPatchEntry) -> tuple[Section, bool] | None:
+        if uuid in by_uuid[side]:
+            return by_uuid[side][uuid], False
+        candidates = by_key[side].get(clean_title(getattr(entry, f"{side}_title")), [])
+        return (candidates[0], True) if len(candidates) == 1 and candidates[0].uuid else None
 
-def updated_section_patch(entries: list[SectionPatchEntry], resolution: SectionResolution) -> list[SectionPatchEntry]:
-    """Le patch à réécrire : lignes réancrées remplacées, orphelines gardées."""
-    after = {id(before): new for before, new in resolution.reanchored}
-    return [after.get(id(entry), entry) for entry in entries]
+    def refresh(entry: SectionPatchEntry, side: str, section: Section) -> SectionPatchEntry:
+        return replace(entry, **{f"{side}_uuid": section.uuid, f"{side}_title": section.title})
+
+    return resolve_lines(entries, locate, refresh)
 
 
 # ----------------------------------------------------------------------
@@ -210,14 +154,11 @@ class SectionGroup:
 
 @dataclass
 class SectionAlignment:
-    groups: list[SectionGroup]  # groupes manuels puis automatiques
-    auto_left: list[Section]  # suites alignées automatiquement (sans le patch)
-    auto_right: list[Section]
-    auto_pairs: list[tuple[int, int]]  # indices dans auto_left / auto_right
+    groups: list[SectionGroup]  # groupes du patch puis paires automatiques
     unmatched_left: list[Section]  # sans groupe (déclarées au patch ou non alignées)
     unmatched_right: list[Section]
     declared: set[tuple[str, str]]  # (côté, uuid) déclarés sans correspondance au patch
-    resolution: SectionResolution
+    resolution: Resolution[SectionPatchEntry]
 
 
 def manual_groups(entries: list[SectionPatchEntry], left: list[Section], right: list[Section]) -> list[SectionGroup]:
@@ -251,7 +192,8 @@ def align_sections(
     patch: list[SectionPatchEntry] = (),
     threshold: float = DEFAULT_THRESHOLD,
 ) -> SectionAlignment:
-    left, right = sections(left_records), sections(right_records)
+    """Groupes du patch, puis paires automatiques (Needleman-Wunsch, similarité ≥ `threshold`) des autres rubriques titrées."""
+    left, right = split_sections(left_records), split_sections(right_records)
     resolution = resolve_section_patch(list(patch), left, right)
     manual = manual_groups(resolution.entries, left, right)
     declared = {key for entry in resolution.entries if not entry.is_pair for key in entry.uuids()}
@@ -272,9 +214,6 @@ def align_sections(
     grouped = {id(section) for group in groups for side in SIDES for section in getattr(group, side)}
     return SectionAlignment(
         groups=groups,
-        auto_left=auto_left,
-        auto_right=auto_right,
-        auto_pairs=auto_pairs,
         unmatched_left=[section for section in left if id(section) not in grouped],
         unmatched_right=[section for section in right if id(section) not in grouped],
         declared=declared,
@@ -296,7 +235,7 @@ def load_section_alignment(
     validate_section_patch(entries)
     alignment = align_sections(left_records, right_records, entries, threshold)
     if writes is not None and alignment.resolution.reanchored:
-        writes.add(patch_path, lambda: write_section_patch(patch_path, updated_section_patch(entries, alignment.resolution)))
+        writes.add(patch_path, lambda: write_section_patch(patch_path, alignment.resolution.updated(entries)))
     return alignment
 
 
@@ -351,22 +290,17 @@ def canonical_training_text(text: str, left_keys: dict[str, str], right_keys: di
     return json.dumps(canonical_training(json.loads(text), left_keys, right_keys), ensure_ascii=False)
 
 
-def segments(alignment: SectionAlignment) -> list[tuple[list[Section], list[Section]]]:
-    """Segments à aligner : un par groupe de rubriques appariées (groupes du
-    patch, entrées de leurs N rubriques concaténées, puis paires
-    automatiques). On n'apparie **jamais** des entrées de rubriques qui ne se
-    correspondent pas : une rubrique sans correspondance (non alignée ou
-    déclarée seule) n'est dans aucun segment ; pour l'apparier, la lier dans
-    le patch des rubriques."""
-    return [(group.left, group.right) for group in alignment.groups]
-
-
 def segment_entries(alignment: SectionAlignment) -> list[tuple[list[Record], list[Record]]]:
-    """Entrées de chaque segment (`segments`), de gauche et de droite, dans
-    l'ordre des annuaires."""
+    """Segments à aligner : un par groupe de rubriques appariées (entrées de
+    ses rubriques concaténées, dans l'ordre de chaque annuaire). Une rubrique
+    sans correspondance n'est dans aucun segment : ses entrées ne sont jamais
+    appariées tant qu'elle n'est pas liée dans le patch des rubriques."""
     return [
-        ([record for section in left for record in section.records], [record for section in right for record in section.records])
-        for left, right in segments(alignment)
+        (
+            [record for section in group.left for record in section.records],
+            [record for section in group.right for record in section.records],
+        )
+        for group in alignment.groups
     ]
 
 

@@ -1,15 +1,13 @@
-"""Étape 7 · alignement ordonné de deux annuaires complets, sans
-apprentissage (méthode : `numrev/alignment/nw.py`, `docs/alignement_ordonne.md`).
+"""Étape 7 · alignement ordonné de deux annuaires complets, sans apprentissage
+(méthode : `numrev/alignment/nw.py`, `docs/alignement_ordonne.md`).
 
     uv run numrev align nw annuaires/1807_AD75-PER292 annuaires/1808_AD75-PER292 --apply
 
 Sortie : `annuaires/alignments/<gauche>__<droite>.nw.csv`, au format de
-`numrev align dedupe` (`numrev/alignment/records.py`). Le patch des
-rubriques s'applique (`data/alignment/<paire>.sections.csv`) ; celui des
-entrées non (le viewer et `numrev join` l'appliquent en mémoire), mais il
-est vérifié comme le premier : une ligne orpheline arrête la commande (sauf
-`--force`), des lignes réancrées le font réécrire. Si la sortie de Dedupe
-existe, l'accord des deux méthodes est affiché.
+`numrev align dedupe`. Le patch des rubriques s'applique ; celui des entrées
+non (le viewer et `numrev join` l'appliquent en mémoire), mais il est vérifié
+et réancré de la même façon. Si la sortie de Dedupe existe, la console
+affiche l'accord des deux méthodes.
 """
 
 import argparse
@@ -19,7 +17,7 @@ from rich.table import Table
 
 from numrev.alignment import pair_hmm
 from numrev.alignment.nw import Params, Result, align
-from numrev.alignment.pair import load_entry_patch, load_pair, pair_of_dirs, print_matched, print_sections
+from numrev.alignment.pair import load_entry_patch, load_pair, pair_of_dirs, print_matched, print_scores, print_sections
 from numrev.alignment.records import SOURCE_NW, SOURCE_NW_CONTEXT, SOURCE_NW_RESIDUAL, Link, Record, read_links, write_links
 from numrev.command import Writes, add_apply_argument, add_force_argument, console, fine_tuning
 from numrev.paths import DEDUPE_SUFFIX, NW_SUFFIX
@@ -28,7 +26,7 @@ DESCRIPTION = (
     "Met en correspondance (un-à-un) les ENTRY de deux annuaires complets en suivant leur ordre "
     "(Needleman-Wunsch par rubrique, pair-HMM entre les ancres), sans apprentissage."
 )
-SCORE_BINS = (0.75, 0.8, 0.85, 0.9, 0.95, 0.99)
+SCORE_BOUNDS = (0.5, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99)
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -84,16 +82,7 @@ def print_summary(left_name: str, right_name: str, n_left: int, n_right: int, re
         f"(pair-HMM), {by_source[SOURCE_NW_RESIDUAL]} {SOURCE_NW_RESIDUAL} (hors ordre)."
     )
 
-    bins = Table(title="Scores des correspondances", show_header=True)
-    bins.add_column("Score")
-    sources = [source for source, count in by_source.items() if count]
-    for source in sources:
-        bins.add_column(source, justify="right")
-    edges = [0.0, 0.5, *SCORE_BINS, float("inf")]
-    for low, high in zip(edges, edges[1:]):
-        label = f"[{low:.2f} ; {high:.2f}[" if high != float("inf") else f"≥ {low:.2f}"
-        bins.add_row(label, *(str(sum(link.source == source and low <= link.score < high for link in links)) for source in sources))
-    console.print(bins)
+    print_scores(links, SCORE_BOUNDS)
     if result.fit:
         print_model(result.fit)
 
@@ -139,15 +128,11 @@ def run(args: argparse.Namespace) -> None:
         args.threshold, args.residual_threshold, args.section_threshold, args.subj_weight, args.anchor_threshold, not args.no_context
     )
     loaded = load_pair(pair, force=args.force, writes=writes, section_threshold=params.section_threshold)
-    entries, resolution = load_entry_patch(loaded, force=args.force, writes=writes)
+    entries, _ = load_entry_patch(loaded, force=args.force, writes=writes)
     if entries:
         console.print(
             f"Patch des entrées [yellow]{pair.entry_patch}[/yellow] : {len(entries)} ligne(s), "
             "appliquées par numrev view alignment et numrev join (pas à cette sortie)."
-        )
-    if resolution.reanchored:
-        console.print(
-            f"[yellow]↻ {len(resolution.reanchored)} ligne(s) du patch des entrées réancrée(s) par le texte (patch à réécrire).[/yellow]"
         )
     console.print("Alignement…")
     result = align(loaded.left_records, loaded.right_records, params, loaded.sections)

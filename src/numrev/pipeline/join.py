@@ -3,34 +3,12 @@ utilisateurs des données (historiens).
 
     uv run numrev join annuaires/alignments/<gauche>__<droite>.nw.csv [--excel] --apply
 
-L'entrée est une sortie d'alignement (`*.dedupe.csv`, `*.nw.csv`, ou le CSV
-final `<gauche>__<droite>.csv`) ; comme dans `numrev view alignment`, la
-paire de volumes se déduit du nom de fichier, les deux annuaires sont relus
-en entier (`annuaires/<gauche>/`, `annuaires/<droite>/`, leurs
-`*.ner.csv`) et le patch des corrections manuelles
-`data/alignment/<gauche>__<droite>.patch.csv` est appliqué en mémoire (il
-n'est jamais réécrit ici ; `--no-patch` l'ignore).
-
-Une ligne par correspondance ou entrée sans correspondance, dans l'ordre
-naturel des listes (`numrev/alignment/export.py`) : `statut` (apparié / gauche
-seulement / droite seulement), `score`, `methode` (source du lien),
-`certitude` (relue / incertaine à la relecture / automatique),
-`niveau_incertitude` (faible, moyenne, forte) et
-`motifs_relecture` (`numrev/alignment/review.py`), puis pour chaque
-côté (`gauche_…`, `droite_…`) : volume, page, rubrique, texte sans Markdown,
-empans `sujet` / `description` / `adresse` (plusieurs empans de même classe
-séparés par « | »), texte balisé et uuid.
-
-`--candidates` ajoute les candidates non appariées à vérifier (deux entrées
-sans correspondance, statut `candidate`) ; par défaut, l'export ne contient
-que les liens retenus.
-
-On n'apparie qu'entre rubriques appariées (`numrev/alignment/sections.py`) : un
-lien entre rubriques qui ne se correspondent pas (Dedupe en produit) est
-écarté, et compté en console.
-
-Sortie par défaut : `<entrée sans .csv>.join.csv` à côté de l'entrée.
-`--excel` : séparateur `;` et UTF-8 avec BOM, pour un tableur en français.
+L'entrée est une sortie d'alignement (`.dedupe.csv`, `.nw.csv` ou le CSV
+final) ; la paire de volumes se déduit de son nom, les deux annuaires sont
+relus et le patch des entrées est appliqué en mémoire, jamais réécrit
+(`--no-patch` l'ignore). Une ligne par paire ou entrée seule, dans l'ordre
+naturel des listes, colonnes décrites dans `docs/donnees.md`
+(`numrev/alignment/export.py`). Sortie : `<entrée sans .csv>.join.csv`.
 """
 
 import argparse
@@ -79,27 +57,11 @@ def run(args: argparse.Namespace) -> None:
         links, stats = apply_patch(links, resolution.entries)
         declared = declared_unmatched(resolution)
         console.print(f"Patch [yellow]{pair.entry_patch}[/yellow] : {len(entries)} ligne(s), {stats.manual_pairs} paire(s) manuelle(s).")
-        if resolution.reanchored:
-            console.print(
-                f"[yellow]↻ {len(resolution.reanchored)} ligne(s) du patch réancrée(s) par le texte ; "
-                "numrev align nw (ou align dedupe) --apply réécrira le patch.[/yellow]"
-            )
 
     links, dropped = restrict_to_corresponding(links, left, right, loaded.sections)
     if dropped:
         console.print(f"[yellow]{len(dropped)} lien(s) entre rubriques non appariées écarté(s).[/yellow]")
-    params = Params()
-    found = review(
-        links,
-        loaded.left_records,
-        loaded.right_records,
-        loaded.sections,
-        params.threshold,
-        params.residual_threshold,
-        params.subj_weight,
-        args.margin,
-        declared,
-    )
+    found = review(links, loaded.left_records, loaded.right_records, loaded.sections, Params(), args.margin, declared)
     rows, n_missing = natural_rows(links + (found.candidates if args.candidates else []), left, right)
     if n_missing:
         console.print(f"[bold red]⚠ {n_missing} lien(s) vers des entrées disparues, ignoré(s) : relancer l'alignement.[/bold red]")

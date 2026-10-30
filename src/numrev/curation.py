@@ -1,47 +1,31 @@
-"""Corrections humaines rejouables : le protocole commun aux étapes curées.
+"""Corrections humaines rejouables : le protocole commun aux étapes curées
+(guide pour les curateurs : `docs/guide_curation.md`).
 
-Les sorties curées de la chaîne (`<document>.lines.csv`,
-`<document>.ner.csv`) sont à la fois la sortie machine et le fichier qu'on
-édite à la main (Excel, OpenRefine). Pour pouvoir relancer une étape sans
-perdre ces éditions, chaque ligne porte :
+La sortie d'une étape curée (`<document>.lines.csv`, `<document>.ner.csv`)
+est à la fois la sortie machine et le fichier corrigé à la main. Chaque
+ligne y porte une clé stable (`cle` d'une ligne, `uuid` d'une entité), des
+champs éditables, `corrige` (`oui` : corrigée, ou validée telle quelle) et
+`empreinte` (hash des champs éditables tels que la machine les a écrits).
 
-- une **clé stable** (`cle` d'une ligne, `uuid` d'une entité) ;
-- des **champs éditables** (classe et texte ; balisage NER et titre parent) ;
-- `corrige` : `oui` sur une ligne corrigée, ou validée telle quelle (confirmer
-  une prédiction est aussi une décision humaine) ;
-- `empreinte` : hash des champs éditables tels que la machine les a écrits.
+Une exécution réussit entièrement ou n'écrit rien (`CurationConflict`) :
 
-Une commande d'étape enchaîne, et réussit entièrement ou n'écrit rien :
+1. **capture** : les lignes `corrige = oui` du fichier existant réécrivent le
+   patch versionné `data/curation/<document>.<étape>.patch.csv` ; une ligne
+   modifiée sans `corrige` fait paniquer ;
+2. **génération** de la sortie machine, par l'étape ;
+3. **application** du patch, qui gagne ; une correction qui ne s'applique
+   plus (clé disparue, vérification de l'étape refusée) fait paniquer.
 
-1. **capture** : si sa sortie existe déjà, ses lignes `corrige = oui`
-   réécrivent le patch versionné `data/curation/<document>.<étape>.patch.csv`
-   (git sert de copie de sécurité). Une ligne modifiée (empreinte qui ne
-   correspond plus) mais sans `corrige` fait **paniquer** : oubli, ou
-   altération par le tableur. `--force` lui fait prendre la nouvelle sortie
-   machine, ce qui est aussi le moyen d'annuler une correction (vider
-   `corrige`, relancer avec `--force`) ;
-2. **génération** de la sortie machine ;
-3. **application** du patch, qui gagne. Toute correction qui ne s'applique
-   pas mécaniquement fait paniquer (clé disparue, texte modifié en amont…) ;
-   avec `--force`, elle est abandonnée et retirée du patch.
+`--force` prend la sortie machine pour les lignes en cause et retire du
+patch les corrections inapplicables ; `--no-capture` repart du patch
+versionné sans lire le fichier existant.
 
-`CurationConflict` porte la liste des problèmes ; rien n'est écrit tant
-qu'elle est levée. `--no-capture` ignore le fichier existant et repart du
-patch versionné (après un `git pull` qui l'a modifié, par exemple).
-
-Lignes ajoutées à la main (étape des lignes seulement) : une ligne sans clé,
-ou qui reprend la clé de la ligne précédente (ligne dupliquée), reçoit à la
-capture la clé `<clé de base>+n` ; le patch garde sa position (`apres` = clé
-de la ligne qui la précède) et elle est réinsérée à cette place. Ajoutée
-avant la première ligne du fichier (titre restitué en tête de plage), elle
-reçoit la clé `debut+n` et un `apres` vide. Elle n'hérite pas des valeurs
-que la machine calcule pour chaque ligne (`Step.machine_only` : scores OCR,
-probabilité…), qui restent vides. Une ligne
-machine effacée du fichier fait paniquer : on supprime une ligne en lui
-donnant la classe `SUPPRIMÉE`, pour que ce soit rejouable. Une ligne machine
-déplacée fait aussi paniquer (l'ordre des lignes machine est celui de
-l'OCR) : on la déplace en donnant la classe `SUPPRIMÉE` à l'originale et en
-ajoutant une copie, sans clé, à la bonne place.
+Étape des lignes seulement : une ligne ajoutée (sans clé, ou dupliquée)
+reçoit la clé `<clé précédente>+n` (`debut+n` en tête de fichier), et le
+patch retient sa place (`apres`) ; elle reprend les colonnes de sa voisine,
+sauf `Step.machine_only`, laissées vides. Une ligne machine effacée ou
+déplacée fait paniquer : on supprime une ligne en lui donnant la classe
+`SUPPRIMÉE`, on la déplace par `SUPPRIMÉE` + une copie sans clé.
 """
 
 import csv
@@ -227,7 +211,6 @@ class Curation:
                     continue
                 key = self._new_key(previous or START_KEY, all_keys)
                 all_keys.add(key)
-                row[step.key] = key
             seen.add(key)
             row[step.key] = key
             if step.insertions and is_inserted(key):
@@ -281,12 +264,9 @@ class Curation:
         kept: list[dict[str, str]] = []
         inserted_after: dict[str, list[dict[str, str]]] = {}
 
-        def refuse(correction: dict[str, str], message: str) -> None:
-            text = f"{correction.get(step.key)} : {message}"
-            if self.force:
-                self.report.dropped.append(text)
-            else:
-                problems.append(text)
+        def refuse(message: str) -> None:
+            """Problème qui fait paniquer, ou correction abandonnée avec --force."""
+            (self.report.dropped if self.force else problems).append(message)
 
         for correction in self.corrections:
             key = correction.get(step.key, "")
@@ -296,7 +276,8 @@ class Curation:
                 anchor = by_key.get(after) if after else next(iter(machine_rows), None)
                 if anchor is None:
                     refuse(
-                        correction, f"ligne ajoutée après {after!r}, introuvable" if after else "ligne ajoutée en tête d'un fichier vide"
+                        f"{key} : "
+                        + (f"ligne ajoutée après {after!r}, introuvable" if after else "ligne ajoutée en tête d'un fichier vide")
                     )
                     continue
                 row = {**anchor, **dict.fromkeys(step.machine_only, "")}
@@ -304,7 +285,7 @@ class Curation:
                 row |= {step.key: key, FINGERPRINT_COLUMN: "", CORRECTED_COLUMN: CORRECTED}
                 message = check(correction, row) if check else None
                 if message:
-                    refuse(correction, message)
+                    refuse(f"{key} : {message}")
                     continue
                 inserted_after.setdefault(after, []).append(row)
                 by_key[key] = row
@@ -312,11 +293,11 @@ class Curation:
             else:
                 row = by_key.get(key)
                 if row is None:
-                    refuse(correction, "introuvable dans la nouvelle sortie")
+                    refuse(f"{key} : introuvable dans la nouvelle sortie")
                     continue
                 message = check(correction, row) if check else None
                 if message:
-                    refuse(correction, message)
+                    refuse(f"{key} : {message}")
                     continue
                 row.update({name: correction.get(name, "") for name in step.fields})
                 row[CORRECTED_COLUMN] = CORRECTED
@@ -330,27 +311,19 @@ class Curation:
                 if index is None:
                     continue
                 if index < highest:
-                    message = (
+                    refuse(
                         f"{key} (uid {by_key[key].get('uid', '?')}) : ligne déplacée ; pour la déplacer, donnez la "
                         "classe SUPPRIMÉE à l'originale et ajoutez une copie sans clé à la bonne place"
                     )
-                    if self.force:
-                        self.report.dropped.append(message)
-                    else:
-                        problems.append(message)
                 highest = max(highest, index)
 
         if step.insertions and self.previous_keys is not None:
             for row in machine_rows:
                 if row[step.key] not in self.previous_keys:
-                    message = (
+                    refuse(
                         f"{row[step.key]} (uid {row.get('uid', '?')}) : absente du fichier édité ; "
                         "pour supprimer une ligne, donnez-lui la classe SUPPRIMÉE"
                     )
-                    if self.force:
-                        self.report.dropped.append(message)
-                    else:
-                        problems.append(message)
 
         if problems:
             raise CurationConflict(problems, "corrigez le fichier ou le patch, ou relancez avec --force pour reprendre la sortie machine.")

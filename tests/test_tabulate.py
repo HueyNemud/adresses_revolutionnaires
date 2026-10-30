@@ -6,7 +6,7 @@ from pathlib import Path
 
 from numrev.curation import read_csv, write_csv
 from numrev.pipeline.extract import assign_line_keys
-from numrev.pipeline.tabulate import CSV_FIELDS, process_json_to_csv
+from numrev.pipeline.tabulate import CSV_FIELDS, tabulate_document
 
 
 class JsonToCsvTests(unittest.TestCase):
@@ -53,7 +53,7 @@ class JsonToCsvTests(unittest.TestCase):
 
     def export_rows(self) -> list[dict[str, str]]:
         csv_path = Path(self.temporary_directory.name) / "output.csv"
-        process_json_to_csv(self.json_path, csv_path, Path(self.temporary_directory.name) / "patch.csv")
+        tabulate_document(self.json_path, csv_path, Path(self.temporary_directory.name) / "patch.csv")
         with csv_path.open(encoding="utf-8", newline="") as output_file:
             return list(csv.DictReader(output_file))
 
@@ -102,7 +102,7 @@ class JsonToCsvTests(unittest.TestCase):
         csv_path = Path(self.temporary_directory.name) / "invalid.csv"
 
         with self.assertRaisesRegex(ValueError, "data_blocks"):
-            process_json_to_csv(json_path, csv_path)
+            tabulate_document(json_path, csv_path)
 
     def test_rejects_a_json_without_line_keys(self) -> None:
         for line in self.document[0]["data_blocks"][0]["lines"]:

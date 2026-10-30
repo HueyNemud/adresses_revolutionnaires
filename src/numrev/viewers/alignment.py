@@ -1,57 +1,16 @@
-"""Viewer Streamlit d'un alignement entre deux annuaires (sorties de
-`numrev align`), outil de relecture.
+"""Viewer Streamlit d'un alignement de deux annuaires, outil de relecture (lecture seule).
 
     uv run numrev view alignment
 
-On choisit une paire d'annuaires par une sortie brute : celle de Dedupe
-`annuaires/alignments/<gauche>__<droite>.dedupe.csv` ou celle de
-`numrev align nw`, `<gauche>__<droite>.nw.csv`. Les deux annuaires
-(`annuaires/<gauche>/`, `annuaires/<droite>/`) sont relus en entier par
-`numrev/alignment/records.py`, et le patch de corrections manuelles
-`data/alignment/<gauche>__<droite>.patch.csv` est appliqué en mémoire
-(`numrev/alignment/patch.py`) : ce qui est affiché est le résultat final.
-
-On n'apparie qu'entre rubriques appariées (`numrev/alignment/sections.py`, avec
-son patch `data/alignment/<gauche>__<droite>.sections.csv`, non réécrit
-ici) : un lien entre rubriques qui ne se correspondent pas — Dedupe en
-produit — est écarté à l'affichage comme à l'export, et compté. La
-correspondance des rubriques est détaillée dans un encart, et chaque
-bandeau de rubrique a un bouton **uuid** pour alimenter son patch.
-
-Une seule table, dans l'**ordre naturel** des listes : les correspondances et
-les entrées de gauche sans correspondance dans l'ordre de l'annuaire de
-gauche, chaque entrée de droite sans correspondance insérée après la paire
-qui contient l'entrée de droite appariée qui la précède. La dernière
-colonne donne le **statut** de chaque ligne en clair (appariée, candidate
-non appariée, sans correspondance) ; le bouton **Légende**, à côté de la
-pagination, l'explique. Un encart **Rubriques** donne, par groupe de
-rubriques appariées puis par rubrique seule, la correspondance (auto,
-patch, seule) et la part d'entrées appariées de chaque côté.
-
-Barre latérale, du plus courant au plus fin : choix de l'alignement ;
-filtres (statut des lignes, incertitude, rubrique, recherche, score,
-corrections manuelles) ; affichage ; export ; et, repliés en bas, les
-réglages fins de la relecture (seuil des candidates, écart « homonyme
-proche »).
-
-Le patch s'édite à la main. Pour l'alimenter, chaque entrée a un bouton
-**uuid** (copie son uuid) et chaque ligne un bouton **copier** (copie une
-ligne de patch prête à coller : la paire pour une correspondance, l'entrée
-seule pour une entrée sans correspondance).
-
-**Relecture** (`numrev/alignment/review.py`) : chaque correspondance porte une
-incertitude (faible, moyenne ou forte) et ses motifs (`déduite des voisines
-(p < 0,9)`, `homonyme proche`) ; des **candidates non appariées** (deux
-entrées sans correspondance, chacune la plus proche de l'autre, dans la zone
-grise de similarité) occupent une ligne à part, sur fond ambre : elles ne
-sont **pas** appariées, c'est au relecteur de décider. Le filtre
-« Incertitude » ne garde que les lignes d'incertitude moyenne ou forte, ou
-forte seulement. Une décision incertaine se copie avec le bouton **incertaine** (ligne de patch
-`certitude=incertaine`).
-
-Le bouton **Exporter en CSV** télécharge les lignes affichées (filtres et tri
-appliqués) sous la forme de la jointure lisible de `numrev/alignment/export.py`,
-comme `numrev join`.
+On choisit une sortie d'alignement (`….dedupe.csv` ou `….nw.csv`) ; la paire
+de volumes se déduit de son nom, les deux annuaires sont relus et les deux
+patchs (rubriques, entrées) appliqués en mémoire, jamais réécrits : l'écran
+montre le résultat final. Une table dans l'ordre naturel des listes
+(`numrev/alignment/export.py`), le statut de chaque ligne en clair, son
+incertitude et ses motifs (`numrev/alignment/review.py`), des boutons qui
+copient un uuid ou une ligne de patch prête à coller, et l'export CSV des
+lignes affichées au format de `numrev join`. Mode d'emploi :
+`docs/guide_relecture_alignement.md`.
 """
 
 import csv
@@ -163,7 +122,6 @@ if (!window.__alignmentCopy) {
 # ----------------------------------------------------------------------
 # Données
 # ----------------------------------------------------------------------
-@st.cache_resource(show_spinner="Lecture de l'annuaire…")
 def text_mask(df: pd.DataFrame, query: str, columns: list[str], regex: bool = False) -> pd.Series:
     """Lignes dont l'une des `columns` contient `query` (sans casse)."""
     mask = pd.Series(False, index=df.index)
@@ -172,6 +130,7 @@ def text_mask(df: pd.DataFrame, query: str, columns: list[str], regex: bool = Fa
     return mask
 
 
+@st.cache_resource(show_spinner="Lecture de l'annuaire…")
 def load_records(volume_dir: str) -> dict[str, Record]:
     return {record.uuid: record for record in load_volume(Path(volume_dir))}
 
@@ -204,28 +163,17 @@ def load_alignment(
     candidate_low: float,
     margin: float,
 ) -> Alignment:
-    """Résultat final (alignement + patch), recalculé seulement si l'un des
-    fichiers change (`*_mtime` font partie de la clé de cache). Lève
-    ValueError si un patch est incohérent. Le patch des rubriques n'est pas
-    réécrit ici (visualiseur en lecture seule)."""
+    """Résultat final (alignement + patchs), recalculé seulement si l'un des
+    fichiers change (`*_mtime` font partie de la clé de cache). ValueError si
+    un patch est incohérent. Aucun patch n'est réécrit ici."""
     records = {"left": load_records(left_dir), "right": load_records(right_dir)}
+    left, right = list(records["left"].values()), list(records["right"].values())
     entries, resolution = load_patch(Path(patch_path), records["left"], records["right"])
     links, _ = apply_patch(read_links(Path(dedupe_path)), resolution.entries)
-    sections = load_section_alignment(list(records["left"].values()), list(records["right"].values()), Path(section_patch_path))
+    sections = load_section_alignment(left, right, Path(section_patch_path))
     links, dropped = restrict_to_corresponding(links, records["left"], records["right"], sections)
     declared = declared_unmatched(resolution)
-    params = Params()
-    found = review(
-        links,
-        list(records["left"].values()),
-        list(records["right"].values()),
-        sections,
-        candidate_low,
-        params.residual_threshold,
-        params.subj_weight,
-        margin,
-        declared,
-    )
+    found = review(links, left, right, sections, Params(threshold=candidate_low), margin, declared)
     joined, n_missing = natural_rows(links + found.candidates, records["left"], records["right"])
     rows = build_rows(joined, found.reviews)
     return Alignment(

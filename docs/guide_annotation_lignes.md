@@ -96,8 +96,9 @@ Le titre se corrige dans la colonne `markdown` : `#### PAPETIERS.` →
 des titres (avec le nombre d'entrées sous chacun) et les cas à vérifier :
 
 - **titres sans `#`** : leur donner un niveau ;
-- **continuations sans ancre** (`I-ENTRY`, `SUB-ENTRY` ou `I-TITLE` sans ligne
-  qui les précède) : souvent une `B-ENTRY` prise pour une suite, ou l'inverse ;
+- **suites sans entrée ou titre à continuer** (`I-ENTRY`, `SUB-ENTRY` ou
+  `I-TITLE` sans entrée ou titre avant elles, souvent en tête de plage) :
+  souvent une `B-ENTRY` prise pour une suite, ou l'inverse ;
 - **ruptures de l'ordre alphabétique** dans une rubrique : une entrée mal
   coupée (deux entrées collées, ou une suite prise pour une entrée), un nom
   mal lu, ou un vrai désordre de l'annuaire ;

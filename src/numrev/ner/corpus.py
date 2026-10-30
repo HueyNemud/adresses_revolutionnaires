@@ -1,19 +1,13 @@
-"""Lecture des entrées ENTRY des entités et de leurs annotations NER.
+"""Les ENTRY de `annuaires/` et leurs annotations NER (jeu d'entraînement,
+gold, audit).
 
-Pour chaque document `annuaires/<volume>/<plage>/<document>.entities.csv`,
-on lit, s'il existe, le fichier NER voisin `<document>.ner.csv` : sortie de
-`numrev tag`, où les lignes corrigées à la main portent `corrige = oui`
-(numrev/curation.py). Chaque entrée reçoit l'annotation de source `ner` ; une
-entrée corrigée reçoit aussi la source `ner_curated` (mêmes empans).
-
-Tout est ramené sur le **texte normalisé** (`normalize_markdown` : emphase
-Markdown retirée), qui est le texte de référence des annotations gold. Une
-annotation dont le texte ne correspond plus à celui de l'entrée (le
-curateur a parfois modifié le texte) ou dont le balisage est mal formé est
-ignorée (`None`) plutôt que réalignée approximativement.
-
-Jointure par `uid` (lignes sources de l'entrée) : les fichiers fusionnés
-avant l'identifiant déterministe portent des `uuid` aléatoires.
+Pour chaque `<document>.entities.csv`, on lit le `<document>.ner.csv` voisin
+s'il existe : chaque entrée reçoit l'annotation de source `ner`, et une
+entrée corrigée à la main (`corrige = oui`) aussi celle de source
+`ner_curated`. Les empans sont ramenés sur le texte sans Markdown
+(`normalize_markdown`), celui du gold ; une annotation dont le texte ne
+correspond plus à l'entrée, ou au balisage invalide, vaut None plutôt que
+d'être réalignée approximativement. Les deux fichiers sont joints par `uid`.
 """
 
 import json
@@ -52,6 +46,7 @@ def discover_documents(root: Path) -> list[Path]:
 
 
 def spans_from_tagged(tagged: str, raw_text: str, normalized: NormalizedText) -> list[Span] | None:
+    """Empans d'un `tagged_text` sur le texte sans Markdown ; None si le balisage est invalide ou ne redonne pas `raw_text`."""
     try:
         text, spans = parse_tagged_text(tagged)
     except ValueError:
@@ -61,10 +56,11 @@ def spans_from_tagged(tagged: str, raw_text: str, normalized: NormalizedText) ->
     return project_spans(spans, normalized)
 
 
-def load_document(merged_path: Path) -> list[Entry]:
-    document = document_name(merged_path)
+def load_document(entities_path: Path) -> list[Entry]:
+    """ENTRY non vides d'un CSV d'entités, avec leurs annotations NER."""
+    document = document_name(entities_path)
     volume = volume_of(document)
-    ner_path = step_path(merged_path, NER)
+    ner_path = step_path(entities_path, NER)
     ner_rows = [row for row in read_csv(ner_path)[1] if row.get("entity") == "ENTRY"] if ner_path.exists() else []
     tagged_by_source = {
         "ner": {row["uid"]: row.get("tagged_text", "") for row in ner_rows},
@@ -72,7 +68,7 @@ def load_document(merged_path: Path) -> list[Entry]:
     }
 
     entries = []
-    for row in read_csv(merged_path)[1]:
+    for row in read_csv(entities_path)[1]:
         if row.get("entity") != "ENTRY":
             continue
         raw_text = row.get("markdown", "").strip()

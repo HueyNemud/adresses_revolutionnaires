@@ -1,42 +1,30 @@
-"""Paires à vérifier après l'alignement automatique : motifs et niveau
-d'incertitude (`numrev view alignment`, `numrev join`,
-`numrev audit alignment`).
+"""Paires à vérifier après l'alignement : motifs de relecture et niveau
+d'incertitude (`numrev view alignment`, `numrev join`, `numrev audit alignment`).
 
-L'alignement ne change pas : on signale seulement, avec un motif explicite,
-les décisions qu'une relecture humaine peut corriger. Sur le gold des
-inversions 1807/1808, les cas douteux demandent un savoir que les données
-n'ont pas (homonymes, père / fils, coquilles des éditeurs, rues renommées) :
-mieux vaut les montrer que les trancher automatiquement. Motifs, calculés
-dans chaque segment (`numrev.alignment.sections.segments`, même similarité que
-`numrev align nw`) :
+L'alignement ne change pas : on montre au relecteur, avec un motif, les
+décisions qu'il peut corriger (homonymes, père / fils, rues renommées : un
+savoir que les données n'ont pas). Calculés par segment, avec la similarité
+de `numrev align nw` :
 
-- `déduite des voisines (p < 0,9)` : paire retenue par le pair-HMM
-  (`nw-contexte`) parce que ses voisines sont appariées, mais de
-  probabilité a posteriori < `CONTEXT_REVIEW` ;
-- `homonyme proche` : paire décidée sur sa seule similarité (`nw`,
-  `nw-residuel`, `dedupe`) alors qu'une autre entrée du segment, de l'un ou
-  l'autre côté, est presque aussi proche (écart < `margin`) ;
-- `candidate non appariée` : deux entrées restées sans correspondance,
-  chacune la plus proche de l'autre dans le segment, de similarité dans la
-  zone grise [`low` ; `high`[ — par défaut entre le seuil de
-  Needleman-Wunsch et celui de la passe résiduelle
-  d'`numrev align nw`. Ce n'est pas un lien : seulement une paire
-  soumise au relecteur.
+- `déduite des voisines (p < 0,9)` : paire `nw-contexte` de probabilité a
+  posteriori < `CONTEXT_REVIEW` ;
+- `homonyme proche` : paire décidée sur sa similarité (`nw`, `nw-residuel`,
+  `dedupe`) alors qu'une autre entrée du segment est à moins de `margin` ;
+- `candidate non appariée` : deux entrées sans correspondance, chacune la
+  plus proche de l'autre, de similarité entre les seuils de Needleman-Wunsch
+  et de la passe résiduelle. Ce n'est pas un lien.
 
 Les paires du patch (relues) n'ont pas de motif. Niveau d'incertitude
-(ordinal, pour trier la relecture ; ce n'est pas une probabilité) :
-`faible` (0) sans motif ; `moyenne` (1) un motif ; `forte` (2) une
-candidate non appariée, plusieurs motifs ou une paire déduite des voisines
-de probabilité < `CONTEXT_DOUBT`. Aucun paramètre n'est appris sur un volume :
-`numrev audit alignment` vérifie, sur le gold d'une nouvelle paire
-d'annuaires, que les motifs attrapent les erreurs et que le niveau reste
-ordonné.
+(ordinal, pas une probabilité) : `faible` sans motif, `moyenne` avec un
+motif, `forte` pour une candidate, plusieurs motifs ou une paire déduite des
+voisines de probabilité < `CONTEXT_DOUBT`. Rien n'est appris sur un volume.
 """
 
 from dataclasses import dataclass
 
 import numpy as np
 
+from numrev.alignment.nw import Params
 from numrev.alignment.records import (
     SOURCE_CANDIDATE,
     SOURCE_DEDUPE,
@@ -85,16 +73,15 @@ def review(
     left: list[Record],
     right: list[Record],
     sections: SectionAlignment,
-    low: float,
-    high: float,
-    subj_weight: float,
+    params: Params = Params(),
     margin: float = DEFAULT_MARGIN,
     declared: set[str] = frozenset(),
 ) -> ReviewResult:
-    """Motifs des liens `links` (après patch) et candidates non appariées. `low`, `high`,
-    `subj_weight` : ceux de `numrev.alignment.nw.Params` (seuils de
-    Needleman-Wunsch et de la passe résiduelle, poids du SUBJ). `declared` :
-    uuid déclarés sans correspondance par le patch, jamais proposés."""
+    """Motifs des liens `links` (après patch) et candidates non appariées :
+    similarité (poids du SUBJ de `params`) dans [`params.threshold` ;
+    `params.residual_threshold`[. `declared` : uuid déclarés sans
+    correspondance par le patch, jamais proposés."""
+    low, high = params.threshold, params.residual_threshold
     by_left = {link.left_uuid: link for link in links}
     busy_left = {link.left_uuid for link in links} | set(declared)
     busy_right = {link.right_uuid for link in links} | set(declared)
@@ -103,7 +90,7 @@ def review(
     for left_records, right_records in segment_entries(sections):
         if not left_records or not right_records:
             continue
-        similarity = similarity_matrix(left_records, right_records, subj_weight)
+        similarity = similarity_matrix(left_records, right_records, params.subj_weight)
         right_index = {record.uuid: j for j, record in enumerate(right_records)}
 
         # Liens dont les deux entrées sont dans le segment

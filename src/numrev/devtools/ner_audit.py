@@ -1,27 +1,16 @@
-"""Audit de la segmentation NER SUBJ/DESC/ADDR sur le jeu gold.
+"""`numrev audit ner` · audit de la NER sur le gold relu (`data/ner/gold.ls.json`)
+→ `reports/ner/rapport.md` et `reports/ner/erreurs.csv`.
 
-Compare un ou plusieurs systèmes à la relecture humaine du gold
-(`data/ner/gold.ls.json`, tiré par `numrev gold ner` et corrigé
-dans Label Studio), et écrit `reports/ner/rapport.md` et
-`reports/ner/erreurs.csv`.
-
-Systèmes évalués (au moins un) :
-- `--model DOSSIER` : un modèle GLiNER, exécuté sur place (CPU : quelques
-  secondes pour quelques centaines d'entrées) ; `--sweep` balaie le seuil ;
-- `--predictions NOM=FICHIER` : des prédictions déjà calculées, JSON Label
-  Studio (prédictions ou annotations) ou CSV à colonne
-  `tagged_text` (sortie de `numrev tag`), appariées au gold par texte
-  normalisé.
-
-Métriques (voir `numrev.ner.metrics`) : exactitude par entrée (métrique
-principale, part des entrées sans correction à faire), F1 par classe,
-exactitude par token ; pondérées par le plan de sondage du gold, IC 95 %
-par bootstrap des pages, Δ appariés contre la référence (▲ / ▼ =
-intervalle entièrement au-dessus / au-dessous de 0). Pour un modèle avec
-scores, qualité du score de confiance comme outil de tri pour la relecture,
-et efficacité du drapeau `ner_suspect` d'`numrev tag`
-(`numrev.ner.suspicion`, seuil `--min-score`) : part d'entrées signalées et
-part des erreurs attrapées, motif par motif.
+Systèmes évalués (au moins un) : `--model DOSSIER` (un modèle GLiNER, exécuté
+sur place ; `--sweep` balaie le seuil) et `--predictions NOM=FICHIER`
+(prédictions déjà calculées : JSON Label Studio, ou CSV à colonne
+`tagged_text`, appariées au gold par texte normalisé). Métriques
+(`numrev.ner.metrics`) : exactitude par entrée (principale), F1 par classe,
+exactitude par mot, pondérées par le plan de sondage, IC 95 % par bootstrap
+des pages, écarts appariés contre la référence (▲ / ▼ : intervalle
+entièrement au-dessus / au-dessous de 0). Pour un modèle avec scores :
+qualité du score comme tri de relecture, et couverture et rappel de
+`ner_suspect` (`numrev.ner.suspicion`, `--min-score`), motif par motif.
 """
 
 import argparse

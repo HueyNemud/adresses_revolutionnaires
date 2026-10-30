@@ -1,27 +1,17 @@
-"""Chargement des « silver datasets » : tables de lignes vérifiées et
-corrigées à la main (`<document>.lines.csv`, colonne `classe` ; les lignes
-de classe `SUPPRIMÉE` sont ignorées).
+"""Référence « silver » de l'audit du CRF : les tables des lignes corrigées
+à la main (`<document>.lines.csv`, colonne `classe`, lignes `SUPPRIMÉE`
+exclues).
 
-Observations et vérité viennent de deux fichiers distincts :
-
-- les **observations** (texte, bloc OCR, page...) sont relues dans le JSON
-  `<document>.lines.json` voisin, c'est-à-dire exactement ce qu'a vu
-  `numrev label`. La curation a en effet aussi corrigé le texte
-  (ajout / retrait de marqueurs de titre « # », ponctuation, ordre de
-  quelques lignes) : calculer les features sur le texte curé ferait fuiter
-  la vérité dans les features (« # » ajouté sur les titres) ;
-- la **vérité** (`classe`) est rattachée à ces lignes par leur clé stable
-  `cle` (numrev/curation.py), présente dans le JSON et dans le CSV. Une ligne
-  du JSON sans correspondant (supprimée ou vidée à la curation) reste sans
-  label : elle fait partie de la séquence observée mais n'est ni apprise ni
-  évaluée ; une ligne ajoutée à la main (clé `<clé>+n`) n'a pas
-  d'observation et est ignorée.
-
-La classe d'origine (sortie de l'annotateur, pour mesurer ce que la curation
-a changé) est relue dans `<document>.labeled.json`.
+Les **observations** viennent du `<document>.lines.json` voisin, ce qu'a vu
+`numrev label` : la curation a aussi corrigé le texte (marqueurs `#`…), et
+calculer les features sur le texte curé ferait fuiter la vérité. La
+**vérité** y est rattachée par la clé `cle` : une ligne du JSON sans
+correspondant reste dans la séquence, sans classe (ni apprise ni évaluée) ;
+une ligne ajoutée à la main, sans observation, est ignorée. La classe
+d'origine (pour mesurer ce que la curation a changé) est relue dans
+`<document>.labeled.json`.
 """
 
-import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,7 +20,7 @@ from numrev.crf.active_learning import SourceLine, context_from_records, load_js
 from numrev.crf.features import SequenceContext
 from numrev.crf.labels import CLASSES
 from numrev.curation import DELETED_CLASS, read_csv
-from numrev.document import iter_line_locations
+from numrev.document import iter_line_locations, load_pages
 from numrev.paths import LABELED, LINES, LINES_CSV, discover, document_name, step_path, volume_of
 
 GOLD_COLUMN = "classe"
@@ -99,7 +89,7 @@ def _heading_prefix(text: str) -> str:
 
 def _machine_labels(json_path: Path) -> dict[str, str]:
     """cle → classe écrite par l'annotateur."""
-    document = json.loads(json_path.read_text(encoding="utf-8"))
+    document = load_pages(json_path)
     return {str(location.line.get("cle", "")): location.line.get("prediction", "") for location in iter_line_locations(document)}
 
 
@@ -113,7 +103,7 @@ def load_silver_document(csv_path: Path) -> SilverDocument:
         raise ValueError(f"{csv_path} : colonne '{GOLD_COLUMN}' absente.")
     for row in rows:
         if (row.get(GOLD_COLUMN) or "").strip() not in CLASSES:
-            raise ValueError(f"{csv_path} : ligne {row.get('uid')!r} sans classe curée valide " f"({row.get(GOLD_COLUMN)!r}).")
+            raise ValueError(f"{csv_path} : ligne {row.get('uid')!r} sans classe curée valide ({row.get(GOLD_COLUMN)!r}).")
 
     name, volume = document_names(csv_path)
     json_path = step_path(csv_path, LINES)

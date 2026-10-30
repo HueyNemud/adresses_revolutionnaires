@@ -1,18 +1,12 @@
 """Étape 2 · annotation interactive des lignes par apprentissage actif (CRF)
 (`<document>.lines.json` → `<document>.labeled.json`).
 
-Lit le JSON produit par `numrev extract`, propose des blocs de lignes à un
-humain, réentraîne un CRF après chaque lot, et exporte une copie du JSON où chaque ligne est enrichie de sa
-prédiction et de sa provenance.
-
+Propose des lignes à l'humain, réentraîne le CRF après chaque réponse et
+exporte une copie du JSON où chaque ligne porte sa classe et sa provenance.
 La session (`<document>.label-session.json`) est enregistrée après chaque
-action : c'est l'état de travail, qu'on reprend en relançant la commande. Le
-JSON annoté est exporté à la fin de chaque session (`q` ou document terminé) :
-seule exception à la simulation par défaut (numrev/command.py), puisque
-l'annotation est déjà une action explicite.
-
-Ce module ne contient que l'interface (dashboard, sessions, CLI) : le moteur
-(features, entraînement, sélection des lignes) est dans `numrev.crf`.
+action et se reprend en relançant la commande ; le JSON annoté est exporté à
+chaque arrêt (pas de `--apply` : annoter est déjà une action explicite).
+Ce module ne contient que l'interface ; le moteur est dans `numrev.crf`.
 """
 
 import argparse
@@ -53,7 +47,7 @@ SESSION_VERSION = 2
 
 
 # ----------------------------------------------------------------------
-# 1. Dashboard Rich Debug
+# Tableau de bord
 # ----------------------------------------------------------------------
 def _progress_panel(crf: ActiveCRF, target_idx: int) -> Panel:
     annotated_cnt = crf.annotated_count
@@ -75,7 +69,7 @@ def _progress_panel(crf: ActiveCRF, target_idx: int) -> Panel:
 
 
 def _transitions_line(crf: ActiveCRF, top_n: int = 3) -> str | None:
-    """Résumé compact des transitions les plus fortes, sur une seule ligne."""
+    """Les transitions entre classes les plus fortes du CRF, sur une ligne ; None avant le premier entraînement."""
     if crf.tagger is None:
         return None
     sorted_transitions = sorted(crf.tagger.info().transitions.items(), key=lambda item: item[1], reverse=True)
@@ -87,7 +81,7 @@ def _transitions_line(crf: ActiveCRF, top_n: int = 3) -> str | None:
 
 
 def _legend_renderable() -> Columns:
-    """Légende compacte, répartie en plusieurs colonnes plutôt qu'une ligne par touche."""
+    """Légende des touches, sur plusieurs colonnes."""
     items = [f"[bold cyan]{key}[/bold cyan] {label}" for key, label in LABEL_KEYS.items()]
     items.append("[bold cyan]u[/bold cyan] [dim]annuler[/dim]")
     items.append("[bold cyan]p[/bold cyan] [dim]page → OUT OF SCOPE[/dim]")
@@ -96,8 +90,7 @@ def _legend_renderable() -> Columns:
 
 
 def _candidates_marginals_table(crf: ActiveCRF, block_indices: list[int]) -> Table:
-    """Une seule table de probabilités, une colonne par ligne candidate du bloc
-    (au lieu d'une table complète par ligne : moins de bordures, moins de hauteur)."""
+    """Probabilités de chaque classe, une colonne par ligne proposée."""
     table = Table(title="🎯 Probabilités", header_style="bold green")
     table.add_column("Classe")
     for index in block_indices:
@@ -118,8 +111,7 @@ def _candidates_marginals_table(crf: ActiveCRF, block_indices: list[int]) -> Tab
 
 
 def _context_panel(crf: ActiveCRF, target_idx: int, block_indices: list[int], margin: int = 8) -> Panel:
-    """Contexte du document sous forme d'un seul renderable (pour tenir dans
-    une colonne de la grille), au lieu d'une série de `console.print` séparés."""
+    """Lignes voisines des lignes proposées, avec les changements de page."""
     start = max(0, target_idx - margin)
     end = min(len(crf.lines), target_idx + margin)
     text = Text()
@@ -134,17 +126,12 @@ def _context_panel(crf: ActiveCRF, target_idx: int, block_indices: list[int], ma
         prefix = "▷ " if index in block_indices else "  "
         label = f"[{crf.records[index].data_block_label}]"
         style = "bold reverse green" if index in block_indices else "dim"
-        text.append(
-            f"{prefix}" f"{label:<15} {crf.lines[index]}\n",
-            style=style,
-        )
+        text.append(f"{prefix}{label:<15} {crf.lines[index]}\n", style=style)
     return Panel(text, title="📄 Contexte du document", border_style="blue")
 
 
 def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int]) -> None:
-    """Dashboard sur deux colonnes côte à côte (contexte / stats) plutôt qu'un
-    empilement vertical : la hauteur totale est celle de la colonne la plus
-    haute, pas la somme des deux."""
+    """Tableau de bord sur deux colonnes : contexte du document à gauche, progression et probabilités à droite."""
     console.clear()
 
     stats: list[Any] = [_progress_panel(crf, target_idx), _legend_renderable()]
@@ -164,7 +151,7 @@ def display_dashboard(crf: ActiveCRF, target_idx: int, block_indices: list[int])
 
 
 # ----------------------------------------------------------------------
-# 2. Point d'entrée CLI
+# Session et commande
 # ----------------------------------------------------------------------
 DESCRIPTION = """Étape 2 · annotation interactive des lignes d'une plage (<document>.lines.json → <document>.labeled.json).
 
@@ -186,6 +173,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def load_session_state(session_path: Path, document_hash: str) -> tuple[list[str | None], AnnotationHistory | None, LabelTimestamps] | None:
+    """(classes, historique, horodatages) d'une session enregistrée, None sans session ;
+    ValueError si elle porte sur un autre `.lines.json` ou si elle est mal formée."""
     if not session_path.exists():
         return None
     session = json.loads(session_path.read_text(encoding="utf-8"))
@@ -227,7 +216,7 @@ def save_session(session_path: Path, document_hash: str, crf: ActiveCRF) -> None
 
 
 class _Control(Enum):
-    """Signaux de contrôle renvoyés par les prompts d'annotation interactive."""
+    """Touches de contrôle (arrêter, annuler, page hors champ), par opposition aux classes."""
 
     STOP = auto()
     UNDO = auto()
@@ -235,12 +224,8 @@ class _Control(Enum):
 
 
 def _prompt_label(crf: ActiveCRF, index: int) -> str | _Control:
-    """Demande un label humain pour une ligne ; peut renvoyer un signal STOP/UNDO.
-
-    Une touche non reconnue reprompte simplement au lieu d'arrêter toute la
-    session : une faute de frappe ne doit jamais faire perdre le travail en
-    cours.
-    """
+    """Classe donnée par l'humain pour une ligne, ou une touche de contrôle.
+    Une touche inconnue repose la question : une faute de frappe ne perd rien."""
     while True:
         console.print(
             f"\n[bold]Label ligne {crf.source_row_numbers[index]} ?[/bold] ",
@@ -259,27 +244,12 @@ def _prompt_label(crf: ActiveCRF, index: int) -> str | _Control:
 
 
 def _collect_block_labels(crf: ActiveCRF, block_indices: list[int]) -> dict[int, str] | _Control:
-    """Recueille les labels humains d'un bloc, ou un signal STOP/UNDO/SKIP_PAGE.
+    """Classes données aux lignes d'un bloc, ou une touche de contrôle.
 
-    "u" a deux sens distincts selon le contexte, et ne perd jamais de saisie :
-    - s'il reste au moins une ligne déjà étiquetée DANS CE BLOC, "u" annule
-      uniquement la dernière saisie de ce bloc et la reprompte : rien n'est
-      perdu et l'historique déjà validé (des blocs précédents) n'est pas
-      touché ;
-    - si le bloc est encore vide (tout juste commencé), "u" est renvoyé tel
-      quel à l'appelant, qui annule alors la dernière ligne réellement
-      validée (voir `annotate_interactively` / `ActiveCRF.undo_last_label`).
-
-    "p" (SKIP_PAGE) est une action décisive et immédiate : elle est renvoyée
-    telle quelle, sans attendre la fin du bloc, y compris si une saisie était
-    déjà en attente pour ce bloc (perdue dans ce cas précis, car la page
-    entière — dont la ligne visée par cette saisie — va de toute façon être
-    classée OUT OF SCOPE par l'appelant).
-
-    Avant le correctif du undo, un "u" pressé sur la deuxième ligne d'un
-    bloc de deux faisait perdre silencieusement le label déjà saisi pour la
-    première ligne, ET annulait une ligne totalement différente (la dernière
-    du bloc précédent) au lieu de la ligne visée.
+    `u` annule la dernière saisie du bloc et la redemande ; sur un bloc encore
+    vide, il est rendu à l'appelant, qui annule la dernière ligne validée.
+    `p` est rendu aussitôt (la page entière passe hors champ, saisies du bloc
+    comprises).
     """
     pending_order: list[int] = []
     pending_labels: dict[int, str] = {}
@@ -297,7 +267,7 @@ def _collect_block_labels(crf: ActiveCRF, block_indices: list[int]) -> dict[int,
                 return _Control.UNDO
             undone_index = pending_order.pop()
             del pending_labels[undone_index]
-            console.print(f"[green]Saisie annulée pour la ligne " f"{crf.source_row_numbers[undone_index]} ; à ressaisir.[/green]")
+            console.print(f"[green]Saisie annulée pour la ligne {crf.source_row_numbers[undone_index]} ; à ressaisir.[/green]")
             position -= 1
             continue
 
@@ -329,7 +299,7 @@ def annotate_interactively(crf: ActiveCRF, session_path: Path, document_hash: st
             skipped = crf.mark_page_out_of_scope(page_pos)
             if skipped:
                 save_session(session_path, document_hash, crf)
-                console.print(f"[green]{len(skipped)} ligne(s) de la page {page_index} " "marquée(s) OUT OF SCOPE.[/green]")
+                console.print(f"[green]{len(skipped)} ligne(s) de la page {page_index} marquée(s) OUT OF SCOPE.[/green]")
             else:
                 console.print("[yellow]Aucune ligne non annotée restante sur cette page.[/yellow]")
             reoffer_index = None
@@ -340,7 +310,7 @@ def annotate_interactively(crf: ActiveCRF, session_path: Path, document_hash: st
                 console.print("[yellow]Aucune classification humaine à annuler.[/yellow]")
             else:
                 save_session(session_path, document_hash, crf)
-                console.print("[green]Dernière classification annulée ; " "la ligne va être reproposée.[/green]")
+                console.print("[green]Dernière classification annulée ; la ligne va être reproposée.[/green]")
             continue
 
         reoffer_index = None
@@ -368,7 +338,7 @@ def run(args: argparse.Namespace) -> None:
 
     session_path = range_document(range_dir, LABEL_SESSION)
     output_path = range_document(range_dir, LABELED)
-    writes = Writes(apply=True)  # export à la fin de la session, sans --apply (voir la docstring)
+    writes = Writes(apply=True)  # export à la fin de la session, sans --apply (voir la docstring du module)
     crf = ActiveCRF(records, raw_document, seed_size=args.seed_size)
     if not args.reset_session:
         try:

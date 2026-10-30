@@ -16,8 +16,8 @@ from numrev.alignment.sections import (
     load_section_alignment,
     read_section_patch,
     restrict_to_corresponding,
-    sections,
-    segments,
+    segment_entries,
+    split_sections,
     validate_section_patch,
     write_section_patch,
 )
@@ -56,7 +56,7 @@ RIGHT = ["architectes", "listes de non commercans", "marchands d arbres", "vins"
 
 class SectionsTests(unittest.TestCase):
     def test_contiguous_runs(self):
-        found = sections(records("g", LEFT))
+        found = split_sections(records("g", LEFT))
         self.assertEqual([section.key for section in found], ["architectes", "jardiniers fleuristes", "liste de non commercans", "vins"])
         self.assertEqual(len(found[0].records), 2)
         self.assertEqual(found[0].uuid, "g:architectes")
@@ -98,7 +98,7 @@ class AlignSectionsTests(unittest.TestCase):
     def test_declared_unmatched_is_left_out_of_automatic_alignment(self):
         patch = [SectionPatchEntry(left_uuid="g:jardiniers fleuristes")]
         alignment = align_sections(records("g", LEFT), records("d", RIGHT), patch)
-        self.assertNotIn("jardiniers fleuristes", [section.key for section in alignment.auto_left])
+        self.assertNotIn("jardiniers fleuristes", [section.key for group in alignment.groups for section in group.left])
         self.assertEqual(alignment.declared, {("left", "g:jardiniers fleuristes")})
         self.assertEqual([section.key for section in alignment.unmatched_left], ["jardiniers fleuristes"])
 
@@ -140,9 +140,9 @@ class OnlyPairedSectionsTests(unittest.TestCase):
         alignment = align_sections(records("g", LEFT), records("d", RIGHT))
         unmatched = {section.key for section in alignment.unmatched_left + alignment.unmatched_right}
         self.assertIn("jardiniers fleuristes", unmatched)
-        keys = {section.key for left, right in segments(alignment) for section in left + right}
+        keys = {record.section for left, right in segment_entries(alignment) for record in left + right}
         self.assertFalse(keys & unmatched)
-        self.assertEqual(len(segments(alignment)), len(alignment.groups))
+        self.assertEqual(len(segment_entries(alignment)), len(alignment.groups))
 
     def test_links_between_unpaired_sections_are_dropped(self):
         left, right = records("g", LEFT), records("d", RIGHT)
