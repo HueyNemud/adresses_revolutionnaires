@@ -1,22 +1,24 @@
 cle,apres,uid,classe,markdown
-28a5c3a92bc2,,192.3.1,OUT OF SCOPE,Commission des recherches physiques.
-3a2d8d32cf64,,192.4.1,OUT OF SCOPE,"Chompré, *président*."
-75892f17e2cf,,192.4.2,OUT OF SCOPE,"Riffaut, *secrétaire*."
-ca02995c284a,,192.4.3,OUT OF SCOPE,Charpentier-Saintot.
-33be02573c2a,,192.4.4,OUT OF SCOPE,Izarn.
-4760073142e2,,192.4.5,OUT OF SCOPE,Lancelin.
-122a2bea490c,,192.5.1,OUT OF SCOPE,Ledru.
-8fd484a4904e,,192.5.2,OUT OF SCOPE,Legallois.
-240a6283d9d1,,192.5.3,OUT OF SCOPE,Le comte de Sorgo.
-82b8030e2b35,,192.5.4,OUT OF SCOPE,VEAU de Launay.
-e6647def208e,,192.6.1,OUT OF SCOPE,Commission des applications médicales.
-fa1c836bc8ee,,192.7.1,OUT OF SCOPE,"Guillotin, *président*."
-574f24dcb61e,,192.7.2,OUT OF SCOPE,"Forestier aîné, *secrétaire*."
-07b2ba4d9c08,,192.7.3,OUT OF SCOPE,Duran.
-6bb176514323,,192.7.4,OUT OF SCOPE,Gay.
-4961bc1b7769,,192.8.1,OUT OF SCOPE,GraterEAU.
-8fdb203467f1,,192.8.2,OUT OF SCOPE,Lafosse.
-4b3be94c9e5f,,192.8.3,OUT OF SCOPE,Tourlet.
+e39e0c0df010,,192.1.1,SUPPRIMÉE,Préfecture du département de la Seine.
+5f6955d227a3,,192.2.1,SUPPRIMÉE,321
+28a5c3a92bc2,,192.3.1,SUPPRIMÉE,Commission des recherches physiques.
+3a2d8d32cf64,,192.4.1,SUPPRIMÉE,"Chompré, *président*."
+75892f17e2cf,,192.4.2,SUPPRIMÉE,"Riffaut, *secrétaire*."
+ca02995c284a,,192.4.3,SUPPRIMÉE,Charpentier-Saintot.
+33be02573c2a,,192.4.4,SUPPRIMÉE,Izarn.
+4760073142e2,,192.4.5,SUPPRIMÉE,Lancelin.
+122a2bea490c,,192.5.1,SUPPRIMÉE,Ledru.
+8fd484a4904e,,192.5.2,SUPPRIMÉE,Legallois.
+240a6283d9d1,,192.5.3,SUPPRIMÉE,Le comte de Sorgo.
+82b8030e2b35,,192.5.4,SUPPRIMÉE,VEAU de Launay.
+e6647def208e,,192.6.1,SUPPRIMÉE,Commission des applications médicales.
+fa1c836bc8ee,,192.7.1,SUPPRIMÉE,"Guillotin, *président*."
+574f24dcb61e,,192.7.2,SUPPRIMÉE,"Forestier aîné, *secrétaire*."
+07b2ba4d9c08,,192.7.3,SUPPRIMÉE,Duran.
+6bb176514323,,192.7.4,SUPPRIMÉE,Gay.
+4961bc1b7769,,192.8.1,SUPPRIMÉE,GraterEAU.
+8fdb203467f1,,192.8.2,SUPPRIMÉE,Lafosse.
+4b3be94c9e5f,,192.8.3,SUPPRIMÉE,Tourlet.
 a89db172765b,,192.9.1,B-TITLE,"# PRÉFECTURE DU DÉPARTEMENT DE LA SEINE,"
 27d682b0279a,,192.10.1,I-TITLE,*Place de l'Hôtel-de-Ville.\**
 8c11a4962a70,,192.11.1,B-ENTRY,"M. FROCHOT, Conseiller d'état, *préfet*, hôtel de la Préfecture."

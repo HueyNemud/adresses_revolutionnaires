@@ -1,19 +1,21 @@
 cle,apres,uid,classe,markdown
-ef89dcddb0f5,,212.3.1,OUT OF SCOPE,"Favre (M.e), rue des Bons-Enfans, 2."
-81caea0532ca,,212.3.2,OUT OF SCOPE,"Fraisse, rue de la Féronnerie, 9."
-422aedd1f7e4,,212.3.3,OUT OF SCOPE,"Genant (M.e), femme Danis, rue de la Monnaie, 32."
-31f2c5bc1a62,,212.3.4,OUT OF SCOPE,"Grandjean (M.e), pass. des Petits-Pères, 1."
-a43cdab796ca,,212.3.5,OUT OF SCOPE,"Laborey (Mlle.), rue Neuve-d'Orléans, 22."
-8e1dd03802a0,,212.3.6,OUT OF SCOPE,"Lefevre (M.e), rue de la Barillerie, 27."
-9b5a21bc1700,,212.3.7,OUT OF SCOPE,"Ledru, place Baudoyer, 2."
-1e7750f9acdc,,212.3.8,OUT OF SCOPE,"Mathis, passage du Vigan."
-1b320a8bd624,,212.4.1,OUT OF SCOPE,"Michel (M.e), rue du Four-S.-Honoré, 19."
-6a3e1fa3aa38,,212.4.2,OUT OF SCOPE,"Peche, rue S.-Martin, 80."
-2f50e20673c9,,212.4.3,OUT OF SCOPE,"Pettier (M.e), palais du Tribunat, galerie de pierre, 41."
-08c6b6c22105,,212.4.4,OUT OF SCOPE,"Pousset (M.e) l'aînée, rue du Temple, 91."
-a8256790c351,,212.4.5,OUT OF SCOPE,"Preséux (M.e), rue de Grenelle-Saint-Honoré, 41."
-f9a7599ae568,,212.4.6,OUT OF SCOPE,"Richelot, rue du Bacq, 58."
-82f80199d85d,,212.4.7,OUT OF SCOPE,"Tesson (M.e), rue de Thionville, 63."
+cca20d782814,,212.1.1,SUPPRIMÉE,Notaires. - PARIS.
+8da4dabfaeb4,,212.2.1,SUPPRIMÉE,341
+ef89dcddb0f5,,212.3.1,SUPPRIMÉE,"Favre (M.e), rue des Bons-Enfans, 2."
+81caea0532ca,,212.3.2,SUPPRIMÉE,"Fraisse, rue de la Féronnerie, 9."
+422aedd1f7e4,,212.3.3,SUPPRIMÉE,"Genant (M.e), femme Danis, rue de la Monnaie, 32."
+31f2c5bc1a62,,212.3.4,SUPPRIMÉE,"Grandjean (M.e), pass. des Petits-Pères, 1."
+a43cdab796ca,,212.3.5,SUPPRIMÉE,"Laborey (Mlle.), rue Neuve-d'Orléans, 22."
+8e1dd03802a0,,212.3.6,SUPPRIMÉE,"Lefevre (M.e), rue de la Barillerie, 27."
+9b5a21bc1700,,212.3.7,SUPPRIMÉE,"Ledru, place Baudoyer, 2."
+1e7750f9acdc,,212.3.8,SUPPRIMÉE,"Mathis, passage du Vigan."
+1b320a8bd624,,212.4.1,SUPPRIMÉE,"Michel (M.e), rue du Four-S.-Honoré, 19."
+6a3e1fa3aa38,,212.4.2,SUPPRIMÉE,"Peche, rue S.-Martin, 80."
+2f50e20673c9,,212.4.3,SUPPRIMÉE,"Pettier (M.e), palais du Tribunat, galerie de pierre, 41."
+08c6b6c22105,,212.4.4,SUPPRIMÉE,"Pousset (M.e) l'aînée, rue du Temple, 91."
+a8256790c351,,212.4.5,SUPPRIMÉE,"Preséux (M.e), rue de Grenelle-Saint-Honoré, 41."
+f9a7599ae568,,212.4.6,SUPPRIMÉE,"Richelot, rue du Bacq, 58."
+82f80199d85d,,212.4.7,SUPPRIMÉE,"Tesson (M.e), rue de Thionville, 63."
 2b4ab6aeaa94,,212.5.1,B-TITLE,# NOTAIRES.
 b09d02349535,,214.3.1,B-TITLE,## *Membres de la Chambre des Notaires de Paris.*
 73d05208830c,,214.6.1,B-TITLE,# COMMISSAIRES-PRISEURS.
