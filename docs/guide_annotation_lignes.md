@@ -17,9 +17,9 @@ ou inspirés des corrections faites sur 1807 et 1808.
 | `SUB-ENTRY` | `3` | Ligne **rattachée** à l'entrée précédente sans en être la suite directe : une seconde personne à la même adresse, un complément, une liste sous l'entrée. | Ajoutée à l'entrée ouverte, après un saut de ligne. |
 | `B-TITLE` | `4` | Première ligne d'un **titre** : grande partie, rubrique, sous-rubrique. Son niveau est donné par les `#` (voir plus bas). | Ouvre un titre dans l'arbre des titres. |
 | `I-TITLE` | `5` | Suite d'un titre écrit sur plusieurs lignes. | Collée au titre ouvert, avec une espace. |
-| `OUT OF SCOPE` | `0` | Ligne qui n'est ni une entrée ni un titre de la hiérarchie : titre courant répété en haut de page, numéro de page, mention de l'éditeur, en-tête de colonne. | Gardée telle quelle, jamais fusionnée ; elle n'interrompt pas une entrée ou un titre qui continue après elle. |
+| `OUT OF SCOPE` | `0` | Ligne qui n'est ni une entrée ni un titre de la hiérarchie : titre courant répété en haut de page, numéro de page, mention de l'éditeur, en-tête de colonne. | Gardée telle quelle, jamais fusionnée ; elle n'interrompt pas une entrée ou un titre qui continue après elle. Dans le livrable, elle est un élément hors champ rangé sous la rubrique en cours. |
 | `¯\_(ツ)_/¯` | `6` | Pendant l'annotation seulement : on ne sait pas trancher tout de suite. | **À remplacer** par une vraie classe pendant la curation : l'étape 4 la traite comme `OUT OF SCOPE` et la signale dans son rapport. |
-| `SUPPRIMÉE` | — | Pendant la curation seulement : la ligne ne devrait pas exister (page scannée deux fois, ligne en double). | Ignorée par l'étape 4 : elle disparaît des données. |
+| `SUPPRIMÉE` | — | Pendant la curation seulement : la ligne ne devrait pas exister (page scannée deux fois, ligne en double), ou elle appartient à l'autre plage d'une page partagée (voir plus bas). | Ignorée par l'étape 4 : elle disparaît des données. |
 
 Dans la table des lignes, la classe s'écrit **exactement** comme dans ce
 tableau (majuscules, tirets, accent de `SUPPRIMÉE`). Une classe vide ou mal
@@ -143,6 +143,31 @@ au-dessus, le titre de partie (`#`) dont dépend la rubrique.
 Le titre restitué ne vient pas de l'OCR : sa clé est `debut+1` (`debut+2`…
 pour les lignes suivantes), il n'a ni `confiance` ni annotation du modèle,
 et il reste reconnaissable dans les données (colonne `cle` du `….ner.csv`).
+
+## Une page partagée par deux plages
+
+Quand une plage finit au milieu d'une page et que la suivante commence sur
+la même page (en 1807, p. 192 et p. 212), cette page est lue par l'OCR dans
+les deux plages. Chaque ligne imprimée ne doit être gardée que dans une
+seule. Dans chaque copie de la page, on classe `SUPPRIMÉE` la partie qui
+appartient à l'autre plage :
+
+- la plage qui a le **haut** de la page garde le titre courant et le numéro
+  de page, avec ses propres lignes ;
+- la plage qui a le **bas** de la page garde les notes et le pied de page,
+  avec ses propres lignes.
+
+Exemple, p. 192 en 1807 (fin de la plage `184-192`, début de `192-210`) :
+
+| Ligne de la page | dans `184-192` | dans `192-210` |
+|---|---|---|
+| `Préfecture du département de la Seine.` (titre courant), `321` | `OUT OF SCOPE` | `SUPPRIMÉE` |
+| `## Commission des recherches physiques.` et ses entrées | classes habituelles | `SUPPRIMÉE` |
+| `# PRÉFECTURE DU DÉPARTEMENT DE LA SEINE,` et la suite | `SUPPRIMÉE` | classes habituelles |
+| note `* Les bureaux de la Préfecture…`, `21` (pied de page) | `SUPPRIMÉE` | `OUT OF SCOPE` |
+
+Ne pas les classer `OUT OF SCOPE` : ce sont des titres et des entrées, qui
+deviendraient des éléments hors champ en double dans le livrable.
 
 ## Groupes à accolade
 

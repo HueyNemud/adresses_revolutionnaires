@@ -6,8 +6,9 @@ Sources d'une plage :
   OCR et confiance des mots, retrouvés par la clé `cle` de chaque ligne ;
 - `<document>.lines.csv` (`numrev tabulate`, corrigé à la main) : l'ordre des
   lignes, leur texte retenu, leur classe, les lignes ajoutées à la main ;
-- `<document>.ner.csv` (`numrev tag`, corrigé à la main) : titres et entrées,
-  leur parent, leurs empans et leurs indicateurs de qualité.
+- `<document>.ner.csv` (`numrev tag`, corrigé à la main) : titres, entrées et
+  éléments hors champ, leur parent, les empans et les indicateurs de qualité
+  des entrées.
 
 Fonctions pures : aucune lecture ni écriture de fichier. Une incohérence
 entre ces sources (sortie d'une étape plus ancienne que son entrée, en
@@ -29,7 +30,7 @@ from numrev.pipeline.tabulate import CLASS_COLUMN, KEY_COLUMN, OCR_DOUBTFUL_THRE
 from numrev.titles import ROOT_UUID, title_level, title_text
 
 DOCUMENT_SCHEMA = "numrev-document/1"
-STRUCTURE_SCHEMA = "numrev-structure/1"
+STRUCTURE_SCHEMA = "numrev-structure/2"
 
 # Espaces de noms des identifiants d'empans et de membres : les changer
 # changerait tous les identifiants déjà publiés.
@@ -41,6 +42,7 @@ ORIGIN_ADDED = "added"
 KIND_SINGLE = "single"
 KIND_GROUP = "group"
 SUB_ENTRY = AnnotationLabel.SUBENTRY.value
+OUT_OF_SCOPE = AnnotationLabel.OOS.value  # valeur de la colonne `entity` du CSV NER pour une ligne hors champ
 EXCERPT_LENGTH = 60
 
 
@@ -56,6 +58,7 @@ class ExportReport:
     lines_without_box: list[str] = field(default_factory=list)  # lignes OCR sans boîte estimée
     titles: int = 0
     entries: int = 0
+    out_of_scope: int = 0
     groups: int = 0
     members: int = 0
     spans: Counter[str] = field(default_factory=Counter)
@@ -254,6 +257,19 @@ def title_object(range_name: str, row: dict[str, str], lines: dict[str, Line]) -
     }
 
 
+def out_of_scope_object(range_name: str, row: dict[str, str], lines: dict[str, Line]) -> dict[str, Any]:
+    """Élément hors champ (titre courant, numéro de page, texte libre) : une ligne, comme l'étape 4 le forme."""
+    text, pieces = _entity_lines(row, lines)
+    return {
+        "id": row["uuid"],
+        "parent": row["parent_uuid"],
+        "range": range_name,
+        "pages": _pages(pieces),
+        "text": text,
+        "lines": _line_refs(pieces),
+    }
+
+
 def span_objects(entry_id: str, text: str, spans: list[Span], pieces: list[Piece]) -> list[dict[str, Any]]:
     """Empans d'une entrée, chacun avec son identifiant stable : `uuid5` de
     l'entrée, de la classe, du texte normalisé et de son rang parmi les empans
@@ -375,6 +391,7 @@ class RangeLayers:
     pages: list[dict[str, Any]]
     titles: list[dict[str, Any]]
     entries: list[dict[str, Any]]
+    out_of_scope: list[dict[str, Any]]
 
 
 def build_range(
@@ -384,22 +401,25 @@ def build_range(
     ner_rows: list[dict[str, str]],
     report: ExportReport,
 ) -> RangeLayers:
-    """Les deux couches d'une plage. Les lignes hors champ ne vont que dans la couche documentaire."""
+    """Les deux couches d'une plage."""
     pages, lines = document_pages(range_name, json_pages, line_rows, report)
-    titles, entries = [], []
+    titles, entries, out_of_scope = [], [], []
     for row in ner_rows:
         if row.get("entity") == "TITLE":
             titles.append(title_object(range_name, row, lines))
         elif row.get("entity") == "ENTRY":
             entries.append(entry_object(range_name, row, lines, report))
+        elif row.get("entity") == OUT_OF_SCOPE:
+            out_of_scope.append(out_of_scope_object(range_name, row, lines))
     known = {title["id"] for title in titles} | {ROOT_UUID}
-    for item in titles + entries:
+    for item in titles + entries + out_of_scope:
         if item["parent"] not in known:
             raise ValueError(f"{item['id']} : titre parent {item['parent']} introuvable dans la plage")
     report.ranges.append(range_name)
     report.titles += len(titles)
     report.entries += len(entries)
-    return RangeLayers(pages, titles, entries)
+    report.out_of_scope += len(out_of_scope)
+    return RangeLayers(pages, titles, entries, out_of_scope)
 
 
 def volume_layers(header: dict[str, Any], ranges: list[RangeLayers]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -411,5 +431,6 @@ def volume_layers(header: dict[str, Any], ranges: list[RangeLayers]) -> tuple[di
         "root": ROOT_UUID,
         "titles": [title for layers in ranges for title in layers.titles],
         "entries": [entry for layers in ranges for entry in layers.entries],
+        "out_of_scope": [item for layers in ranges for item in layers.out_of_scope],
     }
     return document, structure

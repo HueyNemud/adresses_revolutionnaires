@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "numrev-structure/1",
+  "$id": "numrev-structure/2",
   "title": "Couche structurée d'un volume (numrev export)",
-  "description": "Titres et entrées d'un volume, leurs empans SUBJ / DESC / ADDR et les membres des groupes à accolade, chacun renvoyant aux lignes de la couche documentaire. Voir docs/format_export.md.",
+  "description": "Titres, entrées et éléments hors champ d'un volume, les empans SUBJ / DESC / ADDR des entrées et les membres des groupes à accolade, chacun renvoyant aux lignes de la couche documentaire. Voir docs/format_export.md.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "volume", "source", "ranges", "coordinates", "provenance", "root", "titles", "entries"],
+  "required": ["schema", "volume", "source", "ranges", "coordinates", "provenance", "root", "titles", "entries", "out_of_scope"],
   "properties": {
-    "schema": {"const": "numrev-structure/1"},
+    "schema": {"const": "numrev-structure/2"},
     "volume": {"type": "string"},
     "source": {"$ref": "#/$defs/source"},
     "ranges": {"type": "array", "items": {"$ref": "#/$defs/range"}},
@@ -15,7 +15,8 @@
     "provenance": {"$ref": "#/$defs/provenance"},
     "root": {"$ref": "#/$defs/uuid"},
     "titles": {"type": "array", "items": {"$ref": "#/$defs/title"}},
-    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}},
+    "out_of_scope": {"type": "array", "items": {"$ref": "#/$defs/out_of_scope"}}
   },
   "$defs": {
     "source": {
@@ -102,6 +103,19 @@
         "heading": {"type": "string"},
         "text": {"type": "string"},
         "lines": {"type": "array", "items": {"$ref": "#/$defs/line_ref"}}
+      }
+    },
+    "out_of_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parent", "range", "pages", "text", "lines"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "parent": {"$ref": "#/$defs/uuid"},
+        "range": {"type": "string"},
+        "pages": {"$ref": "#/$defs/pages"},
+        "text": {"type": "string"},
+        "lines": {"type": "array", "items": {"$ref": "#/$defs/line_ref"}, "minItems": 1}
       }
     },
     "span": {

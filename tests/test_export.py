@@ -162,6 +162,16 @@ class BuildRangeTests(ExportTestCase):
             for ref in item["lines"]:
                 self.assertEqual(lines[ref["line"]]["text"].strip(), item["text"][ref["start"] : ref["end"]])
 
+    def test_out_of_scope_lines_are_items_under_the_open_title(self):
+        layers, report = build(self.range_dir)
+        lines = {line["id"]: line for page in layers.pages for line in page["lines"]}
+
+        (item,) = layers.out_of_scope
+        self.assertEqual((item["parent"], item["text"], item["pages"]), (layers.titles[1]["id"], "Ligne parasite", [7]))
+        (ref,) = item["lines"]
+        self.assertEqual((lines[ref["line"]]["class"], ref["start"], ref["end"]), ("OUT OF SCOPE", 0, len("Ligne parasite")))
+        self.assertEqual(report.out_of_scope, 1)
+
     def test_a_span_over_two_lines_has_one_piece_per_line(self):
         layers, _ = build(self.range_dir)
         lines = {line["id"]: line for page in layers.pages for line in page["lines"]}
@@ -253,7 +263,7 @@ class ExportCommandTests(ExportTestCase):
 
         structure = json.loads(volume_file(self.volume_dir, STRUCTURE_JSON).read_text(encoding="utf-8"))
         document = json.loads(volume_file(self.volume_dir, DOCUMENT_JSON).read_text(encoding="utf-8"))
-        self.assertEqual((structure["schema"], document["schema"]), ("numrev-structure/1", "numrev-document/1"))
+        self.assertEqual((structure["schema"], document["schema"]), ("numrev-structure/2", "numrev-document/1"))
         self.assertEqual(structure["ranges"], [{"name": "7-8", "first_page": 7, "last_page": 8}])
         self.assertEqual(
             sorted(structure["provenance"]["inputs"]),

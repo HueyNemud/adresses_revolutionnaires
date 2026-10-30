@@ -30,7 +30,7 @@ Un volume (un annuaire, `annuaires/<volume>/`) donne deux fichiers :
 | Fichier | Contenu | Pour |
 |---|---|---|
 | `<volume>.document.json` | la **couche documentaire** : pages, blocs et lignes, chaque ligne avec sa boîte sur la page, son texte lu par l'OCR, son texte retenu après correction, sa classe et ses confiances | afficher le document, surligner une information sur la page |
-| `<volume>.structure.json` | la **couche structurée** : titres (rubriques) et entrées, avec leurs empans `SUBJ` (qui), `DESC` (quoi) et `ADDR` (où), et les membres des groupes à accolade | interroger l'annuaire comme une base de données, géocoder les adresses |
+| `<volume>.structure.json` | la **couche structurée** : titres (rubriques), entrées avec leurs empans `SUBJ` (qui), `DESC` (quoi) et `ADDR` (où) et les membres des groupes à accolade, éléments hors champ | interroger l'annuaire comme une base de données, géocoder les adresses, parcourir l'annuaire dans l'ordre de lecture |
 
 Les deux couches sont reliées par les **identifiants de lignes**. Une entrée
 liste ses lignes, et chacun de ses empans liste les morceaux de lignes qu'il
@@ -51,8 +51,10 @@ quand même, et l'en-tête liste les plages couvertes : les pages absentes ne
 sont simplement pas dans les fichiers.
 
 Les lignes hors champ (titres courants, numéros de page, texte libre :
-classe `OUT OF SCOPE`) ne figurent que dans la couche documentaire, avec
-leur classe.
+classe `OUT OF SCOPE`) sont dans les deux couches : comme lignes dans la
+couche documentaire, et comme éléments rangés sous leur rubrique dans la
+couche structurée. Seules les lignes supprimées à la curation (classe
+`SUPPRIMÉE`) ne sont que dans la couche documentaire.
 
 ## Produire le livrable
 
@@ -88,7 +90,7 @@ Les deux fichiers commencent par les mêmes champs :
 
 | Champ | Contenu |
 |---|---|
-| `schema` | `numrev-document/1` ou `numrev-structure/1` : nom et version du format |
+| `schema` | `numrev-document/1` ou `numrev-structure/2` : nom et version du format |
 | `volume` | nom du dossier du volume, ex. `1807_AD75-PER292` |
 | `source` | `pdf` : nom du PDF du volume ; `sha256` : son empreinte (`null` s'il est absent) |
 | `ranges` | plages exportées : `name` (`7-177`), `first_page`, `last_page` (pages du PDF, comptées à partir de 1) |
@@ -120,9 +122,12 @@ pour un gros volume). Pour les lire : `jq . fichier.json | less`, ou
 
 Une page partagée par deux plages (la fin d'une plage et le début de la
 suivante, ex. p. 192 en 1807) apparaît **deux fois**, une fois par plage :
-ce sont deux lectures OCR distinctes. La partie de la page qui appartient à
-l'autre plage y est classée `OUT OF SCOPE` (convention de curation), si bien
-qu'une ligne utile n'est classée dans le champ qu'une seule fois.
+ce sont deux lectures OCR distinctes. Dans chaque copie, la partie de la
+page qui appartient à l'autre plage est classée `SUPPRIMÉE` (convention de
+curation, voir `guide_annotation_lignes.md`) : le titre courant et le
+numéro de page restent dans la plage qui a le haut de la page, les notes et
+le pied de page dans celle qui en a le bas. Chaque ligne imprimée n'est
+ainsi gardée qu'une fois, et la couche structurée n'a pas de doublon.
 
 | Champ d'une ligne | Contenu |
 |---|---|
@@ -143,7 +148,8 @@ qu'une ligne utile n'est classée dans le champ qu'une seule fois.
 
 `root` : l'identifiant de la racine de l'arbre des titres
 (`00000000-0000-0000-0000-000000000000`), parent des titres de premier
-niveau et des entrées qui précèdent tout titre de leur plage.
+niveau, et des entrées et éléments hors champ qui précèdent tout titre de
+leur plage.
 
 `titles` : les titres (rubriques), dans l'ordre du document.
 
@@ -196,6 +202,32 @@ résultats sans modifier ces fichiers.
 | `ner_suspect` | motifs de relecture prioritaire de `numrev tag` (`score bas`, `SUBJ absent en tête`…) ; liste vide si rien à signaler |
 | `corrected_lines` | vrai si l'une de ses lignes a été corrigée ou validée à la main |
 | `corrected_ner` | vrai si ses empans ou sa rubrique ont été corrigés ou validés à la main |
+
+`out_of_scope` : les éléments hors champ, dans l'ordre du document. Ce sont
+les lignes de classe `OUT OF SCOPE` : titres courants, numéros de page,
+notes, texte libre (horaires, tarifs…), en-têtes de colonnes. Chaque ligne
+est un élément, jamais réunie à ses voisines : un paragraphe de texte libre
+donne autant d'éléments que de lignes. Une ligne restée incertaine
+(`¯\_(ツ)_/¯`) en est un aussi : l'étape 4 la traite comme hors champ.
+
+| Champ d'un élément hors champ | Contenu |
+|---|---|
+| `id` | uuid de l'élément (celui de `numrev assemble`) |
+| `parent` | uuid du titre ouvert à cet endroit, ou `root` s'il précède tout titre de sa plage ; un titre courant ou un numéro de page est ainsi rangé sous la rubrique en cours, sans en faire partie |
+| `range`, `pages` | plage et page (PDF) de sa ligne |
+| `text` | texte de la ligne, sans blancs de bord |
+| `lines` | sa ligne : `{line, start, end}` (une seule) |
+
+La couche structurée ne dit pas de quelle sorte d'élément il s'agit (titre
+courant, numéro, texte) : la chaîne ne le sait pas. Le bloc de l'OCR qui
+contient la ligne en donne une indication (`Page-Header`, `Page-Footer`,
+`Footnote`, `Text`…, voir [Exemples](#exemples-dutilisation)), mais c'est
+une estimation de l'OCR, non relue.
+
+Titres, entrées et éléments hors champ forment trois listes, chacune dans
+l'ordre du document. Pour les parcourir ensemble dans l'ordre de lecture,
+on suit les lignes de la couche documentaire (pages dans l'ordre, puis
+lignes de chaque page) et on prend chaque objet à sa première ligne.
 
 ## Groupes à accolade
 
@@ -278,7 +310,7 @@ avec ce que la règle a pu établir.
 |---|---|---|
 | ligne | `<plage>:<clé>` | plage et texte OCR de la ligne (rang d'occurrence pour un texte répété) |
 | page, bloc | `<plage>:<page>`, `<plage>:<page>.<bloc>` | plage et position dans la sortie OCR |
-| titre, entrée | uuid de `numrev assemble` | nom de la plage et clé de sa première ligne : ni le texte corrigé, ni les lignes de continuation |
+| titre, entrée, élément hors champ | uuid de `numrev assemble` | nom de la plage et clé de sa première ligne : ni le texte corrigé, ni les lignes de continuation |
 | empan | uuid | uuid de l'entrée, classe, texte normalisé, rang parmi les empans de même classe et de même texte dans l'entrée |
 | membre | uuid | uuid de l'entrée et identifiant de sa première ligne |
 
@@ -320,6 +352,17 @@ def people(entry):
     else:
         for member in entry["members"]:
             yield member["id"], [spans[i] for i in member["spans"] + member["inherited_spans"]]
+```
+
+Les éléments hors champ avec le libellé du bloc de l'OCR qui contient leur
+ligne :
+
+```python
+blocks = {block["id"]: block["label"] for page in document["pages"] for block in page["blocks"]}
+
+for item in structure["out_of_scope"]:
+    page, line = lines[item["lines"][0]["line"]]
+    print(item["id"], page["page"], blocks[line["block"]], item["text"])
 ```
 
 ## Limites connues

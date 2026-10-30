@@ -4,9 +4,10 @@
 Deux fichiers JSON (format : `docs/format_export.md`, construction :
 `numrev/export/layers.py`) : la couche documentaire (pages, blocs, lignes,
 boîtes, texte OCR et texte retenu) et la couche structurée (titres, entrées,
-empans, membres des groupes à accolade), reliées par les identifiants de
-lignes. Étape dérivée, sans correction propre : elle se recalcule à
-l'identique (date d'export mise à part) depuis les sorties des étapes 1 à 5.
+empans, membres des groupes à accolade, éléments hors champ), reliées par
+les identifiants de lignes. Étape dérivée, sans correction propre : elle se
+recalcule à l'identique (date d'export mise à part) depuis les sorties des
+étapes 1 à 5.
 Elle refuse une plage dont une étape manque ou est périmée ; un volume
 partiellement traité est exporté avec la liste de ses plages. Le rapport
 liste les groupes à accolade que la règle ne résout pas et les lignes OCR
@@ -51,7 +52,7 @@ DESCRIPTION = """Étape 6 · livrable final d'un volume (toutes ses plages → <
 
 Rassemble les plages du volume en deux fichiers JSON : la couche documentaire (pages, blocs, lignes avec leur
 boîte, leur texte OCR et leur texte corrigé) et la couche structurée (titres, entrées, sujets, descriptions,
-adresses, membres des groupes à accolade), où chaque information renvoie aux lignes dont elle vient.
+adresses, membres des groupes à accolade, lignes hors champ), où chaque information renvoie aux lignes dont elle vient.
 Rien ne se corrige à cette étape : on corrige les tables des lignes et les CSV NER, puis on relance.
 Refuse une plage dont une étape manque ou est périmée (voir numrev status). Format : docs/format_export.md."""
 
@@ -127,6 +128,7 @@ def format_report(volume_dir: Path, report: ExportReport) -> str:
         f"{report.deleted_lines} supprimée(s))",
         f"Titres                        : {report.titles}",
         f"Entrées                       : {report.entries}",
+        f"Hors champ                    : {report.out_of_scope}",
         f"Groupes à accolade            : {report.groups} ({report.members} membres)",
         f"Empans                        : {spans or 'aucun'}",
         "",
@@ -189,7 +191,8 @@ def run(args: argparse.Namespace) -> None:
 
     console.print(
         f"{volume_dir.name} : {len(ranges)} plage(s), {report.pages} pages, {report.lines} lignes → "
-        f"{report.titles} titres, {report.entries} entrées ({report.groups} groupe(s) à accolade, {report.members} membre(s))."
+        f"{report.titles} titres, {report.entries} entrées ({report.groups} groupe(s) à accolade, {report.members} membre(s)), "
+        f"{report.out_of_scope} élément(s) hors champ."
     )
     if report.brace_problems:
         console.print(f"[yellow]⚠ {len(report.brace_problems)} cas de groupe à accolade à vérifier (voir {report_path.name}).[/yellow]")

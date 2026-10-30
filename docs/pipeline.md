@@ -321,12 +321,15 @@ et `viewers/directory.html`) : [`format_export.md`](format_export.md).
 - **Couche documentaire** `<volume>.document.json` : pages → blocs → lignes,
   chaque ligne avec son id `<plage>:<cle>`, son origine (OCR ou ajoutée), son
   texte retenu, son texte OCR, sa boîte estimée, ses confiances, sa classe.
-  Les lignes hors champ et supprimées n'existent qu'ici.
-- **Couche structurée** `<volume>.structure.json` : titres et entrées (uuid
-  de l'étape 4), chacun avec ses lignes (positions dans son texte, rebâti
-  comme à l'étape 4 puis vérifié contre le `.ner.csv`), ses empans
-  (identifiant stable, morceaux dans chaque ligne) et, pour un groupe à
-  accolade, ses membres.
+  Les lignes supprimées n'existent qu'ici.
+- **Couche structurée** `<volume>.structure.json` : titres, entrées et
+  éléments hors champ (uuid de l'étape 4, un élément hors champ par ligne
+  `OUT OF SCOPE`), chacun avec ses lignes (positions dans son texte, rebâti
+  comme à l'étape 4 puis vérifié contre le `.ner.csv`) ; pour une entrée,
+  ses empans (identifiant stable, morceaux dans chaque ligne) et, pour un
+  groupe à accolade, ses membres. Sur une page partagée par deux plages, la
+  partie de l'autre plage est `SUPPRIMÉE` dans chaque copie (convention de
+  curation) : rien n'est exporté deux fois.
 - **Étape dérivée**, sans correction propre : elle relit `.lines.json`,
   `.lines.csv` et `.ner.csv` et se recalcule à l'identique (date mise à
   part). Elle refuse une plage dont une étape manque ou est périmée, accepte
