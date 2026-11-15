@@ -1,6 +1,6 @@
 # Guide d'annotation NER des entrées d'annuaire (SUBJ / DESC / ADDR)
 
-L'étape 5 découpe le texte de chaque entrée en **empans** : des morceaux de texte, chacun d'une classe `SUBJ`, `DESC` ou `ADDR`. Ce guide fixe les conventions de ce découpage. Elles valent partout où l'on annote : quand on corrige la colonne `tagged_text` d'un `….ner.csv` (voir le [guide de la curation](guide_curation.md#corriger-le-ner-et-les-rubriques-étape-5)), quand on relit l'échantillon d'évaluation dans Label Studio (`data/ner/gold.ls.json`), et dans les jeux d'entraînement : le modèle réapprend les écarts de convention de ce qu'on lui montre.
+L'étape 5 découpe le texte de chaque entrée en **empans** : des morceaux de texte, chacun d'une classe `SUBJ`, `DESC` ou `ADDR`. Ce guide fixe les conventions de ce découpage. Elles valent partout où l'on annote : quand on corrige la colonne `tagged_text` d'un `….ner.csv` (voir le [guide de la curation](guide_curation.md#corriger-le-ner-et-les-rubriques-étape-5)), quand on relit l'échantillon d'évaluation dans Label Studio (`data/ner/gold.ls.json`), et dans les jeux d'entraînement : le modèle apprend ce qu'on lui montre, écarts au guide compris.
 
 Dans `tagged_text`, un empan s'écrit entre deux balises : `<SUBJ>Dupont</SUBJ>, <DESC>boulanger</DESC>, <ADDR>rue de la Paix, 12.</ADDR>`. On ne change que les balises, jamais le texte entre elles.
 
@@ -19,9 +19,9 @@ Test de décision : *si on retire le segment, perd-on l'identité du sujet (SUBJ
 ## Règles générales
 
 1. **Ponctuation de liaison hors empans** : la virgule, le point, le point-virgule ou le tiret qui *séparent* deux empans ne sont annotés dans aucun des deux. La ponctuation *interne* à un empan (`R. S. Denis, 25.`) en fait partie, **y compris le point final** de l'adresse. L'évaluation ignore la ponctuation en bord d'empan.
-2. **Italique et gras ignorés** : `*…*` (italique) et `**…**` (gras) ne sont que de la typographie relevée par l'OCR. Le modèle reçoit le texte sans eux et l'évaluation les ignore ; aucune frontière d'empan ne tombe donc entre les deux marqueurs d'une même paire.
+2. **Italique et gras ignorés** : `*…*` (italique) et `**…**` (gras) ne sont que de la typographie relevée par l'OCR. Le modèle reçoit le texte sans eux et l'évaluation les ignore. On ne coupe donc jamais un empan au milieu d'un passage en italique ou en gras : les deux marqueurs d'une paire restent dans le même empan.
 3. **Pas de texte orphelin** : tout mot (hors ponctuation de liaison) appartient à un empan.
-4. **Un SUBJ par entrée, en tête**, sauf entrée qui en fusionne réellement deux (erreur de fusion de lignes : chaque sujet reçoit son SUBJ).
+4. **Un SUBJ par entrée, en tête.** Seule exception : deux entrées réunies par erreur en une seule ; chaque sujet reçoit alors son SUBJ (voir [Cas particuliers](#cas-particuliers)).
 
 ## SUBJ : qui ?
 

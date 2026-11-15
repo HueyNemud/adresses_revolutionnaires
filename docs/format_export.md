@@ -80,9 +80,9 @@ le livrable est absent, à jour ou périmé.
 
 Pour le consulter, `uv run numrev view directory annuaires/<volume>` ouvre
 dans le navigateur une page qui pose les deux fichiers sur le PDF du volume
-(`src/numrev/viewers/directory.html`, voir `pipeline.md`). Cette page lit
-le format décrit ici, et rien d'autre : elle montre ce qu'en tire un
-utilisateur des fichiers.
+(`src/numrev/viewers/directory.html`, voir `pipeline.md`). Cette page ne
+lit que les deux fichiers du livrable : tout ce qu'elle affiche, un
+utilisateur des fichiers peut l'obtenir aussi.
 
 ## En-tête commun
 
@@ -289,7 +289,9 @@ Une entrée est un groupe quand elle a au moins deux lignes `B-ENTRY` /
 `SUB-ENTRY` et au moins un signe d'accolade. Une entrée de plusieurs lignes
 `SUB-ENTRY` sans aucun signe reste une entrée simple.
 
-**Cas non résolus.** La règle ne devine rien. Le rapport
+**Cas non résolus.** La règle n'interprète que les signes écrits dans le
+texte des lignes ; quand ils ne suffisent pas, elle ne complète pas. Le
+rapport
 `<volume>.export.report.txt` liste, avec la page, la ligne et un extrait :
 
 | Message | Ce qu'on fait |
@@ -382,10 +384,11 @@ for item in structure["out_of_scope"]:
   le nom des modèles. Pour les ajouter, il faudra d'abord que `numrev ocr`
   et `numrev tag` enregistrent le modèle qu'ils utilisent (ce qui change le
   format de leurs sorties), puis reporter ces noms dans `provenance`.
-- **Accolades** : voir les cas non résolus ci-dessus. Les accolades
-  qu'écrit latynna-v4 dans le texte OCR ne sont interprétées qu'à travers
-  la curation des lignes (classe `SUB-ENTRY`, texte commun sur la première
-  ligne).
+- **Accolades** : voir les cas non résolus ci-dessus. L'export ne forme un
+  groupe que si la curation des lignes a suivi la convention (lignes du
+  groupe classées `B-ENTRY` puis `SUB-ENTRY`, signe sur chaque ligne, texte
+  commun sur la première) : les signes `{` et `}` écrits par l'OCR ne
+  suffisent pas à eux seuls.
 
 ## Faire évoluer le format
 
@@ -398,11 +401,11 @@ forme des fichiers passe par :
 2. le changement de version dans `schema` (`numrev-document/2`…) si la
    modification n'est pas un simple ajout de champ facultatif ;
 3. les tests (`tests/test_export.py`, `tests/test_export_braces.py`), qui
-   valident la sortie contre les schémas.
+   valident la sortie contre les schémas ;
 4. le viewer `src/numrev/viewers/directory.html`, qui lit ce format et
    refuse une autre version de `schema`.
 
-Hors du périmètre de ce format, et laissés à des étapes futures : un
+Ce format ne couvre pas, et laisse à des étapes futures : un
 outil web publié (le viewer local `numrev view directory` en est une
 première forme), l'analyse des adresses (voie, numéro, complément) et leur
 géocodage, des identifiants qui survivent à un nouvel OCR, une conversion

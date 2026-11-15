@@ -107,9 +107,7 @@ Modèles et évaluation (`gold`, `train-set`, `train`, `audit`) : voir
 - [`pipeline.md`](docs/pipeline.md) — documentation technique : fichiers,
   étapes, règles de conception, code ;
 - [`alignement_ordonne.md`](docs/alignement_ordonne.md) — méthode de
-  l'alignement ordonné et son évaluation ;
-- [`experience_gliner_relex.md`](docs/experience_gliner_relex.md) — essai
-  d'un modèle GLiNER-relex.
+  l'alignement ordonné et son évaluation.
 
 ## Organisation du dépôt
 

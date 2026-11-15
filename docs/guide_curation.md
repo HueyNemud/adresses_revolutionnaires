@@ -5,7 +5,7 @@ la chaîne de traitement. Aucune connaissance du code n'est nécessaire. Le
 détail technique est dans [`pipeline.md`](pipeline.md#corrections-humaines-rejouables--numrevcurationpy)
 et dans `numrev/curation.py`.
 
-## Le problème qu'on résout
+## Pourquoi des corrections « rejouables »
 
 La chaîne transforme un annuaire scanné en données, étape par étape. Les
 machines (OCR, CRF, modèle NER) se trompent parfois. On corrige donc leurs
@@ -18,7 +18,7 @@ qu'on n'a pas encore relu, **sans perdre une seule correction** déjà faite.
 
 Le principe tient en une phrase :
 
-> **Vous corrigez directement le fichier produit, vous marquez la ligne
+> **On corrige directement le fichier produit, on marque la ligne
 > `corrige = oui`, et la commande s'en souviendra à chaque relance.**
 
 ## Les trois colonnes à connaître
@@ -28,9 +28,9 @@ colonnes spéciales :
 
 | Colonne | À quoi elle sert | Faut-il y toucher ? |
 |---|---|---|
-| la **clé** (`cle` pour les lignes, `uuid` pour les entrées) | Le « numéro de sécurité sociale » de la ligne. Elle vient du texte lu par l'OCR, pas de la page ni de la position : elle ne change pas d'une relance à l'autre, tant que l'OCR n'est pas refait. | **Non**, jamais. |
-| `corrige` | Votre signature : `oui` veut dire « un humain a vérifié cette ligne, ne pas y toucher ». | **Oui** : c'est la seule chose à ne pas oublier. |
-| `empreinte` | Le « sceau » posé par la machine sur ses propres valeurs. Il sert à repérer une ligne modifiée qu'on aurait oublié de signer. | **Non**, jamais. |
+| la **clé** (`cle` pour les lignes, `uuid` pour les entrées) | L'identifiant de la ligne : c'est par elle que la commande retrouve la ligne à corriger. Elle vient du texte lu par l'OCR, pas de la page ni de la position : elle ne change pas d'une relance à l'autre, tant que l'OCR n'est pas refait. | **Non**, jamais. |
+| `corrige` | La signature du relecteur : `oui` veut dire « un humain a vérifié cette ligne, la machine ne doit plus la changer ». | **Oui** : c'est la seule chose à ne pas oublier. |
+| `empreinte` | Un code calculé par la machine à partir des valeurs qu'elle a écrites. Il sert à repérer une ligne modifiée qu'on aurait oublié de signer. | **Non**, jamais. |
 
 Mettre `corrige = oui` sert aussi quand on **valide une ligne sans la
 modifier** : confirmer que la machine a raison est une décision humaine
@@ -40,22 +40,23 @@ qu'on veut garder.
 
 ```mermaid
 flowchart LR
-    F["Votre fichier corrigé<br/>(lignes corrige = oui)"] -->|"1 · capture"| P["Patch versionné<br/>data/curation/…patch.csv"]
+    F["Le fichier corrigé<br/>(lignes corrige = oui)"] -->|"1 · capture"| P["Patch versionné<br/>data/curation/…patch.csv"]
     M["Nouvelle sortie<br/>de la machine"] --> A{"3 · application"}
     P --> A
-    A --> N["Nouveau fichier :<br/>machine + vos corrections"]
+    A --> N["Nouveau fichier :<br/>machine + les corrections"]
     G["2 · génération"] --> M
 ```
 
-1. **Capture.** La commande relit votre fichier et recopie toutes les lignes
+1. **Capture.** La commande relit le fichier corrigé et recopie toutes les lignes
    `corrige = oui` dans un petit fichier à part, le **patch**, rangé dans
    `data/curation/` et suivi par git.
 2. **Génération.** La machine refait son travail.
-3. **Application.** Vos corrections sont reposées par-dessus. **Le patch
+3. **Application.** Les corrections sont reposées par-dessus. **Le patch
    gagne toujours** sur la machine.
 
-La commande **réussit entièrement ou n'écrit rien**. Si elle a le moindre doute,
-elle s'arrête et vous explique pourquoi (voir
+La commande **réussit entièrement ou n'écrit rien**. Si une correction ne
+peut pas être réappliquée, ou si une ligne a changé sans être signée, elle
+s'arrête et explique pourquoi (voir
 [Quand la commande s'arrête](#quand-la-commande-sarrête)).
 
 ## Corriger les lignes (étape 3)
@@ -74,9 +75,9 @@ l'annotateur a laissées incertaines (`¯\_(ツ)_/¯`) sont à trancher ici.
 La classe s'écrit exactement comme ci-dessus (majuscules, tirets, accent) :
 une classe vide ou mal écrite sur une ligne corrigée arrête la commande.
 
-**Par où commencer :** filtrez la colonne `douteuse` sur `oui`. Elle signale les
+**Par où commencer :** filtrer la colonne `douteuse` sur `oui`. Elle signale les
 lignes dont au moins un mot a été lu avec une confiance OCR faible (le plus
-faible score de la ligne est dans `confiance` : triez dessus pour voir les
+faible score de la ligne est dans `confiance` : trier dessus pour voir les
 pires d'abord). Ces deux colonnes ne se corrigent pas : elles décrivent la
 lecture de la machine, et gardent leur valeur après une correction du texte.
 
@@ -184,7 +185,7 @@ deux colonnes :
 
 | uuid | markdown | tagged_text | corrige |
 |---|---|---|---|
-| `7c1…` | `Badet, *et cartier*, rue Helvétius, 37.` | ~~`<SUBJ>Badet, *et cartier*</SUBJ>, <ADDR>rue Helvétius, 37</ADDR>.`~~ → **`<SUBJ>Badet</SUBJ>, <DESC>*et cartier*</DESC>, <ADDR>rue Helvétius, 37</ADDR>.`** | **`oui`** |
+| `7c1…` | `Badet, *et cartier*, rue Helvétius, 37.` | ~~`<SUBJ>Badet, *et cartier*</SUBJ>, <ADDR>rue Helvétius, 37.</ADDR>`~~ → **`<SUBJ>Badet</SUBJ>, <DESC>*et cartier*</DESC>, <ADDR>rue Helvétius, 37.</ADDR>`** | **`oui`** |
 
 Seules les balises changent : le texte entre les balises doit rester
 exactement celui de la colonne `markdown`. Une faute dans le texte se corrige
@@ -220,22 +221,22 @@ la commande s'arrête si une ligne du patch ne correspond plus à rien.
 ## Quand la commande s'arrête
 
 La commande affiche `✋ Arrêt, rien n'a été écrit`, la liste des lignes en
-cause et une piste. **Rien n'est perdu** : ni votre fichier ni le patch
+cause et ce qu'on peut faire. **Rien n'est perdu** : ni le fichier corrigé ni le patch
 n'ont été modifiés.
 
 | Message | Ce qui s'est passé | Que faire |
 |---|---|---|
-| `modifiée sans « corrige = oui »` | Vous avez changé une ligne sans la signer, ou le tableur l'a modifiée tout seul (une date, un nombre reformaté). | Si c'est votre correction : mettez `corrige = oui` et relancez. Si c'est une erreur : relancez avec `--force`. |
-| `absente du fichier édité` | Une ligne de la nouvelle sortie n'est pas dans votre fichier : vous l'avez effacée, ou elle est nouvelle (OCR refait, voir [Après un nouvel OCR](#après-un-nouvel-ocr)). | Remettez-la et donnez-lui la classe `SUPPRIMÉE`, ou relancez avec `--force` pour qu'elle revienne. |
-| `ligne déplacée` | Une ligne de la machine a changé de place (coupé-collé, ou **tri** du tableau). | Annulez le tri ou le coupé-collé ; pour un vrai déplacement, voir [Déplacer une ligne](#déplacer-une-ligne-ordre-de-lecture). |
-| `classe inconnue` ou `classe vide` | (lignes) Une ligne corrigée porte une classe mal écrite (`b-entry`, `B-ENTRY.`) ou pas de classe. | Écrivez la classe exactement comme dans la liste affichée, puis relancez. |
-| `introuvable dans la nouvelle sortie` | La ligne corrigée n'existe plus : l'OCR a changé son texte, ou l'entrée a été redécoupée en amont. | Refaites la correction sur la nouvelle ligne, puis relancez avec `--force` pour abandonner l'ancienne. |
-| `ligne ajoutée après …, introuvable` | (lignes) La ligne qui précédait une ligne que vous avez ajoutée n'existe plus (OCR refait). | Relancez avec `--force` (la ligne ajoutée est abandonnée), puis ajoutez-la de nouveau à sa place. |
-| `balisage invalide` | (NER) Une balise de `tagged_text` est mal écrite ou mal fermée (`<SUBJ>Dupont</SUB>`). | Corrigez les balises, puis relancez. |
-| `texte de l'entité modifié en amont` | (NER) Le texte de l'entrée a changé depuis votre correction, qui ne colle plus. | Relancez avec `--force`, puis recorrigez l'entrée. |
-| `titre parent … introuvable` | (NER) La rubrique choisie a disparu. | Choisissez une autre rubrique, ou `--force`. |
-| `colonne(s) absente(s)` | Le fichier a été enregistré dans un autre format (souvent le séparateur `;` au lieu de `,`). | Réenregistrez en CSV avec des virgules, en UTF-8. |
-| `ligne orpheline du patch` | (alignement) Une entrée du patch n'existe plus dans les volumes. | Corrigez la ligne du patch à la main, ou `--force` pour l'ignorer. |
+| `modifiée sans « corrige = oui »` | Une ligne a été changée sans être signée, ou le tableur l'a modifiée tout seul (une date, un nombre reformaté). | Si c'est une correction voulue : mettre `corrige = oui` et relancer. Si c'est une erreur : relancer avec `--force`. |
+| `absente du fichier édité` | Une ligne de la nouvelle sortie n'est pas dans le fichier corrigé : elle a été effacée, ou elle est nouvelle (OCR refait, voir [Après un nouvel OCR](#après-un-nouvel-ocr)). | La remettre et lui donner la classe `SUPPRIMÉE`, ou relancer avec `--force` pour qu'elle revienne. |
+| `ligne déplacée` | Une ligne de la machine a changé de place (coupé-collé, ou **tri** du tableau). | Annuler le tri ou le coupé-collé ; pour un vrai déplacement, voir [Déplacer une ligne](#déplacer-une-ligne-ordre-de-lecture). |
+| `classe inconnue` ou `classe vide` | (lignes) Une ligne corrigée porte une classe mal écrite (`b-entry`, `B-ENTRY.`) ou pas de classe. | Écrire la classe exactement comme dans la liste affichée, puis relancer. |
+| `introuvable dans la nouvelle sortie` | La ligne corrigée n'existe plus : l'OCR a changé son texte, ou l'entrée a été redécoupée en amont. | Refaire la correction sur la nouvelle ligne, puis relancer avec `--force` pour abandonner l'ancienne. |
+| `ligne ajoutée après …, introuvable` | (lignes) La ligne qui précédait une ligne ajoutée à la main n'existe plus (OCR refait). | Relancer avec `--force` (la ligne ajoutée est abandonnée), puis l'ajouter de nouveau à sa place. |
+| `balisage invalide` | (NER) Une balise de `tagged_text` est mal écrite ou mal fermée (`<SUBJ>Dupont</SUB>`). | Corriger les balises, puis relancer. |
+| `texte de l'entité modifié en amont` | (NER) Le texte de l'entrée a changé depuis la correction, qui ne s'y applique plus. | Relancer avec `--force`, puis corriger de nouveau l'entrée. |
+| `titre parent … introuvable` | (NER) La rubrique choisie a disparu. | Choisir une autre rubrique, ou `--force`. |
+| `colonne(s) absente(s)` | Le fichier a été enregistré dans un autre format (souvent le séparateur `;` au lieu de `,`). | Réenregistrer en CSV avec des virgules, en UTF-8. |
+| `ligne orpheline du patch` | (alignement) Une entrée du patch n'existe plus dans les volumes. | Corriger la ligne du patch à la main, ou `--force` pour l'ignorer. |
 
 ## Après un nouvel OCR
 
@@ -244,37 +245,37 @@ plage (nouveau modèle, PDF remplacé) change le texte de nombreuses lignes,
 donc leurs clés : les corrections de ces lignes ne s'appliquent plus, et les
 entrées concernées changent d'`uuid`.
 
-1. Relancez `numrev tabulate` **sans** `--apply` : la commande s'arrête et
+1. Relancer `numrev tabulate` **sans** `--apply` : la commande s'arrête et
    liste les corrections `introuvable dans la nouvelle sortie` et les lignes
    nouvelles (`absente du fichier édité`).
-2. Relancez avec `--force --apply` : les corrections dont la ligne a gardé
+2. Relancer avec `--force --apply` : les corrections dont la ligne a gardé
    son texte sont réappliquées, les autres sont abandonnées et listées
    (l'ancien patch reste dans l'historique git, pour s'en inspirer).
-3. Refaites les corrections perdues, puis faites de même aux étapes
+3. Refaire les corrections perdues, puis faire de même aux étapes
    suivantes (`numrev tag`, puis les patchs d'alignement, dont les lignes
    sont rattachées de nouveau à leur entrée, retrouvée par son texte, quand
    c'est possible).
 
-## Les trois options à connaître
+## Forcer, annuler, repartir du patch
 
-- **`--force`** : « en cas de doute, prends la machine ». Les lignes
-  problématiques reprennent la nouvelle sortie machine, et les corrections
+- **`--force`** : passer outre un arrêt. Les lignes en cause reprennent la
+  nouvelle sortie de la machine, et les corrections
   qui ne s'appliquent plus sont retirées du patch. La commande liste tout ce
   qu'elle a abandonné.
-- **Annuler une correction** : videz `corrige` sur la ligne, puis relancez
+- **Annuler une correction** : vider `corrige` sur la ligne, puis relancer
   avec `--force` ; la machine reprend la main sur cette ligne.
-- **`--no-capture`** : « ignore mon fichier, repars du patch ». Utile
+- **`--no-capture`** : ne pas lire le fichier corrigé, repartir du patch. Utile
   après avoir récupéré les corrections de quelqu'un d'autre avec `git pull` :
-  sinon, votre ancien fichier écraserait le patch tout juste reçu.
+  sinon, l'ancien fichier local écraserait le patch tout juste reçu.
 
 ## Où sont gardées les corrections, et comment les sauvegarder
 
 Les fichiers de `annuaires/` ne sont **pas** suivis par git : ce sont des
-fichiers de travail. Vos décisions, elles, sont recopiées dans les patchs
+fichiers de travail. Les décisions humaines, elles, sont recopiées dans les patchs
 de `data/curation/` et `data/alignment/`, qui **sont** suivis par git.
 
-Pour sauvegarder votre travail : relancez la commande de l'étape (la capture
-met le patch à jour), puis commitez le patch, à part du code :
+Pour sauvegarder son travail : relancer la commande de l'étape (la capture
+met le patch à jour), puis commiter le patch, à part du code :
 
 ```bash
 git add data/curation/
@@ -288,27 +289,27 @@ Une correction retirée par erreur se retrouve avec `git diff` ou
 
 - **Filtrer, oui ; trier, non.** Un tri change l'ordre des lignes et fait
   s'arrêter la commande (`ligne déplacée`). Pour trier le temps d'une
-  relecture, ajoutez d'abord une colonne de numéros 1, 2, 3… et re-triez
-  dessus avant d'enregistrer (un tri sur `uid` ne suffit pas : `111.10.0`
+  relecture, ajouter d'abord une colonne de numéros 1, 2, 3… et trier de
+  nouveau dessus avant d'enregistrer (un tri sur `uid` ne suffit pas : `111.10.0`
   passerait avant `111.2.0`).
-- **Filtrer sur `corrige`** montre tout ce que vous avez déjà relu.
-- **Ne touchez jamais** à `cle`, `uuid` ni `empreinte`.
-- **Enregistrez en CSV UTF-8, séparateur virgule.** Excel en français
-  enregistre souvent avec des `;` : préférez LibreOffice Calc ou OpenRefine,
-  ou vérifiez le séparateur. Au pire, la commande s'arrête (`colonne(s)
+- **Filtrer sur `corrige`** montre tout ce qui a déjà été relu.
+- **Ne jamais toucher** à `cle`, `uuid` ni `empreinte`.
+- **Enregistrer en CSV UTF-8, séparateur virgule.** Excel en français
+  enregistre souvent avec des `;` : préférer LibreOffice Calc ou OpenRefine,
+  ou vérifier le séparateur. Au pire, la commande s'arrête (`colonne(s)
   absente(s)`) sans rien abîmer.
 - **Attention aux conversions automatiques** (« 1.10 » transformé en date,
-  zéros supprimés) : si le tableur modifie une ligne dans votre dos, la
+  zéros supprimés) : si le tableur modifie une ligne sans qu'on le voie, la
   commande s'en aperçoit grâce à l'empreinte et s'arrête.
-- Écrivez `oui` en toutes lettres dans `corrige` (`Oui` et `OUI`
+- Écrire `oui` en toutes lettres dans `corrige` (`Oui` et `OUI`
   conviennent aussi).
 
 ## En résumé
 
-1. Corrigez directement le fichier produit.
-2. Mettez `corrige = oui` sur chaque ligne corrigée ou validée.
-3. Ne supprimez pas : `SUPPRIMÉE`. Ne déplacez pas : `SUPPRIMÉE` + copie
+1. Corriger directement le fichier produit.
+2. Mettre `corrige = oui` sur chaque ligne corrigée ou validée.
+3. Ne pas supprimer : `SUPPRIMÉE`. Ne pas déplacer : `SUPPRIMÉE` + copie
    sans clé.
-4. Relancez la commande : vos corrections sont capturées, puis réappliquées.
-5. Si la commande s'arrête, lisez le message : rien n'est perdu.
-6. Commitez les patchs de `data/`.
+4. Relancer la commande : les corrections sont capturées, puis réappliquées.
+5. Si la commande s'arrête, lire le message : rien n'est perdu.
+6. Commiter les patchs de `data/`.

@@ -55,7 +55,7 @@ reports/crf/, reports/ner/, reports/alignment/   rapports d'audit
 models/ner.gliner-model/                      modèle NER de production (hors git)
 ```
 
-**Une commande, des dossiers.** Tout passe par `numrev` (`uv run numrev`
+**Commandes et arguments.** Tout passe par `numrev` (`uv run numrev`
 liste les commandes). Les étapes 1 à 5 prennent une plage ou un volume
 entier (toutes ses plages) ; `ocr` et `label`, une plage ; `export`, un
 volume ; `align`, deux volumes ; `join`, une sortie d'alignement. Chaque
@@ -82,8 +82,9 @@ commencent à 1.
 ## Corrections humaines rejouables : `numrev/curation.py`
 
 Mode d'emploi, avec exemples et messages d'arrêt :
-[`guide_curation.md`](guide_curation.md). Le but : relancer la chaîne depuis
-un même OCR (meilleur CRF, nouveau modèle NER…) sans perdre une correction.
+[`guide_curation.md`](guide_curation.md). Le but : pouvoir relancer la
+chaîne sur le même OCR (meilleur CRF, nouveau modèle NER…) sans perdre
+aucune correction faite à la main.
 
 | Étape | Clé stable | Champs éditables | Patch versionné |
 |---|---|---|---|
@@ -94,18 +95,19 @@ un même OCR (meilleur CRF, nouveau modèle NER…) sans perdre une correction.
 Aux étapes 3 et 5, le CSV de sortie est à la fois la sortie machine et le
 fichier corrigé (tableur, OpenRefine). `corrige = oui` marque une ligne
 corrigée ou validée ; `empreinte` est le hash des champs éditables tels que
-la machine les a écrits. Chaque exécution, entièrement ou pas du tout :
+la machine les a écrits. Chaque exécution fait trois choses, et n'écrit
+rien si l'une d'elles échoue :
 
 1. **capture** : les lignes `corrige = oui` du fichier existant réécrivent le
    patch (git en garde l'historique) ;
 2. **génération** de la sortie machine ;
 3. **application** du patch, qui gagne.
 
-La commande **panique** (`CurationConflict` : elle liste les lignes en cause
-et n'écrit rien) sur une ligne modifiée sans `corrige = oui` (empreinte qui
-ne correspond plus), une correction qui ne s'applique plus (clé disparue,
-texte d'entité changé en amont, titre parent disparu, classe vide ou
-inconnue), une ligne machine effacée ou déplacée. `--force` prend la sortie
+La commande **s'arrête sans rien écrire** et liste les lignes en cause
+(`CurationConflict`) dans trois cas : une ligne modifiée sans `corrige = oui`
+(son empreinte ne correspond plus), une correction qui ne s'applique plus
+(clé disparue, texte d'entité changé en amont, titre parent disparu, classe
+vide ou inconnue), une ligne machine effacée ou déplacée. `--force` prend la sortie
 machine pour ces lignes et retire du patch les corrections inapplicables
 (c'est aussi le moyen d'annuler une correction : vider `corrige`, relancer
 avec `--force`) ; `--no-capture` repart du patch sans lire le fichier
@@ -131,9 +133,10 @@ entité (étape 4) dérive du nom du document et de la clé de sa ligne racine :
 stable dans les mêmes limites, il change aussi si les plages sont
 redécoupées.
 
-Les patchs d'alignement suivent les mêmes règles (le patch gagne, une ligne
-orpheline fait paniquer, `--force` l'ignore) mais s'éditent à la main depuis
-le viewer, sans capture. Les commits de données sont séparés de ceux du code
+Les patchs d'alignement suivent les mêmes règles (le patch gagne ; une
+ligne orpheline, dont l'uuid n'existe plus, arrête la commande, sauf
+`--force` qui l'ignore). Ils ne sont pas capturés depuis un CSV : on les
+écrit à la main, à l'aide du viewer. Les commits de données sont séparés de ceux du code
 (préfixe `données:`) ; les commandes ne commitent jamais.
 
 ## Étape 0 — OCR : `numrev ocr`
@@ -202,20 +205,21 @@ puis les lignes dont il est le moins sûr, et prédit les autres. Classes
 
 ## Étape 3 — Table des lignes : `numrev tabulate`
 
-Une ligne CSV par ligne du `<document>.labeled.json` (à défaut du
-`.lines.json` brut : classes vides et pas de patch, pour inspecter
-l'extraction). Colonnes (`CSV_FIELDS`) : `cle`, `uid`, `page_index`,
+Une ligne CSV par ligne du `<document>.labeled.json`. Si ce fichier
+n'existe pas encore, la commande part du `.lines.json` : les classes sont
+vides et aucun patch n'est lu ni écrit (utile pour inspecter l'extraction). Colonnes (`CSV_FIELDS`) : `cle`, `uid`, `page_index`,
 `chunk_index`, `data_block_index`, `line_index`, `data_block_bbox`,
 `data_block_label`, `markdown`, `confiance`, `douteuse`, `classe`,
 `corrige`, `provenance`, `probability`, `timestamp`, `empreinte`.
 
-- `confiance` = plus faible score des mots de la ligne (`0,44`) ;
+- `confiance` = plus faible score des mots de la ligne, écrit avec une
+  virgule (`0,44`) ;
   `douteuse = oui` sous `OCR_DOUBTFUL_THRESHOLD` (0,9, repère de latynna-v1,
   à recalibrer). Non éditables.
 - Curation (étape `lines`) : classe et texte (dont les `#`), lignes
   supprimées, ajoutées, déplacées. Une correction dont la classe n'est ni une
-  classe connue ni `SUPPRIMÉE` fait paniquer : l'étape 4 en ferait une ligne
-  hors champ sans le dire.
+  classe connue ni `SUPPRIMÉE` arrête la commande : sinon l'étape 4
+  traiterait la ligne comme hors champ, sans avertissement.
 
 ## Étape 4 — Entités et arbre des titres : `numrev assemble`
 
@@ -228,8 +232,9 @@ entrées directes et totales, cas à vérifier).
   **OUT OF SCOPE** (et toute classe inconnue, signalée) : une ligne, jamais
   fusionnée. Une entrée et un titre restent ouverts, chacun sur sa piste,
   jusqu'à la prochaine `B-ENTRY` / `B-TITLE` : une ligne hors champ ou un
-  titre courant ne coupe pas une entrée. Une suite sans entité ouverte en
-  ouvre une, signalée.
+  titre courant ne coupe pas une entrée. Une ligne de suite (`I-ENTRY`,
+  `SUB-ENTRY`, `I-TITLE`) qui n'a rien à continuer ouvre une nouvelle
+  entité, signalée dans le rapport.
 - Colonnes fusionnées : valeurs jointes par des virgules (`uid`, `cle`,
   `page_index`…), sauf `confiance` (la plus faible) et `douteuse` (`oui` si
   l'une l'est). Les lignes `SUPPRIMÉE` et les colonnes `corrige` /
@@ -290,10 +295,11 @@ uv run numrev train data/ner/train.ls.json -o models/<nom>.gliner-model --apply 
 `train` convertit les empans en caractères en empans de mots, calcule
 `max_width`, exclut le gold, valide sur un découpage par page et écrit
 `<modèle>/ner_config.json`. Base : `knowledgator/gliner-bi-base-v2.0` ; un
-GLiNER-relex fait jeu égal à trois fois la taille
-([`experience_gliner_relex.md`](experience_gliner_relex.md)). Le jeu
-d'entraînement vaut ce que valent les CSV : le modèle réapprend leurs écarts
-de convention.
+GLiNER-relex (`knowledgator/gliner-relex-large-v0.5`), trois fois plus
+gros, essayé en octobre 2026 dans les mêmes conditions, n'a pas fait moins
+d'erreurs sur `dev`. Le jeu
+d'entraînement reprend le balisage des CSV NER tel quel : là où il s'écarte
+du guide d'annotation, le modèle apprend ces écarts.
 
 ### Audit : `numrev audit ner`
 
@@ -306,8 +312,10 @@ correction à faire, ponctuation de bord ignorée), pondérée par le plan de
 sondage du gold, avec intervalle de confiance par bootstrap des pages et
 écarts appariés contre le premier système ; aussi F1 par classe, exactitude
 par mot, types d'erreurs, couverture et rappel de `ner_suspect`. Sortie :
-`reports/ner/`. Sur `dev`, une entrée « courante » pèse ~1,5 point :
-comparer aussi les nombres d'erreurs. Ne jamais régler sur `test`.
+`reports/ner/`. Sur `dev`, les entrées de la strate `courant` ont un poids
+de sondage élevé : une seule erreur sur l'une d'elles déplace l'exactitude
+d'environ 1,5 point. Comparer donc aussi les nombres d'erreurs bruts. Ne
+jamais régler un paramètre sur `test`.
 
 ## Étape 6 — Livrable du volume : `numrev export`
 
@@ -339,8 +347,9 @@ et `viewers/directory.html`) : [`format_export.md`](format_export.md).
   `<volume>.export.report.txt`, à corriger dans la table des lignes ou le CSV
   NER.
 - **Provenance** : commit de numrev (et modifications non commitées), date,
-  sha256 du PDF et des fichiers lus. Les modèles OCR et NER ne sont pas
-  encore enregistrés en amont, donc pas exportés.
+  sha256 du PDF et des fichiers lus. Le nom des modèles OCR et NER n'y
+  figure pas : les étapes 0 et 5 ne l'enregistrent pas encore dans leurs
+  sorties.
 
 `uv run numrev view directory annuaires/<volume>` ouvre le livrable posé sur
 son PDF (`src/numrev/viewers/directory.html`, page autonome servie en local,
@@ -404,8 +413,10 @@ les inversions locales ; entre deux ancres, **pair-HMM** gardant les paires
 de probabilité a posteriori > 0,5. Similarité `w · JaroWinkler(SUBJ) + (1 −
 w) · Indel(texte)` (`--subj-weight`, 0,5 ; texte seul sans SUBJ). Méthode,
 formalisation et résultats : [`alignement_ordonne.md`](alignement_ordonne.md)
-(pourquoi pas de passe résiduelle plus fine : sa § 6.1). Sources : `nw`,
-`nw-contexte` (score = probabilité a posteriori), `nw-residuel`. La console
+(sa § 6.1 explique pourquoi la passe résiduelle garde un seuil fixe). La
+colonne `source` vaut `nw` pour une ancre, `nw-contexte` pour une paire du
+pair-HMM (son score est la probabilité a posteriori), `nw-residuel` pour
+une paire de la passe résiduelle. La console
 affiche les transitions estimées et l'accord avec le `.dedupe.csv` s'il
 existe.
 
@@ -444,7 +455,7 @@ Le patch gagne (tout lien automatique qui touche un de ses uuid est
 est **réancré** sur l'entrée unique de même texte dans la même rubrique
 (réécrit par `align nw` et `align dedupe`, en mémoire seulement pour `join`
 et le viewer) ; sinon la ligne est **orpheline** : conservée, non appliquée,
-et les commandes paniquent sauf `--force`. Un uuid sur deux lignes, ou une
+et les commandes s'arrêtent, sauf `--force`. Un uuid sur deux lignes, ou une
 ligne sans uuid, est une erreur.
 
 ### Relecture : `numrev view alignment`
@@ -452,9 +463,10 @@ ligne sans uuid, est une erreur.
 Viewer Streamlit en lecture seule
 ([`guide_relecture_alignement.md`](guide_relecture_alignement.md)) : on
 choisit un `.nw.csv` ou un `.dedupe.csv`, les deux patchs sont appliqués en
-mémoire. Une table dans l'ordre naturel (paires et entrées de gauche seules
-dans l'ordre de gauche ; une entrée de droite seule après la paire qui
-contient l'entrée de droite appariée qui la précède), statut de chaque
+mémoire. Une table dans l'**ordre naturel** (les paires et les entrées de
+gauche seules suivent l'ordre de l'édition de gauche ; une entrée de droite
+seule vient juste après la paire dont l'entrée de droite la précède dans
+l'édition de droite), statut de chaque
 ligne, incertitude et motifs, boutons qui copient un uuid ou une ligne de
 patch, encart des rubriques, export CSV des lignes affichées au format de
 `join`. Pour le tester : `streamlit.testing.v1.AppTest`, ou un script qui
@@ -462,8 +474,9 @@ redéfinit `numrev.paths.ALIGNMENTS_DIR`, `ALIGNMENT_DATA_DIR` et
 `ANNUAIRES_DIR` (jamais les dossiers réels).
 
 **Motifs de relecture** (`numrev/alignment/review.py`, partagé par le
-viewer, `join` et l'audit) : l'alignement ne change pas, on signale après
-coup ce qu'un humain peut corriger.
+viewer, `join` et l'audit) : ils sont calculés une fois l'alignement
+fait et ne le modifient pas ; ils désignent les lignes qu'un humain devrait
+vérifier.
 
 | Motif | Règle |
 |---|---|
@@ -482,9 +495,10 @@ ou une paire déduite des voisines de probabilité < 0,7. Sur 1807/1808 :
 uv run numrev join annuaires/alignments/<A>__<B>.nw.csv [--excel] [--candidates] --apply
 ```
 
-Pour les utilisateurs des données : les deux volumes relus, le patch des
-entrées appliqué en mémoire (`--no-patch`), une ligne par paire ou entrée
-seule dans l'ordre naturel, colonnes en français décrites dans
+Produit le fichier destiné aux utilisateurs des données. La commande
+recharge les deux volumes, applique le patch des entrées en mémoire (sauf
+`--no-patch`) et écrit une ligne par paire ou par entrée seule, dans
+l'ordre naturel ; les colonnes, en français, sont décrites dans
 [`donnees.md`](donnees.md). Sortie : `<entrée sans .csv>.join.csv` ;
 `--excel` : séparateur `;` et UTF-8 avec BOM.
 
@@ -495,11 +509,13 @@ uv run numrev gold alignment annuaires/<A> annuaires/<B> --apply   # une fois pa
 uv run numrev audit alignment data/alignment/<A>__<B>.gold-inversions.csv
 ```
 
-Le gold tire des paires « inversion » (entrées laissées seules par
-Needleman-Wunsch qui croisent au moins une paire ordonnée ; meilleure
-partenaire croisée de chaque entrée de gauche), stratifiées par déplacement
-× similarité, avec leur poids, à étiqueter dans `meme_entree` (`OUI` /
-`NON` / `INCERTAIN`) ; il n'est jamais écrasé sans `--force`. L'audit
+Le gold est un échantillon de paires candidates **hors de l'ordre** : deux
+entrées que Needleman-Wunsch a laissées seules et qui, appariées,
+croiseraient au moins une paire déjà retenue (pour chaque entrée de gauche,
+on garde sa partenaire la plus semblable). Les paires sont tirées par strate
+(déplacement × similarité), chacune avec son poids de sondage, et
+s'étiquettent dans la colonne `meme_entree` (`OUI` / `NON` / `INCERTAIN`).
+Un gold existant n'est jamais écrasé sans `--force`. L'audit
 (`reports/alignment/<A>__<B>.md`) mesure la précision de la passe
 résiduelle, le devenir des paires du gold selon la relecture, la charge de
 relecture et les rubriques sans correspondance. **Pour une nouvelle paire**
@@ -515,12 +531,13 @@ uv run numrev audit crf [a.lines.csv …] [-o reports/mon_audit]
 
 Mesure le CRF de l'étape 2 et l'apport de chaque groupe de features contre
 les tables de lignes corrigées (`numrev/crf/silver.py`). Les features sont
-calculées sur le `.lines.json` qu'a vu l'annotateur, les classes curées y
-étant rattachées par `cle` : le texte curé (marqueurs `#`) ferait fuiter
-les étiquettes. Ces classes ne diffèrent des prédictions d'origine que sur
-~0,2 % des lignes : les scores absolus sont optimistes. Validation croisée
+calculées sur le texte du `.lines.json`, celui qu'a vu l'annotateur, et non
+sur le texte corrigé : les `#` ajoutés à la main y révéleraient la classe
+des titres. Les classes corrigées sont rattachées à ces lignes par `cle`.
+Elles ne diffèrent des prédictions d'origine que sur ~0,2 % des lignes :
+les scores absolus sont donc optimistes. Validation croisée
 intra-document (blocs de pages contiguës) et inter-volumes, bootstrap par
-page, calibration, information mutuelle, ablations jugées contre des
+page, calibration, information mutuelle, ablations comparées à des
 features placebo, groupes candidats, courbe d'apprentissage, analyse
 d'erreurs (`reports/crf/rapport.md`). `--no-learning-curve`,
 `--no-candidates`, `--no-single-groups` accélèrent ; `--hyperparams` ajoute

@@ -31,7 +31,7 @@ numéro de page…).
 | `parent_uuid` | `uuid` du titre sous lequel il est rangé ; `00000000-0000-0000-0000-000000000000` pour la racine (titres de premier niveau, éléments placés avant tout titre). |
 | `entity` | `ENTRY`, `TITLE` ou `OUT OF SCOPE`. |
 | `markdown` | Texte de l'élément, tel que lu par l'OCR et corrigé à la main. L'italique est écrit `*…*`, le gras `**…**` ; un titre commence par `#` (partie), `##` (rubrique) ou `###` (sous-rubrique). Les lignes d'une entrée sont jointes par une espace, ou par un saut de ligne pour une ligne rattachée (seconde personne à la même adresse, complément). |
-| `tagged_text` | Pour une entrée, le même texte balisé : `<SUBJ>Dupont</SUBJ>, <DESC>boulanger</DESC>, <ADDR>rue de la Paix, 12</ADDR>.` `SUBJ` : qui (nom, prénoms, état civil, associés) ; `DESC` : quoi (profession, spécialité, fonction, renvoi) ; `ADDR` : où (adresse, section, repères). Conventions : [guide d'annotation NER](guide_annotation_ner.md). Les caractères `<` et `>` du texte sont écrits `&lt;` et `&gt;`. |
+| `tagged_text` | Pour une entrée, le même texte balisé : `<SUBJ>Dupont</SUBJ>, <DESC>boulanger</DESC>, <ADDR>rue de la Paix, 12.</ADDR>` `SUBJ` : qui (nom, prénoms, état civil, associés) ; `DESC` : quoi (profession, spécialité, fonction, renvoi) ; `ADDR` : où (adresse, section, repères). Conventions : [guide d'annotation NER](guide_annotation_ner.md). Les caractères `<` et `>` du texte sont écrits `&lt;` et `&gt;`. |
 | `subject_count`, `description_count`, `address_count` | Nombre d'empans de chaque sorte dans `tagged_text`. |
 | `corrige` | `oui` : le balisage ou le rattachement de l'entrée a été relu par un humain ; vide : sortie du modèle. |
 | `ner_confidence`, `ner_suspect` | Confiance du modèle (score de son empan le moins sûr) et motifs pour lesquels l'entrée mérite une relecture (`aucun empan`, `score bas`, `texte non couvert`, `SUBJ absent en tête`, `signature inhabituelle`). Ce sont les valeurs du modèle, gardées telles quelles sur une entrée relue. |
@@ -99,9 +99,9 @@ plage) et du texte lu par l'OCR sur sa première ligne. Il ne change pas
 quand on relance la chaîne (corrections, nouveaux modèles), ce qui permet
 de suivre une entrée d'une version des données à l'autre et de relier
 l'annuaire structuré au livrable JSON du volume (même `uuid` d'entrée) et à
-la jointure (`gauche_uuid`, `droite_uuid`). Il change
-si l'OCR du volume est refait et que le texte lu de cette ligne change, ou
-si les plages du volume sont redécoupées.
+la jointure (`gauche_uuid`, `droite_uuid`). Il change dans deux cas :
+l'OCR du volume est refait et lit autrement cette première ligne, ou les
+plages du volume sont redécoupées.
 
 ## Limites connues
 

@@ -86,8 +86,9 @@ hors de toute ligne, en indiquant la page et le bloc.
 uv run numrev label annuaires/<volume>/<plage>
 ```
 
-L'annotateur propose les lignes une par une (par deux, avec leur voisine) ;
-on répond par une touche, selon le
+L'annotateur montre les lignes à classer par deux (une ligne et sa
+voisine), dans leur contexte ; pour chacune, on répond par une touche puis
+Entrée, selon le
 [guide d'annotation des lignes](guide_annotation_lignes.md) :
 `1` B-ENTRY, `2` I-ENTRY, `3` SUB-ENTRY, `4` B-TITLE, `5` I-TITLE, `0`
 OUT OF SCOPE, `6` incertain, `u` annuler, `p` toute la page en

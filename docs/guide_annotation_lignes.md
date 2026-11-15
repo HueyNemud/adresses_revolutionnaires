@@ -24,7 +24,8 @@ ou inspirés des corrections faites sur 1807 et 1808.
 Dans la table des lignes, la classe s'écrit **exactement** comme dans ce
 tableau (majuscules, tirets, accent de `SUPPRIMÉE`). Une classe vide ou mal
 écrite (`b-entry`, `B-ENTRY.`) sur une ligne corrigée arrête
-`numrev tabulate` sans rien écrire, pour ne pas perdre l'entrée en silence.
+`numrev tabulate` sans rien écrire : sinon la ligne serait traitée comme
+hors champ, et son entrée perdue sans avertissement.
 
 ### Exemples
 
@@ -77,8 +78,8 @@ importante de l'étape 3.
 Pourquoi c'est important :
 
 - l'étape 4 range chaque entrée sous le dernier titre qui la précède, et
-  chaque titre sous le dernier titre de niveau plus élevé : de mauvais
-  niveaux donnent un mauvais arbre ;
+  chaque titre sous le dernier titre qui a moins de `#` que lui : de
+  mauvais niveaux donnent un mauvais arbre ;
 - l'alignement de deux éditions (étape 7) compare les entrées **rubrique par
   rubrique**, la rubrique d'une entrée étant son titre de niveau `##` (à
   défaut `#`). Une entrée dont la rubrique est mal rattachée n'est comparée

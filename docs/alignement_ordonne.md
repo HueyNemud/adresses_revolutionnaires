@@ -1,10 +1,10 @@
 # Aligner deux éditions d'un annuaire ancien en exploitant l'ordre des entrées
 
-*Document de travail — chaîne de traitement des annuaires parisiens du début du XIXᵉ siècle (`numrev align nw`). Version du 29 septembre 2026.*
+*Document de travail — chaîne de traitement des annuaires parisiens du début du XIXᵉ siècle (`numrev align nw`). Version d'octobre 2026.*
 
 ---
 
-**Résumé.** Nous voulons retrouver, d'une édition d'un annuaire à la suivante, les entrées qui décrivent la même personne ou le même commerce. La méthode en place (Dedupe) apprend une fonction de ressemblance à partir de paires étiquetées, mais ignore une information essentielle : **l'ordre des entrées**. D'une édition à l'autre, rubriques et entrées se suivent presque dans le même ordre. Nous proposons une méthode sans apprentissage supervisé, en quatre étapes :
+**Résumé.** Nous voulons retrouver, d'une édition d'un annuaire à la suivante, les entrées qui décrivent la même personne ou le même commerce. La méthode utilisée jusque-là (Dedupe) apprend une fonction de ressemblance à partir de paires étiquetées, mais ignore une information essentielle : **l'ordre des entrées**. D'une édition à l'autre, rubriques et entrées se suivent presque dans le même ordre. Nous proposons une méthode sans apprentissage supervisé, en quatre étapes :
 
 1. aligner les rubriques ;
 2. aligner les entrées de chaque rubrique par programmation dynamique (Needleman-Wunsch) ;
@@ -29,7 +29,7 @@ La difficulté tient à la variabilité des textes : erreurs d'OCR, graphies cha
 
 ### 1.2 Pourquoi l'ordre
 
-Un annuaire est trié : les rubriques par ordre alphabétique, puis les entrées au sein de chaque rubrique. Ce tri est un indice précieux. Si « Mounier » et « Péan de Saint-Gilles » se correspondent d'une édition à l'autre, ce qui se trouve **entre** eux doit aussi, probablement, se correspondre. C'est l'information que la méthode actuelle, Dedupe, laisse de côté : elle compare les entrées deux à deux, indépendamment de leur position.
+Un annuaire est trié : les rubriques par ordre alphabétique, puis les entrées au sein de chaque rubrique. Ce tri est un indice précieux. Si « Mounier » et « Péan de Saint-Gilles » se correspondent d'une édition à l'autre, ce qui se trouve **entre** eux doit aussi, probablement, se correspondre. C'est l'information que Dedupe laisse de côté : elle compare les entrées deux à deux, indépendamment de leur position.
 
 ### 1.3 Contributions
 
@@ -317,10 +317,12 @@ Lecture qualitative d'un échantillon :
 
 ### 6.1 Évaluation de la passe résiduelle sur un gold d'inversions
 
-Un collègue a objecté que l'affectation optimale « force » des appariements
-et que son seuil conservateur perd des entrées déplacées qui ont aussi changé
-d'adresse. Une note de travail proposait de pénaliser le déplacement, dans
-Needleman-Wunsch et dans le HMM. Pour trancher, nous avons étiqueté un **gold
+La passe résiduelle (§ 4.4) appelle deux objections. L'affectation
+optimale peut « forcer » des appariements entre entrées restées seules. Et
+son seuil élevé ($\theta_r = 0{,}85$) manque les entrées déplacées qui ont
+aussi changé d'adresse. Une alternative serait de pénaliser le déplacement,
+dans Needleman-Wunsch et dans le pair-HMM, plutôt que de traiter les
+inversions à part. Pour en juger, nous avons étiqueté un **gold
 d'inversions** (`numrev gold alignment`). Il regroupe 216 paires
 candidates hors de l'ordre, tirées par strate (déplacement × similarité),
 chacune avec son poids : 105 `OUI`, 90 `NON` et 21 `INCERTAIN`.
@@ -388,7 +390,7 @@ d'annuaires, le rappel dépend d'abord de la qualité du patch des rubriques.
 
 - **Hypothèses.**
   - La probabilité a posteriori est **conditionnelle aux ancres** : une ancre erronée fausse les fenêtres voisines.
-  - Les inversions sont traitées hors modèle, par la passe résiduelle. Le gold du § 6.1 montre qu'une règle plus fine ne paierait pas : les cas manqués relèvent de la relecture humaine.
+  - Les inversions sont traitées hors modèle, par la passe résiduelle. Le gold du § 6.1 montre qu'une règle plus fine n'apporterait rien : les cas manqués relèvent de la relecture humaine.
   - Les émissions reposent sur deux échantillons choisis par heuristique (SUBJ uniques, voisins d'ancres). Leurs biais sont connus mais pas quantifiés.
 - **Ce que l'ordre apporte et ce qu'il n'apporte pas.**
   - L'ordre tranche efficacement entre « déménagement » et « remplacement » lorsque le reste de la rubrique est stable.
